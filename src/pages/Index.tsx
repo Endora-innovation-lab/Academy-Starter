@@ -57,7 +57,7 @@ const Index = () => {
               </DialogContent>
             </Dialog>
             <Link to="/register">
-              <Button size="lg" variant="outline" className="font-semibold border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+              <Button size="lg" variant="outline" className="font-semibold border-primary-foreground/30 text-foreground hover:bg-primary-foreground/10">
                 Register Institute
               </Button>
             </Link>
