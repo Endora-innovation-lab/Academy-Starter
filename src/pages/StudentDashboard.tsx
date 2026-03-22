@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList, DollarSign } from 'lucide-react';
 
@@ -33,33 +32,56 @@ const StudentDashboard = () => {
   );
 };
 
+const getMonthOptions = () => {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+    options.push({ value: val, label });
+  }
+  return options;
+};
+
 const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
-  const [filterDate, setFilterDate] = useState('');
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [filterMonth, setFilterMonth] = useState(currentMonth);
+  const monthOptions = getMonthOptions();
 
   useEffect(() => {
     const fetch = async () => {
-      let query = supabase
+      const firstDay = `${filterMonth}-01`;
+      const [year, month] = filterMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+
+      const { data } = await supabase
         .from('attendance')
         .select('*')
         .eq('student_id', studentId)
+        .gte('date', firstDay)
+        .lte('date', lastDay)
         .order('date', { ascending: false });
-      
-      if (filterDate) query = query.eq('date', filterDate);
-      const { data } = await query;
       setAttendance(data || []);
     };
     fetch();
-  }, [studentId, filterDate]);
+  }, [studentId, filterMonth]);
 
   const presentCount = attendance.filter(a => a.status === 'present').length;
   const totalCount = attendance.length;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> My Attendance</h2>
-        <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" />
+        <Select value={filterMonth} onValueChange={setFilterMonth}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       {totalCount > 0 && (
         <div className="flex gap-4 text-sm">
@@ -83,14 +105,12 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     a.status === 'present' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>
-                    {a.status}
-                  </span>
+                  }`}>{a.status}</span>
                 </td>
               </tr>
             ))}
             {attendance.length === 0 && (
-              <tr><td colSpan={2} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
+              <tr><td colSpan={2} className="p-8 text-center text-muted-foreground">No attendance records for this month</td></tr>
             )}
           </tbody>
         </table>
@@ -101,28 +121,30 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
 
 const StudentFeesTab = ({ studentId }: { studentId: string }) => {
   const [fees, setFees] = useState<any[]>([]);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [filterMonth, setFilterMonth] = useState('all');
+  const monthOptions = getMonthOptions();
 
   useEffect(() => {
     const fetch = async () => {
       let query = supabase.from('fees').select('*').eq('student_id', studentId).order('month', { ascending: false });
-      if (filterStatus !== 'all') query = query.eq('status', filterStatus);
+      if (filterMonth !== 'all') query = query.eq('month', filterMonth);
       const { data } = await query;
       setFees(data || []);
     };
     fetch();
-  }, [studentId, filterStatus]);
+  }, [studentId, filterMonth]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> My Fees</h2>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+        <Select value={filterMonth} onValueChange={setFilterMonth}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
+            <SelectItem value="all">All Months</SelectItem>
+            {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -141,9 +163,7 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>
-                    {f.status}
-                  </span>
+                  }`}>{f.status}</span>
                 </td>
               </tr>
             ))}

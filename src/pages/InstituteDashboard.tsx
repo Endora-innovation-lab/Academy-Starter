@@ -7,15 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const InstituteDashboard = () => {
   const { user, instituteId, instituteCode } = useAuth();
-  const [activeTab, setActiveTab] = useState('students');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
+    { label: 'Overview', value: 'overview' },
     { label: 'Students', value: 'students' },
     { label: 'Teachers', value: 'teachers' },
     { label: 'Batches', value: 'batches' },
@@ -24,18 +25,101 @@ const InstituteDashboard = () => {
   ];
 
   return (
-    <DashboardLayout
-      title="Institute Dashboard"
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-    >
+    <DashboardLayout title="Institute Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
+      {activeTab === 'overview' && <OverviewTab instituteId={instituteId!} />}
       {activeTab === 'students' && <StudentsTab instituteId={instituteId!} />}
       {activeTab === 'teachers' && <TeachersTab instituteId={instituteId!} />}
       {activeTab === 'batches' && <BatchesTab instituteId={instituteId!} />}
       {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId!} />}
       {activeTab === 'fees' && <FeesTab instituteId={instituteId!} />}
     </DashboardLayout>
+  );
+};
+
+// ============= OVERVIEW TAB =============
+const OverviewTab = ({ instituteId }: { instituteId: string }) => {
+  const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const firstDay = `${currentMonth}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      const [attRes, feeRes, stuRes, teaRes] = await Promise.all([
+        supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay),
+        supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', currentMonth),
+        supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+        supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+      ]);
+
+      const attData = attRes.data || [];
+      const feeData = feeRes.data || [];
+
+      setStats({
+        present: attData.filter(a => a.status === 'present').length,
+        absent: attData.filter(a => a.status === 'absent').length,
+        paid: feeData.filter(f => f.status === 'paid').length,
+        unpaid: feeData.filter(f => f.status === 'unpaid').length,
+        students: stuRes.count || 0,
+        teachers: teaRes.count || 0,
+      });
+    };
+    fetchStats();
+  }, [instituteId]);
+
+  const now = new Date();
+  const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Monthly Review — {monthName}</h2>
+      
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm text-muted-foreground">Total Students</p>
+            <p className="text-3xl font-bold text-primary">{stats.students}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm text-muted-foreground">Total Teachers</p>
+            <p className="text-3xl font-bold text-primary">{stats.teachers}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Attendance Summary</CardTitle></CardHeader>
+          <CardContent className="flex gap-6">
+            <div>
+              <p className="text-2xl font-bold text-accent">{stats.present}</p>
+              <p className="text-sm text-muted-foreground">Present</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-destructive">{stats.absent}</p>
+              <p className="text-sm text-muted-foreground">Absent</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Fee Summary</CardTitle></CardHeader>
+          <CardContent className="flex gap-6">
+            <div>
+              <p className="text-2xl font-bold text-accent">{stats.paid}</p>
+              <p className="text-sm text-muted-foreground">Paid</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-destructive">{stats.unpaid}</p>
+              <p className="text-sm text-muted-foreground">Unpaid</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
@@ -50,8 +134,8 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterFee, setFilterFee] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Form
   const [name, setName] = useState('');
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
@@ -59,34 +143,27 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
 
   const fetchStudents = async () => {
     setLoading(true);
-    let query = supabase
+    const { data } = await supabase
       .from('students')
-      .select('*, profiles!students_user_id_fkey(name), batch_students(batch_id)')
+      .select('*, profiles!students_user_id_fkey(name)')
       .eq('institute_id', instituteId);
 
-    const { data } = await query;
-    
-    // Fetch batches
     const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
     setBatches(batchData || []);
 
-    // Fetch fees for filter
     const { data: feesData } = await supabase.from('fees').select('student_id, status').eq('institute_id', instituteId);
 
     let filtered = data || [];
 
-    // Apply batch filter
     if (filterBatch !== 'all') {
       const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
       const studentIds = batchStudents?.map(bs => bs.student_id) || [];
       filtered = filtered.filter(s => studentIds.includes(s.id));
     }
 
-    // Apply fee filter
     if (filterFee !== 'all') {
       const studentsWithStatus = feesData?.filter(f => f.status === filterFee).map(f => f.student_id) || [];
       if (filterFee === 'unpaid') {
-        // Include students with no fee records too
         const paidStudents = feesData?.filter(f => f.status === 'paid').map(f => f.student_id) || [];
         filtered = filtered.filter(s => !paidStudents.includes(s.id) || studentsWithStatus.includes(s.id));
       } else {
@@ -99,6 +176,15 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   useEffect(() => { fetchStudents(); }, [instituteId, filterBatch, filterFee]);
+
+  const displayStudents = searchTerm
+    ? students.filter(s => {
+        const sName = (s.profiles as any)?.name?.toLowerCase() || '';
+        const sReg = s.reg_no?.toLowerCase() || '';
+        const term = searchTerm.toLowerCase();
+        return sName.includes(term) || sReg.includes(term);
+      })
+    : students;
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,10 +207,9 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
   const handleDelete = async (studentId: string) => {
     if (!confirm('Delete this student?')) return;
     try {
-      const { data, error } = await supabase.functions.invoke('admin-operations', {
+      await supabase.functions.invoke('admin-operations', {
         body: { action: 'delete_student', student_id: studentId },
       });
-      if (error) throw error;
       toast.success('Student deleted');
       fetchStudents();
     } catch (err: any) {
@@ -135,10 +220,9 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { data, error } = await supabase.functions.invoke('admin-operations', {
+      await supabase.functions.invoke('admin-operations', {
         body: { action: 'update_student', student_id: editStudent.id, name, dob, parent_phone: parentPhone },
       });
-      if (error) throw error;
       toast.success('Student updated');
       setShowEdit(false);
       setEditStudent(null);
@@ -153,6 +237,10 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" /> Students</h2>
         <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-8 w-48" placeholder="Search name or reg no..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -209,7 +297,7 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {students.map(s => (
+            {displayStudents.map(s => (
               <tr key={s.id} className="border-t">
                 <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
                 <td className="p-3">{s.reg_no}</td>
@@ -229,7 +317,7 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
                 </td>
               </tr>
             ))}
-            {students.length === 0 && (
+            {displayStudents.length === 0 && (
               <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No students found</td></tr>
             )}
           </tbody>
@@ -258,6 +346,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
   const [showEdit, setShowEdit] = useState(false);
   const [editTeacher, setEditTeacher] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -272,6 +361,15 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   useEffect(() => { fetchTeachers(); }, [instituteId]);
+
+  const displayTeachers = searchTerm
+    ? teachers.filter(t => {
+        const tName = (t.profiles as any)?.name?.toLowerCase() || '';
+        const tEmail = (t.profiles as any)?.email?.toLowerCase() || '';
+        const term = searchTerm.toLowerCase();
+        return tName.includes(term) || tEmail.includes(term);
+      })
+    : teachers;
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,23 +418,29 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="h-5 w-5" /> Teachers</h2>
-        <Dialog open={showAdd} onOpenChange={setShowAdd}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Teacher</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Add Teacher</DialogTitle></DialogHeader>
-            <form onSubmit={handleAdd} className="space-y-3">
-              <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
-              <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-              <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
-              <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required placeholder="e.g. 1990" /></div>
-              <Button type="submit" className="w-full">Add Teacher</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-8 w-48" placeholder="Search name or email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Teacher</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Add Teacher</DialogTitle></DialogHeader>
+              <form onSubmit={handleAdd} className="space-y-3">
+                <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+                <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
+                <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required placeholder="e.g. 1990" /></div>
+                <Button type="submit" className="w-full">Add Teacher</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {createdCreds && (
@@ -362,7 +466,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {teachers.map(t => (
+            {displayTeachers.map(t => (
               <tr key={t.id} className="border-t">
                 <td className="p-3">{(t.profiles as any)?.name || 'N/A'}</td>
                 <td className="p-3">{(t.profiles as any)?.email || '-'}</td>
@@ -382,7 +486,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
                 </td>
               </tr>
             ))}
-            {teachers.length === 0 && (
+            {displayTeachers.length === 0 && (
               <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
             )}
           </tbody>
@@ -411,14 +515,16 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [students, setStudents] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showAssign, setShowAssign] = useState<string | null>(null);
+  const [showEdit, setShowEdit] = useState<any>(null);
   const [batchName, setBatchName] = useState('');
-  const [teacherId, setTeacherId] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState('');
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
+  const [enrollRegNo, setEnrollRegNo] = useState('');
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [batchTeachers, setBatchTeachers] = useState<any[]>([]);
 
   const fetchData = async () => {
     const [{ data: b }, { data: t }, { data: s }] = await Promise.all([
-      supabase.from('batches').select('*, teachers(id, profiles!teachers_user_id_fkey(name))').eq('institute_id', instituteId),
+      supabase.from('batches').select('*').eq('institute_id', instituteId),
       supabase.from('teachers').select('*, profiles!teachers_user_id_fkey(name)').eq('institute_id', instituteId),
       supabase.from('students').select('*, profiles!students_user_id_fkey(name)').eq('institute_id', instituteId),
     ]);
@@ -427,12 +533,13 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
     setStudents(s || []);
   };
 
-  const fetchBatchStudents = async (batchId: string) => {
-    const { data } = await supabase
-      .from('batch_students')
-      .select('*, students(id, reg_no, profiles!students_user_id_fkey(name))')
-      .eq('batch_id', batchId);
-    setBatchStudents(data || []);
+  const fetchBatchDetails = async (batchId: string) => {
+    const [{ data: bs }, { data: bt }] = await Promise.all([
+      supabase.from('batch_students').select('*, students(id, reg_no, profiles!students_user_id_fkey(name))').eq('batch_id', batchId),
+      supabase.from('batch_teachers').select('*, teachers(id, profiles!teachers_user_id_fkey(name))').eq('batch_id', batchId),
+    ]);
+    setBatchStudents(bs || []);
+    setBatchTeachers(bt || []);
   };
 
   useEffect(() => { fetchData(); }, [instituteId]);
@@ -440,31 +547,65 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await supabase.from('batches').insert({
+      const { data: newBatch, error } = await supabase.from('batches').insert({
         name: batchName,
         institute_id: instituteId,
-        teacher_id: teacherId || null,
-      });
+        teacher_id: selectedTeachers[0] || null,
+      }).select().single();
+      if (error) throw error;
+
+      // Add all selected teachers to batch_teachers
+      if (selectedTeachers.length > 0 && newBatch) {
+        await supabase.from('batch_teachers').insert(
+          selectedTeachers.map(tid => ({ batch_id: newBatch.id, teacher_id: tid }))
+        );
+      }
+
       toast.success('Batch created');
       setShowAdd(false);
       setBatchName('');
-      setTeacherId('');
+      setSelectedTeachers([]);
       fetchData();
     } catch (err: any) {
       toast.error(err.message);
     }
   };
 
-  const handleAssignStudent = async () => {
-    if (!selectedStudent || !showAssign) return;
+  const handleEditBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      await supabase.from('batch_students').insert({
-        batch_id: showAssign,
-        student_id: selectedStudent,
-      });
-      toast.success('Student assigned');
-      setSelectedStudent('');
-      fetchBatchStudents(showAssign);
+      await supabase.from('batches').update({ name: batchName }).eq('id', showEdit.id);
+      toast.success('Batch updated');
+      setShowEdit(null);
+      setBatchName('');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteBatch = async (batchId: string) => {
+    if (!confirm('Delete this batch? Students will be unassigned.')) return;
+    try {
+      await supabase.from('batch_students').delete().eq('batch_id', batchId);
+      await supabase.from('batch_teachers').delete().eq('batch_id', batchId);
+      await supabase.from('batches').delete().eq('id', batchId);
+      toast.success('Batch deleted');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleEnrollByRegNo = async () => {
+    if (!enrollRegNo.trim() || !showAssign) return;
+    const student = students.find(s => s.reg_no.toLowerCase() === enrollRegNo.trim().toLowerCase());
+    if (!student) { toast.error('Student not found with that Reg Number'); return; }
+    try {
+      await supabase.from('batch_students').insert({ batch_id: showAssign, student_id: student.id });
+      toast.success('Student enrolled');
+      setEnrollRegNo('');
+      fetchBatchDetails(showAssign);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -472,7 +613,23 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   const handleRemoveFromBatch = async (bsId: string) => {
     await supabase.from('batch_students').delete().eq('id', bsId);
-    if (showAssign) fetchBatchStudents(showAssign);
+    if (showAssign) fetchBatchDetails(showAssign);
+  };
+
+  const handleAddTeacherToBatch = async (teacherId: string) => {
+    if (!showAssign) return;
+    try {
+      await supabase.from('batch_teachers').insert({ batch_id: showAssign, teacher_id: teacherId });
+      toast.success('Teacher added to batch');
+      fetchBatchDetails(showAssign);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleRemoveTeacherFromBatch = async (btId: string) => {
+    await supabase.from('batch_teachers').delete().eq('id', btId);
+    if (showAssign) fetchBatchDetails(showAssign);
   };
 
   return (
@@ -488,15 +645,22 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
             <form onSubmit={handleCreateBatch} className="space-y-3">
               <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
               <div>
-                <Label>Assign Teacher</Label>
-                <Select value={teacherId} onValueChange={setTeacherId}>
-                  <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
-                  <SelectContent>
-                    {teachers.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{(t.profiles as any)?.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Assign Teachers (select multiple)</Label>
+                <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
+                  {teachers.map(t => (
+                    <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedTeachers.includes(t.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedTeachers(prev => [...prev, t.id]);
+                          else setSelectedTeachers(prev => prev.filter(id => id !== t.id));
+                        }}
+                      />
+                      {(t.profiles as any)?.name}
+                    </label>
+                  ))}
+                </div>
               </div>
               <Button type="submit" className="w-full">Create</Button>
             </form>
@@ -508,14 +672,21 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
         {batches.map(b => (
           <Card key={b.id}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">{b.name}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Teacher: {(b.teachers as any)?.profiles?.name || 'Unassigned'}
-              </p>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{b.name}</CardTitle>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(b); setBatchName(b.name); }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteBatch(b.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <Button size="sm" variant="outline" onClick={() => { setShowAssign(b.id); fetchBatchStudents(b.id); }}>
-                Manage Students
+              <Button size="sm" variant="outline" onClick={() => { setShowAssign(b.id); fetchBatchDetails(b.id); }}>
+                Manage
               </Button>
             </CardContent>
           </Card>
@@ -523,31 +694,65 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
         {batches.length === 0 && <p className="text-muted-foreground col-span-2 text-center py-8">No batches created</p>}
       </div>
 
+      {/* Edit Batch Dialog */}
+      <Dialog open={!!showEdit} onOpenChange={() => setShowEdit(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Batch</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditBatch} className="space-y-3">
+            <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
+            <Button type="submit" className="w-full">Update</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Batch Dialog */}
       <Dialog open={!!showAssign} onOpenChange={() => setShowAssign(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Manage Batch Students</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                <SelectTrigger className="flex-1"><SelectValue placeholder="Select student" /></SelectTrigger>
-                <SelectContent>
-                  {students.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{(s.profiles as any)?.name} ({s.reg_no})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleAssignStudent}>Add</Button>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Manage Batch</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {/* Teachers Section */}
+            <div>
+              <h4 className="font-semibold text-sm mb-2">Teachers</h4>
+              <div className="flex gap-2 mb-2">
+                <Select onValueChange={handleAddTeacherToBatch}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="Add teacher..." /></SelectTrigger>
+                  <SelectContent>
+                    {teachers.filter(t => !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
+                      <SelectItem key={t.id} value={t.id}>{(t.profiles as any)?.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                {batchTeachers.map(bt => (
+                  <div key={bt.id} className="flex items-center justify-between p-2 rounded bg-muted">
+                    <span className="text-sm">{(bt.teachers as any)?.profiles?.name}</span>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveTeacherFromBatch(bt.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1">
-              {batchStudents.map(bs => (
-                <div key={bs.id} className="flex items-center justify-between p-2 rounded bg-muted">
-                  <span className="text-sm">{(bs.students as any)?.profiles?.name} ({(bs.students as any)?.reg_no})</span>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveFromBatch(bs.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-              {batchStudents.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No students in this batch</p>}
+
+            {/* Students Section */}
+            <div>
+              <h4 className="font-semibold text-sm mb-2">Students</h4>
+              <div className="flex gap-2 mb-2">
+                <Input placeholder="Enter Reg Number" value={enrollRegNo} onChange={e => setEnrollRegNo(e.target.value)} className="flex-1" />
+                <Button onClick={handleEnrollByRegNo}>Add</Button>
+              </div>
+              <div className="space-y-1">
+                {batchStudents.map(bs => (
+                  <div key={bs.id} className="flex items-center justify-between p-2 rounded bg-muted">
+                    <span className="text-sm">{(bs.students as any)?.profiles?.name} ({(bs.students as any)?.reg_no})</span>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveFromBatch(bs.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                {batchStudents.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No students in this batch</p>}
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -567,12 +772,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       .select('*, students(reg_no, profiles!students_user_id_fkey(name))')
       .eq('institute_id', instituteId)
       .order('date', { ascending: false });
-    
-    if (filterDate) {
-      query = query.eq('date', filterDate);
-    }
-
-    const { data } = await query.limit(100);
+    if (filterDate) query = query.eq('date', filterDate);
+    const { data } = await query.limit(200);
     setAttendance(data || []);
   };
 
@@ -603,9 +804,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     a.status === 'present' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>
-                    {a.status}
-                  </span>
+                  }`}>{a.status}</span>
                 </td>
               </tr>
             ))}
@@ -630,11 +829,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       .select('*, students(reg_no, profiles!students_user_id_fkey(name))')
       .eq('institute_id', instituteId)
       .order('month', { ascending: false });
-
-    if (filterStatus !== 'all') {
-      query = query.eq('status', filterStatus);
-    }
-
+    if (filterStatus !== 'all') query = query.eq('status', filterStatus);
     const { data } = await query;
     setFees(data || []);
   };
@@ -673,9 +868,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>
-                    {f.status}
-                  </span>
+                  }`}>{f.status}</span>
                 </td>
               </tr>
             ))}

@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const { user, role } = useAuth();
@@ -47,10 +48,13 @@ const ForgotPassword = () => {
             <CardTitle>Password Reset</CardTitle>
             <CardDescription>Only institute admins can reset passwords. Please login as an admin first.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Link to="/login/institute">
-              <Button className="w-full">Go to Institute Login</Button>
+          <CardContent className="space-y-3">
+            <Link to="/">
+              <Button className="w-full">Go to Login</Button>
             </Link>
+            <p className="text-center text-xs text-muted-foreground">
+              Students and Teachers cannot change their passwords.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -63,7 +67,7 @@ const ForgotPassword = () => {
         <CardHeader className="text-center">
           <KeyRound className="mx-auto h-10 w-10 text-primary mb-2" />
           <CardTitle>Reset Password</CardTitle>
-          <CardDescription>Reset password for a user in your institute</CardDescription>
+          <CardDescription>Reset password for a user in your institute (Institute admin only)</CardDescription>
         </CardHeader>
         <CardContent>
           {done ? (
@@ -79,7 +83,22 @@ const ForgotPassword = () => {
               </div>
               <div className="space-y-2">
                 <Label>New Password</Label>
-                <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Resetting...' : 'Reset Password'}

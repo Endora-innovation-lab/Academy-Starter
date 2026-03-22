@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ClipboardList, DollarSign, Layers } from 'lucide-react';
+import { ClipboardList, DollarSign, Layers, Search } from 'lucide-react';
 
 const TeacherDashboard = () => {
   const { user, instituteId } = useAuth();
@@ -42,11 +42,23 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
   const [batches, setBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
   const [students, setStudents] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase.from('batches').select('*').eq('teacher_id', teacherId);
-      setBatches(data || []);
+      // Get batches from batch_teachers junction table + legacy teacher_id
+      const [{ data: btData }, { data: legacyData }] = await Promise.all([
+        supabase.from('batch_teachers').select('batch_id').eq('teacher_id', teacherId),
+        supabase.from('batches').select('id').eq('teacher_id', teacherId),
+      ]);
+      const batchIds = new Set([
+        ...(btData?.map(bt => bt.batch_id) || []),
+        ...(legacyData?.map(b => b.id) || []),
+      ]);
+      if (batchIds.size > 0) {
+        const { data } = await supabase.from('batches').select('*').in('id', Array.from(batchIds));
+        setBatches(data || []);
+      }
     };
     fetch();
   }, [teacherId]);
@@ -59,6 +71,13 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
       .eq('batch_id', batchId);
     setStudents(data || []);
   };
+
+  const displayStudents = searchTerm
+    ? students.filter(s => {
+        const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
+        return name.includes(searchTerm.toLowerCase());
+      })
+    : students;
 
   return (
     <div className="space-y-4">
@@ -76,24 +95,30 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
       </div>
 
       {selectedBatch && (
-        <div className="rounded-lg border bg-card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted">
-              <tr>
-                <th className="text-left p-3 font-medium">Name</th>
-                <th className="text-left p-3 font-medium">Reg No</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map(s => (
-                <tr key={s.id} className="border-t">
-                  <td className="p-3">{(s.students as any)?.profiles?.name}</td>
-                  <td className="p-3">{(s.students as any)?.reg_no}</td>
+        <>
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-8" placeholder="Search student name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+          <div className="rounded-lg border bg-card overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="text-left p-3 font-medium">Name</th>
+                  <th className="text-left p-3 font-medium">Reg No</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {displayStudents.map(s => (
+                  <tr key={s.id} className="border-t">
+                    <td className="p-3">{(s.students as any)?.profiles?.name}</td>
+                    <td className="p-3">{(s.students as any)?.reg_no}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -105,11 +130,23 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [students, setStudents] = useState<any[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase.from('batches').select('*').eq('teacher_id', teacherId);
-      setBatches(data || []);
+      const [{ data: btData }, { data: legacyData }] = await Promise.all([
+        supabase.from('batch_teachers').select('batch_id').eq('teacher_id', teacherId),
+        supabase.from('batches').select('id').eq('teacher_id', teacherId),
+      ]);
+      const batchIds = new Set([
+        ...(btData?.map(bt => bt.batch_id) || []),
+        ...(legacyData?.map(b => b.id) || []),
+      ]);
+      if (batchIds.size > 0) {
+        const { data } = await supabase.from('batches').select('*').in('id', Array.from(batchIds));
+        setBatches(data || []);
+      }
     };
     fetch();
   }, [teacherId]);
@@ -120,28 +157,30 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       .from('batch_students')
       .select('student_id, students(id, reg_no, profiles!students_user_id_fkey(name))')
       .eq('batch_id', selectedBatch);
-    
+
     const studs = data || [];
     setStudents(studs);
 
-    // Load existing attendance for this date
     const studentIds = studs.map(s => s.student_id);
+    const map: Record<string, string> = {};
+
     if (studentIds.length > 0) {
       const { data: att } = await supabase
         .from('attendance')
         .select('student_id, status')
         .in('student_id', studentIds)
         .eq('date', date);
-      
-      const map: Record<string, string> = {};
+
       att?.forEach(a => { map[a.student_id] = a.status; });
-      // Default to absent for unmarked
-      studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
-      setAttendanceMap(map);
     }
+
+    // Default ALL to absent
+    studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    setAttendanceMap(map);
+    setHasLoaded(true);
   };
 
-  useEffect(() => { loadStudents(); }, [selectedBatch, date]);
+  useEffect(() => { setHasLoaded(false); loadStudents(); }, [selectedBatch, date]);
 
   const toggleAttendance = (studentId: string) => {
     setAttendanceMap(prev => ({
@@ -159,8 +198,6 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
         marked_by: userId,
         institute_id: instituteId,
       }));
-
-      // Upsert attendance
       const { error } = await supabase.from('attendance').upsert(records, {
         onConflict: 'student_id,date',
       });
@@ -170,6 +207,13 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       toast.error(err.message);
     }
   };
+
+  const displayStudents = searchTerm
+    ? students.filter(s => {
+        const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
+        return name.includes(searchTerm.toLowerCase());
+      })
+    : students;
 
   return (
     <div className="space-y-4">
@@ -182,9 +226,15 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
           </SelectContent>
         </Select>
         <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-48" />
+        {students.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-8 w-48" placeholder="Search student..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+        )}
       </div>
 
-      {students.length > 0 && (
+      {hasLoaded && displayStudents.length > 0 && (
         <>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
@@ -196,7 +246,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
                 </tr>
               </thead>
               <tbody>
-                {students.map(s => {
+                {displayStudents.map(s => {
                   const student = s.students as any;
                   return (
                     <tr key={s.student_id} className="border-t">
@@ -233,11 +283,23 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
   const [month, setMonth] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [feeMap, setFeeMap] = useState<Record<string, string>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase.from('batches').select('*').eq('teacher_id', teacherId);
-      setBatches(data || []);
+      const [{ data: btData }, { data: legacyData }] = await Promise.all([
+        supabase.from('batch_teachers').select('batch_id').eq('teacher_id', teacherId),
+        supabase.from('batches').select('id').eq('teacher_id', teacherId),
+      ]);
+      const batchIds = new Set([
+        ...(btData?.map(bt => bt.batch_id) || []),
+        ...(legacyData?.map(b => b.id) || []),
+      ]);
+      if (batchIds.size > 0) {
+        const { data } = await supabase.from('batches').select('*').in('id', Array.from(batchIds));
+        setBatches(data || []);
+      }
     };
     fetch();
   }, [teacherId]);
@@ -248,26 +310,30 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
       .from('batch_students')
       .select('student_id, students(id, reg_no, profiles!students_user_id_fkey(name))')
       .eq('batch_id', selectedBatch);
-    
+
     const studs = data || [];
     setStudents(studs);
 
     const studentIds = studs.map(s => s.student_id);
+    const map: Record<string, string> = {};
+
     if (studentIds.length > 0) {
       const { data: fees } = await supabase
         .from('fees')
         .select('student_id, status')
         .in('student_id', studentIds)
         .eq('month', month);
-      
-      const map: Record<string, string> = {};
+
       fees?.forEach(f => { map[f.student_id] = f.status; });
-      studentIds.forEach(id => { if (!map[id]) map[id] = 'unpaid'; });
-      setFeeMap(map);
     }
+
+    // Default ALL to unpaid
+    studentIds.forEach(id => { if (!map[id]) map[id] = 'unpaid'; });
+    setFeeMap(map);
+    setHasLoaded(true);
   };
 
-  useEffect(() => { loadStudents(); }, [selectedBatch, month]);
+  useEffect(() => { setHasLoaded(false); loadStudents(); }, [selectedBatch, month]);
 
   const toggleFee = (studentId: string) => {
     setFeeMap(prev => ({
@@ -285,16 +351,22 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         institute_id: instituteId,
         updated_by: userId,
       }));
-
       const { error } = await supabase.from('fees').upsert(records, {
         onConflict: 'student_id,month',
       });
       if (error) throw error;
-      toast.success('Fees updated!');
+      toast.success('Fees saved!');
     } catch (err: any) {
       toast.error(err.message);
     }
   };
+
+  const displayStudents = searchTerm
+    ? students.filter(s => {
+        const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
+        return name.includes(searchTerm.toLowerCase());
+      })
+    : students;
 
   return (
     <div className="space-y-4">
@@ -307,9 +379,15 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           </SelectContent>
         </Select>
         <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" placeholder="Select month" />
+        {students.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-8 w-48" placeholder="Search student..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+        )}
       </div>
 
-      {students.length > 0 && month && (
+      {hasLoaded && displayStudents.length > 0 && month && (
         <>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
@@ -321,7 +399,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                 </tr>
               </thead>
               <tbody>
-                {students.map(s => {
+                {displayStudents.map(s => {
                   const student = s.students as any;
                   return (
                     <tr key={s.student_id} className="border-t">
