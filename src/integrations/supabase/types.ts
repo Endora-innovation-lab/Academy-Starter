@@ -92,6 +92,39 @@ export type Database = {
           },
         ]
       }
+      batch_teachers: {
+        Row: {
+          batch_id: string
+          id: string
+          teacher_id: string
+        }
+        Insert: {
+          batch_id: string
+          id?: string
+          teacher_id: string
+        }
+        Update: {
+          batch_id?: string
+          id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_teachers_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_teachers_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batches: {
         Row: {
           created_at: string
