@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ClipboardList, DollarSign } from 'lucide-react';
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('attendance');
   const [studentRecord, setStudentRecord] = useState<any>(null);
 
@@ -23,6 +24,14 @@ const StudentDashboard = () => {
     { label: 'Attendance', value: 'attendance' },
     { label: 'Fees', value: 'fees' },
   ];
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading dashboard...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login/student" replace />;
+  }
 
   return (
     <DashboardLayout title="Student Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>

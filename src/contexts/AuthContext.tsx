@@ -48,25 +48,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
       if (session?.user) {
         // Use setTimeout to avoid Supabase deadlock
-        setTimeout(() => fetchUserRole(session.user.id), 0);
+        setTimeout(async () => {
+          await fetchUserRole(session.user.id);
+          setLoading(false);
+        }, 0);
       } else {
         setRole(null);
         setInstituteId(null);
         setInstituteCode(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        await fetchUserRole(session.user.id);
+      } else {
+        setRole(null);
+        setInstituteId(null);
+        setInstituteCode(null);
       }
       setLoading(false);
     });

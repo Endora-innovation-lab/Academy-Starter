@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -10,7 +11,7 @@ import { toast } from 'sonner';
 import { ClipboardList, DollarSign, Layers, Search } from 'lucide-react';
 
 const TeacherDashboard = () => {
-  const { user, instituteId } = useAuth();
+  const { user, instituteId, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('batches');
   const [teacherRecord, setTeacherRecord] = useState<any>(null);
 
@@ -29,11 +30,19 @@ const TeacherDashboard = () => {
     { label: 'Update Fees', value: 'fees' },
   ];
 
+  if (loading || (user && !instituteId)) {
+    return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading dashboard...</div>;
+  }
+
+  if (!user || !instituteId) {
+    return <Navigate to="/login/teacher" replace />;
+  }
+
   return (
     <DashboardLayout title="Teacher Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'batches' && teacherRecord && <TeacherBatchesTab teacherId={teacherRecord.id} instituteId={instituteId!} />}
-      {activeTab === 'attendance' && teacherRecord && <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId!} userId={user!.id} />}
-      {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId!} userId={user!.id} />}
+      {activeTab === 'batches' && teacherRecord && <TeacherBatchesTab teacherId={teacherRecord.id} instituteId={instituteId} />}
+      {activeTab === 'attendance' && teacherRecord && <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
+      {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
     </DashboardLayout>
   );
 };
