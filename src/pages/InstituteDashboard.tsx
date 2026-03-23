@@ -154,7 +154,7 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
     setLoading(true);
     const { data } = await supabase
       .from('students')
-      .select('*, profiles!students_user_id_fkey(name)')
+      .select('*, profiles!students_user_id_profiles_fkey(name)')
       .eq('institute_id', instituteId);
 
     const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
@@ -364,7 +364,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
   const fetchTeachers = async () => {
     const { data } = await supabase
       .from('teachers')
-      .select('*, profiles!teachers_user_id_fkey(name, email)')
+      .select('*, profiles!teachers_user_id_profiles_fkey(name, email)')
       .eq('institute_id', instituteId);
     setTeachers(data || []);
   };
@@ -534,8 +534,8 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const fetchData = async () => {
     const [{ data: b }, { data: t }, { data: s }] = await Promise.all([
       supabase.from('batches').select('*').eq('institute_id', instituteId),
-      supabase.from('teachers').select('*, profiles!teachers_user_id_fkey(name)').eq('institute_id', instituteId),
-      supabase.from('students').select('*, profiles!students_user_id_fkey(name)').eq('institute_id', instituteId),
+      supabase.from('teachers').select('*, profiles!teachers_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
+      supabase.from('students').select('*, profiles!students_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
     ]);
     setBatches(b || []);
     setTeachers(t || []);
@@ -544,8 +544,8 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   const fetchBatchDetails = async (batchId: string) => {
     const [{ data: bs }, { data: bt }] = await Promise.all([
-      supabase.from('batch_students').select('*, students(id, reg_no, profiles!students_user_id_fkey(name))').eq('batch_id', batchId),
-      supabase.from('batch_teachers').select('*, teachers(id, profiles!teachers_user_id_fkey(name))').eq('batch_id', batchId),
+      supabase.from('batch_students').select('*, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))').eq('batch_id', batchId),
+      supabase.from('batch_teachers').select('*, teachers(id, profiles!teachers_user_id_profiles_fkey(name))').eq('batch_id', batchId),
     ]);
     setBatchStudents(bs || []);
     setBatchTeachers(bt || []);
@@ -778,7 +778,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const fetchAttendance = async () => {
     let query = supabase
       .from('attendance')
-      .select('*, students(reg_no, profiles!students_user_id_fkey(name))')
+      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('institute_id', instituteId)
       .order('date', { ascending: false });
     if (filterDate) query = query.eq('date', filterDate);
@@ -835,7 +835,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const fetchFees = async () => {
     let query = supabase
       .from('fees')
-      .select('*, students(reg_no, profiles!students_user_id_fkey(name))')
+      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('institute_id', instituteId)
       .order('month', { ascending: false });
     if (filterStatus !== 'all') query = query.eq('status', filterStatus);

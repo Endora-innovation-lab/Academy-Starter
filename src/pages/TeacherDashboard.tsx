@@ -76,7 +76,7 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
     setSelectedBatch(batchId);
     const { data } = await supabase
       .from('batch_students')
-      .select('*, students(reg_no, profiles!students_user_id_fkey(name))')
+      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', batchId);
     setStudents(data || []);
   };
@@ -164,7 +164,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     if (!selectedBatch) return;
     const { data } = await supabase
       .from('batch_students')
-      .select('student_id, students(id, reg_no, profiles!students_user_id_fkey(name))')
+      .select('student_id, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
 
     const studs = data || [];
@@ -317,7 +317,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     if (!selectedBatch || !month) return;
     const { data } = await supabase
       .from('batch_students')
-      .select('student_id, students(id, reg_no, profiles!students_user_id_fkey(name))')
+      .select('student_id, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
 
     const studs = data || [];
