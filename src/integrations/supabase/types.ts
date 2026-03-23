@@ -307,6 +307,13 @@ export type Database = {
             referencedRelation: "institutes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "students_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       teachers: {
@@ -341,6 +348,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "institutes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teachers_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
