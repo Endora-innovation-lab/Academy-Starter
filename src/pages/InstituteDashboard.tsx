@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const InstituteDashboard = () => {
-  const { user, instituteId, instituteCode } = useAuth();
+  const { user, instituteId, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
@@ -24,14 +25,22 @@ const InstituteDashboard = () => {
     { label: 'Fees', value: 'fees' },
   ];
 
+  if (loading || (user && !instituteId)) {
+    return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading dashboard...</div>;
+  }
+
+  if (!user || !instituteId) {
+    return <Navigate to="/login/institute" replace />;
+  }
+
   return (
     <DashboardLayout title="Institute Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'overview' && <OverviewTab instituteId={instituteId!} />}
-      {activeTab === 'students' && <StudentsTab instituteId={instituteId!} />}
-      {activeTab === 'teachers' && <TeachersTab instituteId={instituteId!} />}
-      {activeTab === 'batches' && <BatchesTab instituteId={instituteId!} />}
-      {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId!} />}
-      {activeTab === 'fees' && <FeesTab instituteId={instituteId!} />}
+      {activeTab === 'overview' && <OverviewTab instituteId={instituteId} />}
+      {activeTab === 'students' && <StudentsTab instituteId={instituteId} />}
+      {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} />}
+      {activeTab === 'batches' && <BatchesTab instituteId={instituteId} />}
+      {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId} />}
+      {activeTab === 'fees' && <FeesTab instituteId={instituteId} />}
     </DashboardLayout>
   );
 };
