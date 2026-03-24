@@ -20,18 +20,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Verify the calling user from JWT claims
+    // Verify the calling user
     const token = authHeader.replace('Bearer ', '')
-    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } }
-    })
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token)
-    if (claimsError || !claimsData?.claims?.sub) {
+    const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-    const user = { id: claimsData.claims.sub as string }
+    const user = { id: authUser.id }
 
     // Check if user is admin
     const { data: roleData } = await supabaseAdmin
