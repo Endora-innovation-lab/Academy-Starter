@@ -55,10 +55,21 @@ const getMonthOptions = () => {
 
 const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [filterMonth, setFilterMonth] = useState(currentMonth);
   const monthOptions = getMonthOptions();
+
+  useEffect(() => {
+    const fetchBatches = async () => {
+      const { data: bsData } = await supabase.from('batch_students').select('batch_id, batches(id, name)').eq('student_id', studentId);
+      const uniqueBatches = bsData?.map(bs => (bs.batches as any)).filter(Boolean) || [];
+      setBatches(uniqueBatches);
+    };
+    fetchBatches();
+  }, [studentId]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -66,17 +77,23 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
       const [year, month] = filterMonth.split('-').map(Number);
       const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
 
-      const { data } = await supabase
+      let query = supabase
         .from('attendance')
-        .select('*')
+        .select('*, batches(name)')
         .eq('student_id', studentId)
         .gte('date', firstDay)
         .lte('date', lastDay)
         .order('date', { ascending: false });
+
+      if (filterBatch !== 'all') {
+        query = query.eq('batch_id', filterBatch);
+      }
+
+      const { data } = await query;
       setAttendance(data || []);
     };
     fetch();
-  }, [studentId, filterMonth]);
+  }, [studentId, filterMonth, filterBatch]);
 
   const presentCount = attendance.filter(a => a.status === 'present').length;
   const totalCount = attendance.length;
@@ -85,12 +102,21 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> My Attendance</h2>
-        <Select value={filterMonth} onValueChange={setFilterMonth}>
-          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={filterBatch} onValueChange={setFilterBatch}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       {totalCount > 0 && (
         <div className="flex gap-4 text-sm">
@@ -104,6 +130,7 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">Date</th>
+              <th className="text-left p-3 font-medium">Batch</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
@@ -111,6 +138,7 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
             {attendance.map(a => (
               <tr key={a.id} className="border-t">
                 <td className="p-3">{a.date}</td>
+                <td className="p-3">{(a.batches as any)?.name || '-'}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     a.status === 'present' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
@@ -119,7 +147,7 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
               </tr>
             ))}
             {attendance.length === 0 && (
-              <tr><td colSpan={2} className="p-8 text-center text-muted-foreground">No attendance records for this month</td></tr>
+              <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">No attendance records for this month</td></tr>
             )}
           </tbody>
         </table>
@@ -130,8 +158,6 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
 
 const StudentFeesTab = ({ studentId }: { studentId: string }) => {
   const [fees, setFees] = useState<any[]>([]);
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [filterMonth, setFilterMonth] = useState('all');
   const monthOptions = getMonthOptions();
 

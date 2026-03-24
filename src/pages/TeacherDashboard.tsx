@@ -55,7 +55,6 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
 
   useEffect(() => {
     const fetch = async () => {
-      // Get batches from batch_teachers junction table + legacy teacher_id
       const [{ data: btData }, { data: legacyData }] = await Promise.all([
         supabase.from('batch_teachers').select('batch_id').eq('teacher_id', teacherId),
         supabase.from('batches').select('id').eq('teacher_id', teacherId),
@@ -174,10 +173,12 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     const map: Record<string, string> = {};
 
     if (studentIds.length > 0) {
+      // Fetch attendance for this specific batch + date
       const { data: att } = await supabase
         .from('attendance')
         .select('student_id, status')
         .in('student_id', studentIds)
+        .eq('batch_id', selectedBatch)
         .eq('date', date);
 
       att?.forEach(a => { map[a.student_id] = a.status; });
@@ -202,13 +203,14 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     try {
       const records = Object.entries(attendanceMap).map(([student_id, status]) => ({
         student_id,
+        batch_id: selectedBatch,
         date,
         status,
         marked_by: userId,
         institute_id: instituteId,
       }));
       const { error } = await supabase.from('attendance').upsert(records, {
-        onConflict: 'student_id,date',
+        onConflict: 'student_id,batch_id,date',
       });
       if (error) throw error;
       toast.success('Attendance saved!');
@@ -336,7 +338,6 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
       fees?.forEach(f => { map[f.student_id] = f.status; });
     }
 
-    // Default ALL to unpaid
     studentIds.forEach(id => { if (!map[id]) map[id] = 'unpaid'; });
     setFeeMap(map);
     setHasLoaded(true);

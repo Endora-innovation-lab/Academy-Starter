@@ -8,19 +8,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const InstituteDashboard = () => {
   const { user, instituteId, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [hasBatches, setHasBatches] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!instituteId) return;
+    const check = async () => {
+      const { count } = await supabase.from('batches').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId);
+      setHasBatches((count || 0) > 0);
+    };
+    check();
+  }, [instituteId, activeTab]);
 
   const tabs = [
     { label: 'Overview', value: 'overview' },
+    { label: 'Batches', value: 'batches' },
     { label: 'Students', value: 'students' },
     { label: 'Teachers', value: 'teachers' },
-    { label: 'Batches', value: 'batches' },
     { label: 'Attendance', value: 'attendance' },
     { label: 'Fees', value: 'fees' },
   ];
@@ -36,29 +46,70 @@ const InstituteDashboard = () => {
   return (
     <DashboardLayout title="Institute Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'overview' && <OverviewTab instituteId={instituteId} />}
-      {activeTab === 'students' && <StudentsTab instituteId={instituteId} />}
-      {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} />}
       {activeTab === 'batches' && <BatchesTab instituteId={instituteId} />}
+      {activeTab === 'students' && <StudentsTab instituteId={instituteId} hasBatches={hasBatches} />}
+      {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} hasBatches={hasBatches} />}
       {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId} />}
       {activeTab === 'fees' && <FeesTab instituteId={instituteId} />}
     </DashboardLayout>
   );
 };
 
+// ============= NO BATCH WARNING =============
+const NoBatchWarning = ({ onGoToBatches }: { onGoToBatches?: () => void }) => (
+  <Card className="border-destructive/50 bg-destructive/5">
+    <CardContent className="pt-6 text-center space-y-3">
+      <AlertTriangle className="h-10 w-10 text-destructive mx-auto" />
+      <p className="font-semibold text-destructive">Please create a batch first</p>
+      <p className="text-sm text-muted-foreground">You must create at least one batch before adding students or teachers.</p>
+      {onGoToBatches && <Button variant="outline" onClick={onGoToBatches}>Go to Batches</Button>}
+    </CardContent>
+  </Card>
+);
+
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ instituteId }: { instituteId: string }) => {
   const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+  const [batches, setBatches] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    const fetchBatches = async () => {
+      const { data } = await supabase.from('batches').select('id, name').eq('institute_id', instituteId);
+      setBatches(data || []);
+    };
+    fetchBatches();
+  }, [instituteId]);
 
   useEffect(() => {
     const fetchStats = async () => {
-      const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const firstDay = `${currentMonth}-01`;
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+      const firstDay = `${filterMonth}-01`;
+      const [year, month] = filterMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+
+      let attQuery = supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
+      let feeQuery = supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', filterMonth);
+
+      if (filterBatch !== 'all') {
+        attQuery = attQuery.eq('batch_id', filterBatch);
+        // For fees, filter by students in the batch
+        const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
+        const studentIds = batchStudents?.map(bs => bs.student_id) || [];
+        if (studentIds.length > 0) {
+          feeQuery = feeQuery.in('student_id', studentIds);
+        } else {
+          setStats({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+          return;
+        }
+      }
 
       const [attRes, feeRes, stuRes, teaRes] = await Promise.all([
-        supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay),
-        supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', currentMonth),
+        attQuery,
+        feeQuery,
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
       ]);
@@ -76,15 +127,27 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       });
     };
     fetchStats();
-  }, [instituteId]);
+  }, [instituteId, filterBatch, filterMonth]);
 
-  const now = new Date();
-  const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const [year, month] = filterMonth.split('-').map(Number);
+  const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Monthly Review — {monthName}</h2>
-      
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Monthly Review — {monthName}</h2>
+        <div className="flex gap-2">
+          <Select value={filterBatch} onValueChange={setFilterBatch}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
+        </div>
+      </div>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-5">
@@ -133,7 +196,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
 };
 
 // ============= STUDENTS TAB =============
-const StudentsTab = ({ instituteId }: { instituteId: string }) => {
+const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatches: boolean | null }) => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -240,6 +303,10 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
       toast.error(err.message);
     }
   };
+
+  if (hasBatches === false) {
+    return <NoBatchWarning />;
+  }
 
   return (
     <div className="space-y-4">
@@ -349,7 +416,7 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
 };
 
 // ============= TEACHERS TAB =============
-const TeachersTab = ({ instituteId }: { instituteId: string }) => {
+const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatches: boolean | null }) => {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -424,6 +491,10 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
       toast.error(err.message);
     }
   };
+
+  if (hasBatches === false) {
+    return <NoBatchWarning />;
+  }
 
   return (
     <div className="space-y-4">
@@ -563,7 +634,6 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
       }).select().single();
       if (error) throw error;
 
-      // Add all selected teachers to batch_teachers
       if (selectedTeachers.length > 0 && newBatch) {
         await supabase.from('batch_teachers').insert(
           selectedTeachers.map(tid => ({ batch_id: newBatch.id, teacher_id: tid }))
@@ -669,6 +739,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                       {(t.profiles as any)?.name}
                     </label>
                   ))}
+                  {teachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
                 </div>
               </div>
               <Button type="submit" className="w-full">Create</Button>
@@ -703,7 +774,6 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
         {batches.length === 0 && <p className="text-muted-foreground col-span-2 text-center py-8">No batches created</p>}
       </div>
 
-      {/* Edit Batch Dialog */}
       <Dialog open={!!showEdit} onOpenChange={() => setShowEdit(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Batch</DialogTitle></DialogHeader>
@@ -714,12 +784,10 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
         </DialogContent>
       </Dialog>
 
-      {/* Manage Batch Dialog */}
       <Dialog open={!!showAssign} onOpenChange={() => setShowAssign(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Manage Batch</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            {/* Teachers Section */}
             <div>
               <h4 className="font-semibold text-sm mb-2">Teachers</h4>
               <div className="flex gap-2 mb-2">
@@ -744,7 +812,6 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
               </div>
             </div>
 
-            {/* Students Section */}
             <div>
               <h4 className="font-semibold text-sm mb-2">Students</h4>
               <div className="flex gap-2 mb-2">
@@ -773,26 +840,46 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 // ============= ATTENDANCE TAB =============
 const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
   const [filterDate, setFilterDate] = useState('');
+
+  useEffect(() => {
+    const fetchBatches = async () => {
+      const { data } = await supabase.from('batches').select('id, name').eq('institute_id', instituteId);
+      setBatches(data || []);
+    };
+    fetchBatches();
+  }, [instituteId]);
 
   const fetchAttendance = async () => {
     let query = supabase
       .from('attendance')
-      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
+      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name)), batches(name)')
       .eq('institute_id', instituteId)
       .order('date', { ascending: false });
     if (filterDate) query = query.eq('date', filterDate);
+    if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
     const { data } = await query.limit(200);
     setAttendance(data || []);
   };
 
-  useEffect(() => { fetchAttendance(); }, [instituteId, filterDate]);
+  useEffect(() => { fetchAttendance(); }, [instituteId, filterDate, filterBatch]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Attendance</h2>
-        <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" />
+        <div className="flex gap-2">
+          <Select value={filterBatch} onValueChange={setFilterBatch}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" />
+        </div>
       </div>
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
@@ -800,6 +887,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
             <tr>
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
+              <th className="text-left p-3 font-medium">Batch</th>
               <th className="text-left p-3 font-medium">Date</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
@@ -809,6 +897,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               <tr key={a.id} className="border-t">
                 <td className="p-3">{(a.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(a.students as any)?.reg_no}</td>
+                <td className="p-3">{(a.batches as any)?.name || '-'}</td>
                 <td className="p-3">{a.date}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -818,7 +907,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {attendance.length === 0 && (
-              <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
             )}
           </tbody>
         </table>

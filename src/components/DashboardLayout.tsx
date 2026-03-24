@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { GraduationCap, LogOut, MessageSquare } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,10 +16,21 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, tabs, activeTab, onTabChange }) => {
   const { signOut, instituteCode } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutPopup, setShowLogoutPopup] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutPopup(true);
+  };
+
+  const handleYes = async () => {
+    setShowLogoutPopup(false);
     await signOut();
     navigate('/');
+  };
+
+  const handleNo = () => {
+    setShowLogoutPopup(false);
+    window.open('https://forms.gle/3PsfR181KFEMnXkB7', '_blank');
   };
 
   return (
@@ -34,9 +46,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, tabs
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-1" /> Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
+                <MessageSquare className="h-4 w-4 mr-1" /> Feedback
+              </a>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogoutClick}>
+              <LogOut className="h-4 w-4 mr-1" /> Logout
+            </Button>
+          </div>
         </div>
       </header>
       <div className="border-b bg-card">
@@ -57,6 +76,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, tabs
         </div>
       </div>
       <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+
+      <Dialog open={showLogoutPopup} onOpenChange={setShowLogoutPopup}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle className="text-center">Did everything work fine today?</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center gap-4 pt-4">
+            <Button size="lg" onClick={handleYes} className="min-w-24">
+              👍 Yes
+            </Button>
+            <Button size="lg" variant="outline" onClick={handleNo} className="min-w-24">
+              👎 No
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
