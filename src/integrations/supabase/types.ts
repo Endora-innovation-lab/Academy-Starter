@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       attendance: {
         Row: {
+          batch_id: string | null
           created_at: string
           date: string
           id: string
@@ -25,6 +26,7 @@ export type Database = {
           student_id: string
         }
         Insert: {
+          batch_id?: string | null
           created_at?: string
           date: string
           id?: string
@@ -34,6 +36,7 @@ export type Database = {
           student_id: string
         }
         Update: {
+          batch_id?: string | null
           created_at?: string
           date?: string
           id?: string
@@ -43,6 +46,13 @@ export type Database = {
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_institute_id_fkey"
             columns: ["institute_id"]
