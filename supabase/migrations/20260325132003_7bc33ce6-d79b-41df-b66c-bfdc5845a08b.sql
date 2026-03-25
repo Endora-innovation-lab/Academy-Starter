@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.attendance_student_date_unique;
