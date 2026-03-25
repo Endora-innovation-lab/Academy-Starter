@@ -16,7 +16,7 @@ export type Database = {
     Tables: {
       attendance: {
         Row: {
-          batch_id: string | null
+          batch_id: string
           created_at: string
           date: string
           id: string
@@ -26,7 +26,7 @@ export type Database = {
           student_id: string
         }
         Insert: {
-          batch_id?: string | null
+          batch_id: string
           created_at?: string
           date: string
           id?: string
@@ -36,7 +36,7 @@ export type Database = {
           student_id: string
         }
         Update: {
-          batch_id?: string | null
+          batch_id?: string
           created_at?: string
           date?: string
           id?: string
