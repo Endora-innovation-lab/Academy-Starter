@@ -1,0 +1,1 @@
+ALTER TABLE public.attendance ALTER COLUMN batch_id SET NOT NULL;
