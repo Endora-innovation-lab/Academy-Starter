@@ -920,6 +920,10 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const [fees, setFees] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const fetchFees = async () => {
     let query = supabase
@@ -928,24 +932,28 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       .eq('institute_id', instituteId)
       .order('month', { ascending: false });
     if (filterStatus !== 'all') query = query.eq('status', filterStatus);
+    if (filterMonth) query = query.eq('month', filterMonth);
     const { data } = await query;
     setFees(data || []);
   };
 
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
