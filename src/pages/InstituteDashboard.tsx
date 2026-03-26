@@ -975,6 +975,13 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           </Select>
         </div>
       </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Total</p><p className="text-xl font-bold">₹{totalAmount.toLocaleString()}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Collected</p><p className="text-xl font-bold text-accent">₹{paidAmount.toLocaleString()}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Pending</p><p className="text-xl font-bold text-destructive">₹{unpaidAmount.toLocaleString()}</p></CardContent></Card>
+      </div>
+
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted">
@@ -982,6 +989,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Month</th>
+              <th className="text-left p-3 font-medium">Amount</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
@@ -991,6 +999,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">{(f.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(f.students as any)?.reg_no}</td>
                 <td className="p-3">{f.month}</td>
+                <td className="p-3">₹{Number(f.amount || 0).toLocaleString()}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
@@ -999,7 +1008,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>

@@ -294,6 +294,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
   const [month, setMonth] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [feeMap, setFeeMap] = useState<Record<string, string>>({});
+  const [amountMap, setAmountMap] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
 
