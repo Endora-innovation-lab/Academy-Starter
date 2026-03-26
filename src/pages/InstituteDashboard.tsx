@@ -953,6 +953,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setFees(data || []);
   };
 
+  const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const paidAmount = fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const unpaidAmount = fees.filter(f => f.status === 'unpaid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
 
   return (
