@@ -183,14 +183,26 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Fee Summary</CardTitle></CardHeader>
-          <CardContent className="flex gap-6">
-            <div>
-              <p className="text-2xl font-bold text-accent">{stats.paid}</p>
-              <p className="text-sm text-muted-foreground">Paid</p>
+          <CardContent className="space-y-3">
+            <div className="flex gap-6">
+              <div>
+                <p className="text-2xl font-bold text-accent">{stats.paid}</p>
+                <p className="text-sm text-muted-foreground">Paid</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-destructive">{stats.unpaid}</p>
+                <p className="text-sm text-muted-foreground">Unpaid</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{stats.unpaid}</p>
-              <p className="text-sm text-muted-foreground">Unpaid</p>
+            <div className="border-t pt-3 flex gap-6">
+              <div>
+                <p className="text-xl font-bold text-accent">₹{stats.totalCollected.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Collected</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-destructive">₹{stats.totalPending.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
+              </div>
             </div>
           </CardContent>
         </Card>
