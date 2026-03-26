@@ -294,6 +294,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
   const [month, setMonth] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [feeMap, setFeeMap] = useState<Record<string, string>>({});
+  const [amountMap, setAmountMap] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -331,11 +332,13 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     if (studentIds.length > 0) {
       const { data: fees } = await supabase
         .from('fees')
-        .select('student_id, status')
+        .select('student_id, status, amount')
         .in('student_id', studentIds)
         .eq('month', month);
 
-      fees?.forEach(f => { map[f.student_id] = f.status; });
+      const aMap: Record<string, number> = {};
+      fees?.forEach(f => { map[f.student_id] = f.status; aMap[f.student_id] = Number(f.amount) || 0; });
+      setAmountMap(prev => ({ ...prev, ...aMap }));
     }
 
     studentIds.forEach(id => { if (!map[id]) map[id] = 'unpaid'; });
@@ -360,6 +363,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         status,
         institute_id: instituteId,
         updated_by: userId,
+        amount: amountMap[student_id] || 0,
       }));
       const { error } = await supabase.from('fees').upsert(records, {
         onConflict: 'student_id,month',
@@ -405,6 +409,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                 <tr>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Reg No</th>
+                  <th className="text-left p-3 font-medium">Amount</th>
                   <th className="text-left p-3 font-medium">Status</th>
                 </tr>
               </thead>
@@ -415,6 +420,16 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                     <tr key={s.student_id} className="border-t">
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
+                      <td className="p-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          className="w-28"
+                          value={amountMap[s.student_id] || ''}
+                          onChange={e => setAmountMap(prev => ({ ...prev, [s.student_id]: Number(e.target.value) || 0 }))}
+                          placeholder="₹ 0"
+                        />
+                      </td>
                       <td className="p-3">
                         <button
                           onClick={() => toggleFee(s.student_id)}

@@ -27,7 +27,30 @@ const Index = () => {
   }, [user, role]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="h-6 w-6 text-primary" />
+            <span className="font-bold text-lg">Academy Starter</span>
+          </div>
+          <div className="flex gap-2">
+            <Dialog open={showLogin} onOpenChange={setShowLogin}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="default">Login</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+                <LoginModal onClose={() => setShowLogin(false)} />
+              </DialogContent>
+            </Dialog>
+            <Link to="/register">
+              <Button size="sm" variant="outline">Register</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
       {/* Hero */}
       <div className="bg-primary text-primary-foreground py-16 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -42,38 +65,21 @@ const Index = () => {
             </div>
           </div>
           <h1 className="text-4xl font-bold mb-3">Academy Starter</h1>
-          <p className="text-lg opacity-90 max-w-2xl mx-auto mb-8">
+          <p className="text-lg opacity-90 max-w-2xl mx-auto">
             Manage your educational institute with ease
           </p>
-          <div className="flex justify-center gap-3">
-            <Dialog open={showLogin} onOpenChange={setShowLogin}>
-              <DialogTrigger asChild>
-                <Button size="lg" variant="secondary" className="font-semibold">
-                  Login
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-                <LoginModal onClose={() => setShowLogin(false)} />
-              </DialogContent>
-            </Dialog>
-            <Link to="/register">
-              <Button size="lg" variant="outline" className="font-semibold border-primary-foreground/30 text-foreground hover:bg-primary-foreground/10">
-                Register Institute
-              </Button>
-            </Link>
-          </div>
         </div>
       </div>
 
       {/* Features */}
-      <div className="max-w-4xl mx-auto px-4 py-16">
+      <div className="max-w-4xl mx-auto px-4 py-16 flex-1">
         <h2 className="text-2xl font-bold text-center mb-8">Everything You Need</h2>
         <div className="grid md:grid-cols-3 gap-6">
           {[
             { icon: Users, title: 'Student Management', desc: 'Add, edit, search, and manage student records with batch filtering' },
             { icon: BookOpen, title: 'Teacher Management', desc: 'Create teacher accounts with auto-generated credentials' },
             { icon: ClipboardList, title: 'Attendance Tracking', desc: 'Mark and view attendance by date and batch with monthly summaries' },
-            { icon: DollarSign, title: 'Fee Management', desc: 'Track paid/unpaid fee status with monthly records' },
+            { icon: DollarSign, title: 'Fee Management', desc: 'Track paid/unpaid fee status with monthly records and amounts' },
             { icon: Shield, title: 'Role-Based Access', desc: 'Secure dashboards for admins, teachers, and students' },
             { icon: GraduationCap, title: 'Batch Organization', desc: 'Group students into batches with multiple teachers' },
           ].map((f) => (
@@ -85,6 +91,17 @@ const Index = () => {
           ))}
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t bg-card">
+        <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="h-4 w-4 text-primary" />
+            <span>Academy Starter</span>
+          </div>
+          <p>© {new Date().getFullYear()} Academy Starter. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };

@@ -69,7 +69,7 @@ const NoBatchWarning = ({ onGoToBatches }: { onGoToBatches?: () => void }) => (
 
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ instituteId }: { instituteId: string }) => {
-  const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+  const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0 });
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
@@ -92,7 +92,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
 
       let attQuery = supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
-      let feeQuery = supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', filterMonth);
+      let feeQuery = supabase.from('fees').select('status, amount').eq('institute_id', instituteId).eq('month', filterMonth);
 
       if (filterBatch !== 'all') {
         attQuery = attQuery.eq('batch_id', filterBatch);
@@ -102,7 +102,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         if (studentIds.length > 0) {
           feeQuery = feeQuery.in('student_id', studentIds);
         } else {
-          setStats({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+          setStats({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0 });
           return;
         }
       }
@@ -117,13 +117,17 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       const attData = attRes.data || [];
       const feeData = feeRes.data || [];
 
+      const paidFees = feeData.filter(f => f.status === 'paid');
+      const unpaidFees = feeData.filter(f => f.status === 'unpaid');
       setStats({
         present: attData.filter(a => a.status === 'present').length,
         absent: attData.filter(a => a.status === 'absent').length,
-        paid: feeData.filter(f => f.status === 'paid').length,
-        unpaid: feeData.filter(f => f.status === 'unpaid').length,
+        paid: paidFees.length,
+        unpaid: unpaidFees.length,
         students: stuRes.count || 0,
         teachers: teaRes.count || 0,
+        totalCollected: paidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
+        totalPending: unpaidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
       });
     };
     fetchStats();
@@ -179,14 +183,26 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Fee Summary</CardTitle></CardHeader>
-          <CardContent className="flex gap-6">
-            <div>
-              <p className="text-2xl font-bold text-accent">{stats.paid}</p>
-              <p className="text-sm text-muted-foreground">Paid</p>
+          <CardContent className="space-y-3">
+            <div className="flex gap-6">
+              <div>
+                <p className="text-2xl font-bold text-accent">{stats.paid}</p>
+                <p className="text-sm text-muted-foreground">Paid</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-destructive">{stats.unpaid}</p>
+                <p className="text-sm text-muted-foreground">Unpaid</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{stats.unpaid}</p>
-              <p className="text-sm text-muted-foreground">Unpaid</p>
+            <div className="border-t pt-3 flex gap-6">
+              <div>
+                <p className="text-xl font-bold text-accent">₹{stats.totalCollected.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Collected</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-destructive">₹{stats.totalPending.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -937,6 +953,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setFees(data || []);
   };
 
+  const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const paidAmount = fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const unpaidAmount = fees.filter(f => f.status === 'unpaid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
 
   return (
@@ -955,6 +975,13 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           </Select>
         </div>
       </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Total</p><p className="text-xl font-bold">₹{totalAmount.toLocaleString()}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Collected</p><p className="text-xl font-bold text-accent">₹{paidAmount.toLocaleString()}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Pending</p><p className="text-xl font-bold text-destructive">₹{unpaidAmount.toLocaleString()}</p></CardContent></Card>
+      </div>
+
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted">
@@ -962,6 +989,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Month</th>
+              <th className="text-left p-3 font-medium">Amount</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
@@ -971,6 +999,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">{(f.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(f.students as any)?.reg_no}</td>
                 <td className="p-3">{f.month}</td>
+                <td className="p-3">₹{Number(f.amount || 0).toLocaleString()}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
@@ -979,7 +1008,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
