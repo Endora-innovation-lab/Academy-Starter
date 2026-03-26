@@ -363,6 +363,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         status,
         institute_id: instituteId,
         updated_by: userId,
+        amount: amountMap[student_id] || 0,
       }));
       const { error } = await supabase.from('fees').upsert(records, {
         onConflict: 'student_id,month',
