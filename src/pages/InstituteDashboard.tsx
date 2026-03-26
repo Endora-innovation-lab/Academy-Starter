@@ -102,7 +102,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         if (studentIds.length > 0) {
           feeQuery = feeQuery.in('student_id', studentIds);
         } else {
-          setStats({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+          setStats({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0 });
           return;
         }
       }
