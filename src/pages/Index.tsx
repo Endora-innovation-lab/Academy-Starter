@@ -4,8 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Eye, EyeOff, GraduationCap, Users, BookOpen, ClipboardList, DollarSign, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +16,6 @@ const Index = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   React.useEffect(() => {
     if (user && role) {
       if (role === 'admin') navigate('/dashboard/institute');
@@ -35,24 +33,11 @@ const Index = () => {
             <GraduationCap className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">Academy Starter</span>
           </div>
-          <div className="flex gap-2">
-            <Dialog open={showLogin} onOpenChange={setShowLogin}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="default">Login</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-                <LoginModal onClose={() => setShowLogin(false)} />
-              </DialogContent>
-            </Dialog>
-            <Link to="/register">
-              <Button size="sm" variant="outline">Register</Button>
-            </Link>
-            <Button size="sm" variant="outline" asChild>
-              <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
-                Feedback
-              </a>
-            </Button>
-          </div>
+          <Button size="sm" variant="outline" asChild>
+            <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
+              Feedback
+            </a>
+          </Button>
         </div>
       </header>
 
@@ -70,11 +55,30 @@ const Index = () => {
             </div>
           </div>
           <h1 className="text-4xl font-bold mb-3">Academy Starter</h1>
-          <p className="text-lg opacity-90 max-w-2xl mx-auto">
+          <p className="text-lg opacity-90 max-w-2xl mx-auto mb-6">
             Manage your educational institute with ease
           </p>
+          <div className="flex gap-3 justify-center">
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() => setShowLogin(true)}
+            >
+              Login
+            </Button>
+            <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" asChild>
+              <Link to="/register">Register</Link>
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Login Dialog */}
+      <Dialog open={showLogin} onOpenChange={setShowLogin}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <LoginModal onClose={() => setShowLogin(false)} />
+        </DialogContent>
+      </Dialog>
 
       {/* Features */}
       <div className="max-w-4xl mx-auto px-4 py-16 flex-1">
@@ -198,7 +202,6 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
         <p className="text-sm text-muted-foreground">Select your role and enter credentials</p>
       </div>
 
-      {/* Role Tabs */}
       <div className="px-6 flex gap-1">
         {roles.map(r => (
           <button
@@ -215,7 +218,6 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
         ))}
       </div>
 
-      {/* Form */}
       <form onSubmit={handleLogin} className="p-6 space-y-4">
         {activeRole === 'student' ? (
           <div className="space-y-2">
