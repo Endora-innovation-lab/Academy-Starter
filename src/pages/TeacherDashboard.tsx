@@ -421,6 +421,16 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
                       <td className="p-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          className="w-28"
+                          value={amountMap[s.student_id] || ''}
+                          onChange={e => setAmountMap(prev => ({ ...prev, [s.student_id]: Number(e.target.value) || 0 }))}
+                          placeholder="₹ 0"
+                        />
+                      </td>
+                      <td className="p-3">
                         <button
                           onClick={() => toggleFee(s.student_id)}
                           className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
