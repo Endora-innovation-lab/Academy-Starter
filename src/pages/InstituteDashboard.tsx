@@ -69,7 +69,7 @@ const NoBatchWarning = ({ onGoToBatches }: { onGoToBatches?: () => void }) => (
 
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ instituteId }: { instituteId: string }) => {
-  const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0 });
+  const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0 });
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
