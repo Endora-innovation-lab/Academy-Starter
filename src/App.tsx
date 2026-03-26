@@ -7,9 +7,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import InstituteRegister from "./pages/InstituteRegister";
-import InstituteLogin from "./pages/InstituteLogin";
-import StudentLogin from "./pages/StudentLogin";
-import TeacherLogin from "./pages/TeacherLogin";
 import ForgotPassword from "./pages/ForgotPassword";
 import InstituteDashboard from "./pages/InstituteDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
@@ -27,9 +24,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/register" element={<InstituteRegister />} />
-            <Route path="/login/institute" element={<InstituteLogin />} />
-            <Route path="/login/student" element={<StudentLogin />} />
-            <Route path="/login/teacher" element={<TeacherLogin />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/dashboard/institute" element={<InstituteDashboard />} />
             <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
