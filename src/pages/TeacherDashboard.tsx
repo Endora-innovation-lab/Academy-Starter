@@ -332,11 +332,13 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     if (studentIds.length > 0) {
       const { data: fees } = await supabase
         .from('fees')
-        .select('student_id, status')
+        .select('student_id, status, amount')
         .in('student_id', studentIds)
         .eq('month', month);
 
-      fees?.forEach(f => { map[f.student_id] = f.status; });
+      const aMap: Record<string, number> = {};
+      fees?.forEach(f => { map[f.student_id] = f.status; aMap[f.student_id] = Number(f.amount) || 0; });
+      setAmountMap(prev => ({ ...prev, ...aMap }));
     }
 
     studentIds.forEach(id => { if (!map[id]) map[id] = 'unpaid'; });
