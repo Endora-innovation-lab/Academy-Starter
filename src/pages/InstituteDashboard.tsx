@@ -117,13 +117,17 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       const attData = attRes.data || [];
       const feeData = feeRes.data || [];
 
+      const paidFees = feeData.filter(f => f.status === 'paid');
+      const unpaidFees = feeData.filter(f => f.status === 'unpaid');
       setStats({
         present: attData.filter(a => a.status === 'present').length,
         absent: attData.filter(a => a.status === 'absent').length,
-        paid: feeData.filter(f => f.status === 'paid').length,
-        unpaid: feeData.filter(f => f.status === 'unpaid').length,
+        paid: paidFees.length,
+        unpaid: unpaidFees.length,
         students: stuRes.count || 0,
         teachers: teaRes.count || 0,
+        totalCollected: paidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
+        totalPending: unpaidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
       });
     };
     fetchStats();
