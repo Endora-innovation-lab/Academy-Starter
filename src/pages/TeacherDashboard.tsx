@@ -409,6 +409,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                 <tr>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Reg No</th>
+                  <th className="text-left p-3 font-medium">Amount</th>
                   <th className="text-left p-3 font-medium">Status</th>
                 </tr>
               </thead>
