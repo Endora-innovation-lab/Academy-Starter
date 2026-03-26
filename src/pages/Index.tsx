@@ -47,6 +47,11 @@ const Index = () => {
             <Link to="/register">
               <Button size="sm" variant="outline">Register</Button>
             </Link>
+            <Button size="sm" variant="outline" asChild>
+              <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
+                Feedback
+              </a>
+            </Button>
           </div>
         </div>
       </header>
