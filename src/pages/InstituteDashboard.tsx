@@ -92,7 +92,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
 
       let attQuery = supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
-      let feeQuery = supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', filterMonth);
+      let feeQuery = supabase.from('fees').select('status, amount').eq('institute_id', instituteId).eq('month', filterMonth);
 
       if (filterBatch !== 'all') {
         attQuery = attQuery.eq('batch_id', filterBatch);
