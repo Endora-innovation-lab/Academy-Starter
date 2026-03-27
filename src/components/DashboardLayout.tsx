@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, LogOut, MessageSquare } from 'lucide-react';
+import { LogOut, MessageSquare } from 'lucide-react';
+import dashboardLogo from '@/assets/logo-transparent.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface DashboardLayoutProps {
@@ -38,7 +39,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, tabs
       <header className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <img src={dashboardLogo} alt="Academy Starter" className="h-8 w-8" />
             <div>
               <h1 className="font-bold text-lg">{title}</h1>
               {instituteCode && (
