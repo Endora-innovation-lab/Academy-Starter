@@ -8,6 +8,9 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import InstituteRegister from "./pages/InstituteRegister";
 import ForgotPassword from "./pages/ForgotPassword";
+import LoginInstitute from "./pages/LoginInstitute";
+import LoginTeacher from "./pages/LoginTeacher";
+import LoginStudent from "./pages/LoginStudent";
 import InstituteDashboard from "./pages/InstituteDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -25,6 +28,9 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/register" element={<InstituteRegister />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/login/institute" element={<LoginInstitute />} />
+            <Route path="/login/teacher" element={<LoginTeacher />} />
+            <Route path="/login/student" element={<LoginStudent />} />
             <Route path="/dashboard/institute" element={<InstituteDashboard />} />
             <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
             <Route path="/dashboard/student" element={<StudentDashboard />} />
