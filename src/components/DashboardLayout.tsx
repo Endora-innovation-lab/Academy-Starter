@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, LogOut, MessageSquare } from 'lucide-react';
+import { LogOut, MessageSquare } from 'lucide-react';
+import dashboardLogo from '@/assets/logo-transparent.png';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface DashboardLayoutProps {
