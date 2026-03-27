@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logo from '@/assets/logo.png';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ const Index = () => {
       <header className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <img src={logo} alt="Academy Starter" className="h-8 w-8 rounded-md" />
             <span className="font-bold text-lg">Academy Starter</span>
           </div>
           <Button size="sm" variant="outline" asChild>
@@ -105,10 +106,10 @@ const Index = () => {
       <footer className="border-t bg-card">
         <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <GraduationCap className="h-4 w-4 text-primary" />
+            <img src={logo} alt="Academy Starter" className="h-5 w-5 rounded" />
             <span>Academy Starter</span>
           </div>
-          <p>© {new Date().getFullYear()} Academy Starter. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Endora Innovation. All rights reserved.</p>
         </div>
       </footer>
     </div>
