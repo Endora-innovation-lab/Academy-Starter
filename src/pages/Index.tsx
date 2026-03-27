@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Eye, EyeOff, GraduationCap, Users, BookOpen, ClipboardList, DollarSign, Shield } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, Users, BookOpen, ClipboardList, DollarSign, Shield, LogIn, Building2, CheckSquare, Key } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 type LoginRole = 'institute' | 'teacher' | 'student';
@@ -28,13 +28,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, hsl(199, 100%, 50%), hsl(210, 100%, 56%))' }}>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src={logo} alt="Academy Starter" className="h-8 w-8 rounded-md" />
-            <span className="font-bold text-lg">Academy Starter</span>
+            <span className="font-bold text-lg text-white">AcademyStarter</span>
           </div>
-          <Button size="sm" variant="outline" asChild>
+          <Button size="sm" variant="ghost" className="text-white hover:bg-white/20" asChild>
             <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
               Feedback
             </a>
@@ -43,32 +43,36 @@ const Index = () => {
       </header>
 
       {/* Hero */}
-      <div className="bg-primary text-primary-foreground py-16 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-full h-full" style={{
-            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.05) 35px, rgba(255,255,255,0.05) 70px)'
-          }} />
-        </div>
+      <div className="py-20 px-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(220, 100%, 55%), hsl(265, 85%, 55%))' }}>
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="flex justify-center mb-6">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-foreground/20">
-              <GraduationCap className="h-9 w-9" />
-            </div>
+          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-5 py-2 mb-8">
+            <GraduationCap className="h-5 w-5 text-white" />
+            <span className="text-white font-medium text-sm">Academy Starter System</span>
           </div>
-          <h1 className="text-4xl font-bold mb-3">Academy Starter</h1>
-          <p className="text-lg opacity-90 max-w-2xl mx-auto mb-6">
-            Manage your educational institute with ease
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 leading-tight">
+            Manage your institute
+          </h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight" style={{ color: 'hsl(42, 100%, 55%)', fontStyle: 'italic' }}>
+            effortlessly.
+          </h1>
+          <p className="text-lg text-white/85 max-w-2xl mx-auto mb-8">
+            The all-in-one platform for educational institutes. Track attendance, manage fees, organize batches, and manage teachers and students.
           </p>
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Button
               size="lg"
-              variant="secondary"
+              className="bg-white text-primary font-bold hover:bg-white/90 px-8 py-6 text-base"
               onClick={() => setShowLogin(true)}
             >
-              Login
+              <LogIn className="h-5 w-5 mr-2" />
+              Login to Dashboard
             </Button>
-            <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10" asChild>
-              <Link to="/register">Register</Link>
+            <Button
+              size="lg"
+              className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-6 text-base font-bold"
+              asChild
+            >
+              <Link to="/register">Register Institute</Link>
             </Button>
           </div>
         </div>
@@ -81,25 +85,84 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Features */}
-      <div className="max-w-4xl mx-auto px-4 py-16 flex-1">
-        <h2 className="text-2xl font-bold text-center mb-8">Everything You Need</h2>
+      {/* How it works */}
+      <div className="max-w-5xl mx-auto px-4 py-16 w-full">
+        <h2 className="text-3xl font-bold text-center mb-2">How it works</h2>
+        <p className="text-center text-muted-foreground mb-10">Three roles, one platform</p>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { icon: Users, title: 'Student Management', desc: 'Add, edit, search, and manage student records with batch filtering' },
-            { icon: BookOpen, title: 'Teacher Management', desc: 'Create teacher accounts with auto-generated credentials' },
-            { icon: ClipboardList, title: 'Attendance Tracking', desc: 'Mark and view attendance by date and batch with monthly summaries' },
-            { icon: DollarSign, title: 'Fee Management', desc: 'Track paid/unpaid fee status with monthly records and amounts' },
-            { icon: Shield, title: 'Role-Based Access', desc: 'Secure dashboards for admins, teachers, and students' },
-            { icon: GraduationCap, title: 'Batch Organization', desc: 'Group students into batches with multiple teachers' },
+            {
+              icon: Building2,
+              title: 'Institute Admin',
+              desc: 'Register your institute. Add students and teachers directly — no self-registration needed. Manage batches, attendance, and fees.',
+              hint: null,
+              iconBg: 'hsl(210, 80%, 95%)',
+              iconColor: 'hsl(210, 80%, 50%)',
+            },
+            {
+              icon: Users,
+              title: 'Teachers',
+              desc: 'Login using your email and auto-generated password. Mark daily attendance, update fee status, and manage your assigned batches.',
+              hint: '🔐 Password: last 4 digits of phone + birth year',
+              iconBg: 'hsl(170, 60%, 93%)',
+              iconColor: 'hsl(170, 60%, 40%)',
+            },
+            {
+              icon: GraduationCap,
+              title: 'Students',
+              desc: 'Login using your registration number and date of birth. View your attendance record and fee payment history.',
+              hint: '🔐 Password: Date of Birth (dd-mm-yyyy)',
+              iconBg: 'hsl(180, 60%, 93%)',
+              iconColor: 'hsl(180, 60%, 40%)',
+            },
           ].map((f) => (
-            <div key={f.title} className="rounded-lg border bg-card p-5 hover:shadow-md transition-shadow">
-              <f.icon className="h-8 w-8 text-primary mb-3" />
-              <h3 className="font-semibold mb-1">{f.title}</h3>
-              <p className="text-sm text-muted-foreground">{f.desc}</p>
+            <div key={f.title} className="rounded-xl border bg-card p-6 text-center hover:shadow-lg transition-shadow">
+              <div className="flex justify-center mb-4">
+                <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: f.iconBg }}>
+                  <f.icon className="h-8 w-8" style={{ color: f.iconColor }} />
+                </div>
+              </div>
+              <h3 className="font-bold text-lg mb-2">{f.title}</h3>
+              <p className="text-sm text-muted-foreground mb-3">{f.desc}</p>
+              {f.hint && (
+                <p className="text-xs font-medium px-3 py-2 rounded-lg border" style={{ color: 'hsl(170, 60%, 35%)' }}>
+                  {f.hint}
+                </p>
+              )}
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Features strip */}
+      <div className="border-t border-b bg-card">
+        <div className="max-w-5xl mx-auto px-4 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
+          {[
+            { icon: Shield, label: 'Role-Based Access', color: 'hsl(210, 80%, 55%)' },
+            { icon: ClipboardList, label: 'Batch Management', color: 'hsl(170, 60%, 45%)' },
+            { icon: CheckSquare, label: 'Attendance Tracking', color: 'hsl(42, 90%, 50%)' },
+            { icon: DollarSign, label: 'Fee Management', color: 'hsl(30, 90%, 55%)' },
+          ].map((f) => (
+            <div key={f.label} className="flex flex-col items-center text-center gap-3">
+              <div className="h-12 w-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${f.color}20` }}>
+                <f.icon className="h-6 w-6" style={{ color: f.color }} />
+              </div>
+              <span className="font-semibold text-sm">{f.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="py-16 px-4 text-center" style={{ background: 'linear-gradient(135deg, hsl(199, 100%, 50%), hsl(210, 100%, 56%))' }}>
+        <h2 className="text-3xl font-bold text-white mb-3">Ready to get started?</h2>
+        <p className="text-white/85 mb-8">Register your institute and take full control in minutes.</p>
+        <Button size="lg" className="bg-white text-primary font-bold hover:bg-white/90 px-8 py-6 text-base" asChild>
+          <Link to="/register">
+            <Building2 className="h-5 w-5 mr-2" />
+            Register Your Institute
+          </Link>
+        </Button>
       </div>
 
       {/* Footer */}
