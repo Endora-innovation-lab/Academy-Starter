@@ -106,10 +106,10 @@ const Index = () => {
       <footer className="border-t bg-card">
         <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <GraduationCap className="h-4 w-4 text-primary" />
+            <img src={logo} alt="Academy Starter" className="h-5 w-5 rounded" />
             <span>Academy Starter</span>
           </div>
-          <p>© {new Date().getFullYear()} Academy Starter. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Endora Innovation. All rights reserved.</p>
         </div>
       </footer>
     </div>
