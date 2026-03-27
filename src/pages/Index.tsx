@@ -31,7 +31,7 @@ const Index = () => {
       <header className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <img src={logo} alt="Academy Starter" className="h-8 w-8 rounded-md" />
             <span className="font-bold text-lg">Academy Starter</span>
           </div>
           <Button size="sm" variant="outline" asChild>
