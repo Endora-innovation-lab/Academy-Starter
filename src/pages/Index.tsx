@@ -45,10 +45,6 @@ const Index = () => {
       {/* Hero */}
       <div className="py-20 px-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(220, 100%, 55%), hsl(265, 85%, 55%))' }}>
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-5 py-2 mb-8">
-            <GraduationCap className="h-5 w-5 text-white" />
-            <span className="text-white font-medium text-sm">Academy Starter System</span>
-          </div>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 leading-tight">
             Manage your institute
           </h1>
