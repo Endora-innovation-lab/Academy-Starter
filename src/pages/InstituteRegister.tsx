@@ -151,7 +151,7 @@ const InstituteRegister = () => {
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Already registered?{' '}
-              <Link to="/login/institute" className="text-primary hover:underline">
+              <Link to="/" className="text-primary hover:underline">
                 Login here
               </Link>
             </p>
