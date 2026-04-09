@@ -129,14 +129,16 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Date</th>
               <th className="text-left p-3 font-medium">Batch</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
-            {attendance.map(a => (
+            {attendance.map((a, index) => (
               <tr key={a.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{a.date}</td>
                 <td className="p-3">{(a.batches as any)?.name || '-'}</td>
                 <td className="p-3">
@@ -147,7 +149,7 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
               </tr>
             ))}
             {attendance.length === 0 && (
-              <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">No attendance records for this month</td></tr>
+              <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No attendance records for this month</td></tr>
             )}
           </tbody>
         </table>
@@ -187,13 +189,15 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Month</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
-            {fees.map(f => (
+            {fees.map((f, index) => (
               <tr key={f.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{f.month}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -203,7 +207,7 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={2} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
