@@ -937,7 +937,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {attendance.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
             )}
           </tbody>
         </table>
