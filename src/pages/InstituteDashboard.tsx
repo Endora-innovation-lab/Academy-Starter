@@ -913,6 +913,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Batch</th>
@@ -921,8 +922,9 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {attendance.map(a => (
+            {attendance.map((a, index) => (
               <tr key={a.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(a.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(a.students as any)?.reg_no}</td>
                 <td className="p-3">{(a.batches as any)?.name || '-'}</td>
