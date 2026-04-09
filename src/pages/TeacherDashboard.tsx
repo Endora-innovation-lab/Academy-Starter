@@ -112,13 +112,15 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
+                  <th className="text-left p-3 font-medium">S.No</th>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Reg No</th>
                 </tr>
               </thead>
               <tbody>
-                {displayStudents.map(s => (
+                {displayStudents.map((s, index) => (
                   <tr key={s.id} className="border-t">
+                    <td className="p-3">{index + 1}</td>
                     <td className="p-3">{(s.students as any)?.profiles?.name}</td>
                     <td className="p-3">{(s.students as any)?.reg_no}</td>
                   </tr>
@@ -251,16 +253,18 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
+                  <th className="text-left p-3 font-medium">S.No</th>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Reg No</th>
                   <th className="text-left p-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {displayStudents.map(s => {
+                {displayStudents.map((s, index) => {
                   const student = s.students as any;
                   return (
                     <tr key={s.student_id} className="border-t">
+                      <td className="p-3">{index + 1}</td>
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
                       <td className="p-3">
@@ -407,6 +411,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr>
+                  <th className="text-left p-3 font-medium">S.No</th>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Reg No</th>
                   <th className="text-left p-3 font-medium">Amount</th>
@@ -414,10 +419,11 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                 </tr>
               </thead>
               <tbody>
-                {displayStudents.map(s => {
+                {displayStudents.map((s, index) => {
                   const student = s.students as any;
                   return (
                     <tr key={s.student_id} className="border-t">
+                      <td className="p-3">{index + 1}</td>
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
                       <td className="p-3">

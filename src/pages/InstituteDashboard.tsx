@@ -381,6 +381,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">DOB</th>
@@ -389,8 +390,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             </tr>
           </thead>
           <tbody>
-            {displayStudents.map(s => (
+            {displayStudents.map((s, index) => (
               <tr key={s.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
                 <td className="p-3">{s.reg_no}</td>
                 <td className="p-3">{s.dob}</td>
@@ -410,7 +412,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               </tr>
             ))}
             {displayStudents.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students found</td></tr>
             )}
           </tbody>
         </table>
@@ -554,6 +556,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Email</th>
               <th className="text-left p-3 font-medium">Phone</th>
@@ -562,8 +565,9 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             </tr>
           </thead>
           <tbody>
-            {displayTeachers.map(t => (
+            {displayTeachers.map((t, index) => (
               <tr key={t.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(t.profiles as any)?.name || 'N/A'}</td>
                 <td className="p-3">{(t.profiles as any)?.email || '-'}</td>
                 <td className="p-3">{t.phone}</td>
@@ -583,7 +587,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               </tr>
             ))}
             {displayTeachers.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
             )}
           </tbody>
         </table>
@@ -858,7 +862,10 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
-  const [filterDate, setFilterDate] = useState('');
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     const fetchBatches = async () => {
@@ -869,18 +876,23 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   }, [instituteId]);
 
   const fetchAttendance = async () => {
+    const firstDay = `${filterMonth}-01`;
+    const [year, month] = filterMonth.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+
     let query = supabase
       .from('attendance')
       .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name)), batches(name)')
       .eq('institute_id', instituteId)
+      .gte('date', firstDay)
+      .lte('date', lastDay)
       .order('date', { ascending: false });
-    if (filterDate) query = query.eq('date', filterDate);
     if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
-    const { data } = await query.limit(200);
+    const { data } = await query.limit(500);
     setAttendance(data || []);
   };
 
-  useEffect(() => { fetchAttendance(); }, [instituteId, filterDate, filterBatch]);
+  useEffect(() => { fetchAttendance(); }, [instituteId, filterMonth, filterBatch]);
 
   return (
     <div className="space-y-4">
@@ -894,13 +906,14 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" />
+          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
         </div>
       </div>
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Batch</th>
@@ -909,8 +922,9 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {attendance.map(a => (
+            {attendance.map((a, index) => (
               <tr key={a.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(a.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(a.students as any)?.reg_no}</td>
                 <td className="p-3">{(a.batches as any)?.name || '-'}</td>
@@ -923,7 +937,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {attendance.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No attendance records</td></tr>
             )}
           </tbody>
         </table>
@@ -986,6 +1000,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Month</th>
@@ -994,8 +1009,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {fees.map(f => (
+            {fees.map((f, index) => (
               <tr key={f.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(f.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(f.students as any)?.reg_no}</td>
                 <td className="p-3">{f.month}</td>
@@ -1008,7 +1024,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
