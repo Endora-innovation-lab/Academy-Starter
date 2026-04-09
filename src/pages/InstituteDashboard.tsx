@@ -1000,6 +1000,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Month</th>
@@ -1008,8 +1009,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {fees.map(f => (
+            {fees.map((f, index) => (
               <tr key={f.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(f.students as any)?.profiles?.name}</td>
                 <td className="p-3">{(f.students as any)?.reg_no}</td>
                 <td className="p-3">{f.month}</td>
@@ -1022,7 +1024,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
