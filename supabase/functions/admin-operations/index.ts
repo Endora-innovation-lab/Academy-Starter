@@ -52,32 +52,53 @@ Deno.serve(async (req) => {
       const email = `${reg_no.toLowerCase().replace(/[^a-z0-9]/g, '')}@student.academy.local`
       const password = dob // dd-mm-yyyy format
 
-      // Check if auth user already exists (orphaned from previous deletion)
-      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-      const existingUser = existingUsers?.users?.find(u => u.email === email)
-      if (existingUser) {
-        // Clean up orphaned auth user
-        await supabaseAdmin.from('fees').delete().eq('student_id', existingUser.id)
-        await supabaseAdmin.from('batch_students').delete().eq('student_id', existingUser.id)
-        await supabaseAdmin.from('attendance').delete().eq('student_id', existingUser.id)
-        await supabaseAdmin.from('students').delete().eq('user_id', existingUser.id)
-        await supabaseAdmin.from('user_roles').delete().eq('user_id', existingUser.id)
-        await supabaseAdmin.from('profiles').delete().eq('user_id', existingUser.id)
-        await supabaseAdmin.auth.admin.deleteUser(existingUser.id)
-      }
-
-      // Create auth user
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      // Try to create auth user, handle duplicate by cleaning up orphan
+      let newUser: any
+      const { data: firstTry, error: firstError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
         user_metadata: { name, role: 'student' }
       })
 
-      if (createError) {
-        return new Response(JSON.stringify({ error: createError.message }), {
+      if (firstError && firstError.message.includes('already been registered')) {
+        // Find and clean up orphaned auth user
+        let page = 1
+        let found = null
+        while (!found) {
+          const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 100 })
+          if (!users || users.length === 0) break
+          found = users.find(u => u.email === email)
+          page++
+        }
+        if (found) {
+          await supabaseAdmin.from('fees').delete().eq('student_id', found.id)
+          await supabaseAdmin.from('batch_students').delete().eq('student_id', found.id)
+          await supabaseAdmin.from('attendance').delete().eq('student_id', found.id)
+          await supabaseAdmin.from('students').delete().eq('user_id', found.id)
+          await supabaseAdmin.from('user_roles').delete().eq('user_id', found.id)
+          await supabaseAdmin.from('profiles').delete().eq('user_id', found.id)
+          await supabaseAdmin.auth.admin.deleteUser(found.id)
+        }
+        // Retry creation
+        const { data: retryData, error: retryError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { name, role: 'student' }
+        })
+        if (retryError) {
+          return new Response(JSON.stringify({ error: retryError.message }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        newUser = retryData
+      } else if (firstError) {
+        return new Response(JSON.stringify({ error: firstError.message }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
+      } else {
+        newUser = firstTry
       }
 
       // Insert into profiles
