@@ -52,6 +52,20 @@ Deno.serve(async (req) => {
       const email = `${reg_no.toLowerCase().replace(/[^a-z0-9]/g, '')}@student.academy.local`
       const password = dob // dd-mm-yyyy format
 
+      // Check if auth user already exists (orphaned from previous deletion)
+      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+      const existingUser = existingUsers?.users?.find(u => u.email === email)
+      if (existingUser) {
+        // Clean up orphaned auth user
+        await supabaseAdmin.from('fees').delete().eq('student_id', existingUser.id)
+        await supabaseAdmin.from('batch_students').delete().eq('student_id', existingUser.id)
+        await supabaseAdmin.from('attendance').delete().eq('student_id', existingUser.id)
+        await supabaseAdmin.from('students').delete().eq('user_id', existingUser.id)
+        await supabaseAdmin.from('user_roles').delete().eq('user_id', existingUser.id)
+        await supabaseAdmin.from('profiles').delete().eq('user_id', existingUser.id)
+        await supabaseAdmin.auth.admin.deleteUser(existingUser.id)
+      }
+
       // Create auth user
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -118,6 +132,17 @@ Deno.serve(async (req) => {
     if (action === 'create_teacher') {
       const { name, email, phone, birth_year } = body
       const password = phone.slice(-4) + birth_year
+
+      // Check if auth user already exists (orphaned from previous deletion)
+      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+      const existingUser = existingUsers?.users?.find(u => u.email === email)
+      if (existingUser) {
+        await supabaseAdmin.from('batch_teachers').delete().eq('teacher_id', existingUser.id)
+        await supabaseAdmin.from('teachers').delete().eq('user_id', existingUser.id)
+        await supabaseAdmin.from('user_roles').delete().eq('user_id', existingUser.id)
+        await supabaseAdmin.from('profiles').delete().eq('user_id', existingUser.id)
+        await supabaseAdmin.auth.admin.deleteUser(existingUser.id)
+      }
 
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -247,7 +272,8 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(JSON.stringify({ error: message }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
