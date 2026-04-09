@@ -381,6 +381,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">DOB</th>
@@ -389,8 +390,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             </tr>
           </thead>
           <tbody>
-            {displayStudents.map(s => (
+            {displayStudents.map((s, index) => (
               <tr key={s.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
                 <td className="p-3">{s.reg_no}</td>
                 <td className="p-3">{s.dob}</td>
@@ -410,7 +412,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               </tr>
             ))}
             {displayStudents.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students found</td></tr>
             )}
           </tbody>
         </table>
@@ -554,6 +556,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
+              <th className="text-left p-3 font-medium">S.No</th>
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Email</th>
               <th className="text-left p-3 font-medium">Phone</th>
@@ -562,8 +565,9 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             </tr>
           </thead>
           <tbody>
-            {displayTeachers.map(t => (
+            {displayTeachers.map((t, index) => (
               <tr key={t.id} className="border-t">
+                <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(t.profiles as any)?.name || 'N/A'}</td>
                 <td className="p-3">{(t.profiles as any)?.email || '-'}</td>
                 <td className="p-3">{t.phone}</td>
@@ -583,7 +587,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               </tr>
             ))}
             {displayTeachers.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
             )}
           </tbody>
         </table>
