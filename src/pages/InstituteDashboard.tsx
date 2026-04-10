@@ -357,6 +357,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <SelectItem value="unpaid">Unpaid</SelectItem>
             </SelectContent>
           </Select>
+          <Input type="month" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" placeholder="Filter by date" />
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Student</Button>
