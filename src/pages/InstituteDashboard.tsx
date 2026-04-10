@@ -467,14 +467,22 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
 
   useEffect(() => { fetchTeachers(); }, [instituteId]);
 
-  const displayTeachers = searchTerm
+  const filteredByDate = filterDate
     ? teachers.filter(t => {
+        const [year, month] = filterDate.split('-').map(Number);
+        const d = new Date(t.created_at);
+        return d.getFullYear() === year && d.getMonth() + 1 === month;
+      })
+    : teachers;
+
+  const displayTeachers = searchTerm
+    ? filteredByDate.filter(t => {
         const tName = (t.profiles as any)?.name?.toLowerCase() || '';
         const tEmail = (t.profiles as any)?.email?.toLowerCase() || '';
         const term = searchTerm.toLowerCase();
         return tName.includes(term) || tEmail.includes(term);
       })
-    : teachers;
+    : filteredByDate;
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
