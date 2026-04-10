@@ -274,31 +274,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
     setBatches(batchData || []);
 
-    const { data: feesData } = await supabase.from('fees').select('student_id, status').eq('institute_id', instituteId);
-
-    let filtered = data || [];
-
-    if (filterBatch !== 'all') {
-      const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
-      const studentIds = batchStudents?.map(bs => bs.student_id) || [];
-      filtered = filtered.filter(s => studentIds.includes(s.id));
-    }
-
-    if (filterFee !== 'all') {
-      const studentsWithStatus = feesData?.filter(f => f.status === filterFee).map(f => f.student_id) || [];
-      if (filterFee === 'unpaid') {
-        const paidStudents = feesData?.filter(f => f.status === 'paid').map(f => f.student_id) || [];
-        filtered = filtered.filter(s => !paidStudents.includes(s.id) || studentsWithStatus.includes(s.id));
-      } else {
-        filtered = filtered.filter(s => studentsWithStatus.includes(s.id));
-      }
-    }
-
-    setStudents(filtered);
+    setStudents(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchStudents(); }, [instituteId, filterBatch, filterFee]);
+  useEffect(() => { fetchStudents(); }, [instituteId]);
 
   const displayStudents = searchTerm
     ? students.filter(s => {
