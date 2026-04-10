@@ -257,8 +257,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [editStudent, setEditStudent] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [batches, setBatches] = useState<any[]>([]);
-  const [filterBatch, setFilterBatch] = useState('all');
-  const [filterFee, setFilterFee] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
