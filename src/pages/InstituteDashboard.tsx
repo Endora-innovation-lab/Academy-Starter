@@ -260,11 +260,19 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       }
     }
 
+    if (filterDate) {
+      const [year, month] = filterDate.split('-').map(Number);
+      filtered = filtered.filter(s => {
+        const d = new Date(s.created_at);
+        return d.getFullYear() === year && d.getMonth() + 1 === month;
+      });
+    }
+
     setStudents(filtered);
     setLoading(false);
   };
 
-  useEffect(() => { fetchStudents(); }, [instituteId, filterBatch, filterFee]);
+  useEffect(() => { fetchStudents(); }, [instituteId, filterBatch, filterFee, filterDate]);
 
   const displayStudents = searchTerm
     ? students.filter(s => {
