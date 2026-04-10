@@ -72,10 +72,13 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
   const [stats, setStats] = useState({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0 });
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
+  const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [filterYear, setFilterYear] = useState(() => String(new Date().getFullYear()));
 
   useEffect(() => {
     const fetchBatches = async () => {
@@ -87,16 +90,34 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const firstDay = `${filterMonth}-01`;
-      const [year, month] = filterMonth.split('-').map(Number);
-      const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+      let firstDay: string, lastDay: string, feeMonth: string;
+
+      if (filterType === 'daily') {
+        firstDay = filterDate;
+        lastDay = filterDate;
+        feeMonth = filterDate.substring(0, 7);
+      } else if (filterType === 'monthly') {
+        firstDay = `${filterMonth}-01`;
+        const [year, month] = filterMonth.split('-').map(Number);
+        lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+        feeMonth = filterMonth;
+      } else {
+        firstDay = `${filterYear}-01-01`;
+        lastDay = `${filterYear}-12-31`;
+        feeMonth = '';
+      }
 
       let attQuery = supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
-      let feeQuery = supabase.from('fees').select('status, amount').eq('institute_id', instituteId).eq('month', filterMonth);
+      let feeQuery = supabase.from('fees').select('status, amount').eq('institute_id', instituteId);
+      if (filterType === 'yearly') {
+        // For yearly, match all months in the year
+        feeQuery = feeQuery.gte('month', `${filterYear}-01`).lte('month', `${filterYear}-12`);
+      } else {
+        feeQuery = feeQuery.eq('month', feeMonth);
+      }
 
       if (filterBatch !== 'all') {
         attQuery = attQuery.eq('batch_id', filterBatch);
-        // For fees, filter by students in the batch
         const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
         const studentIds = batchStudents?.map(bs => bs.student_id) || [];
         if (studentIds.length > 0) {
@@ -131,15 +152,21 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       });
     };
     fetchStats();
-  }, [instituteId, filterBatch, filterMonth]);
+  }, [instituteId, filterBatch, filterType, filterDate, filterMonth, filterYear]);
 
-  const [year, month] = filterMonth.split('-').map(Number);
-  const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  const getFilterLabel = () => {
+    if (filterType === 'daily') return new Date(filterDate).toLocaleDateString('default', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (filterType === 'monthly') {
+      const [year, month] = filterMonth.split('-').map(Number);
+      return new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    }
+    return filterYear;
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Monthly Review — {monthName}</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> {filterType === 'daily' ? 'Daily' : filterType === 'monthly' ? 'Monthly' : 'Yearly'} Review — {getFilterLabel()}</h2>
         <div className="flex gap-2">
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
@@ -148,7 +175,17 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
               {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
+          <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly') => setFilterType(v)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="yearly">Yearly</SelectItem>
+            </SelectContent>
+          </Select>
+          {filterType === 'daily' && <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-44" />}
+          {filterType === 'monthly' && <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />}
+          {filterType === 'yearly' && <Input type="number" min="2020" max="2099" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="w-28" />}
         </div>
       </div>
 
@@ -220,8 +257,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [editStudent, setEditStudent] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [batches, setBatches] = useState<any[]>([]);
-  const [filterBatch, setFilterBatch] = useState('all');
-  const [filterFee, setFilterFee] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
@@ -239,31 +274,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
     setBatches(batchData || []);
 
-    const { data: feesData } = await supabase.from('fees').select('student_id, status').eq('institute_id', instituteId);
-
-    let filtered = data || [];
-
-    if (filterBatch !== 'all') {
-      const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
-      const studentIds = batchStudents?.map(bs => bs.student_id) || [];
-      filtered = filtered.filter(s => studentIds.includes(s.id));
-    }
-
-    if (filterFee !== 'all') {
-      const studentsWithStatus = feesData?.filter(f => f.status === filterFee).map(f => f.student_id) || [];
-      if (filterFee === 'unpaid') {
-        const paidStudents = feesData?.filter(f => f.status === 'paid').map(f => f.student_id) || [];
-        filtered = filtered.filter(s => !paidStudents.includes(s.id) || studentsWithStatus.includes(s.id));
-      } else {
-        filtered = filtered.filter(s => studentsWithStatus.includes(s.id));
-      }
-    }
-
-    setStudents(filtered);
+    setStudents(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchStudents(); }, [instituteId, filterBatch, filterFee]);
+  useEffect(() => { fetchStudents(); }, [instituteId]);
 
   const displayStudents = searchTerm
     ? students.filter(s => {
@@ -333,21 +348,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-48" placeholder="Search name or reg no..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
-          <Select value={filterBatch} onValueChange={setFilterBatch}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Batches</SelectItem>
-              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterFee} onValueChange={setFilterFee}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Filter by fee" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Fees</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
-            </SelectContent>
-          </Select>
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Student</Button>
@@ -862,10 +862,13 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
+  const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [filterYear, setFilterYear] = useState(() => String(new Date().getFullYear()));
 
   useEffect(() => {
     const fetchBatches = async () => {
@@ -876,9 +879,19 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   }, [instituteId]);
 
   const fetchAttendance = async () => {
-    const firstDay = `${filterMonth}-01`;
-    const [year, month] = filterMonth.split('-').map(Number);
-    const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+    let firstDay: string, lastDay: string;
+
+    if (filterType === 'daily') {
+      firstDay = filterDate;
+      lastDay = filterDate;
+    } else if (filterType === 'monthly') {
+      firstDay = `${filterMonth}-01`;
+      const [year, month] = filterMonth.split('-').map(Number);
+      lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+    } else {
+      firstDay = `${filterYear}-01-01`;
+      lastDay = `${filterYear}-12-31`;
+    }
 
     let query = supabase
       .from('attendance')
@@ -892,7 +905,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     setAttendance(data || []);
   };
 
-  useEffect(() => { fetchAttendance(); }, [instituteId, filterMonth, filterBatch]);
+  useEffect(() => { fetchAttendance(); }, [instituteId, filterType, filterDate, filterMonth, filterYear, filterBatch]);
 
   return (
     <div className="space-y-4">
@@ -906,7 +919,17 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
+          <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly') => setFilterType(v)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="yearly">Yearly</SelectItem>
+            </SelectContent>
+          </Select>
+          {filterType === 'daily' && <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-44" />}
+          {filterType === 'monthly' && <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />}
+          {filterType === 'yearly' && <Input type="number" min="2020" max="2099" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="w-28" />}
         </div>
       </div>
       <div className="rounded-lg border bg-card overflow-x-auto">
