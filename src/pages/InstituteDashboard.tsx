@@ -452,6 +452,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthYear, setBirthYear] = useState('');
