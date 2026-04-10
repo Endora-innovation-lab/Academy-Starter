@@ -542,6 +542,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-48" placeholder="Search name or email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
+          <Input type="month" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" placeholder="Filter by date" />
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Teacher</Button>
