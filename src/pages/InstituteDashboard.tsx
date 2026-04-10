@@ -223,6 +223,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterFee, setFilterFee] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDate, setFilterDate] = useState('');
 
   const [name, setName] = useState('');
   const [regNo, setRegNo] = useState('');
