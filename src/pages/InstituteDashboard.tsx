@@ -639,6 +639,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batchName, setBatchName] = useState('');
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [enrollRegNo, setEnrollRegNo] = useState('');
+  const [filterDate, setFilterDate] = useState('');
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
   const [batchTeachers, setBatchTeachers] = useState<any[]>([]);
 
