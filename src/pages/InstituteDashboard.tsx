@@ -754,43 +754,50 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><Layers className="h-5 w-5" /> Batches</h2>
-        <Dialog open={showAdd} onOpenChange={setShowAdd}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Create Batch</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Create Batch</DialogTitle></DialogHeader>
-            <form onSubmit={handleCreateBatch} className="space-y-3">
-              <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
-              <div>
-                <Label>Assign Teachers (select multiple)</Label>
-                <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
-                  {teachers.map(t => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1 rounded">
-                      <input
-                        type="checkbox"
-                        checked={selectedTeachers.includes(t.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedTeachers(prev => [...prev, t.id]);
-                          else setSelectedTeachers(prev => prev.filter(id => id !== t.id));
-                        }}
-                      />
-                      {(t.profiles as any)?.name}
-                    </label>
-                  ))}
-                  {teachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
+        <div className="flex flex-wrap gap-2">
+          <Input type="month" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-48" placeholder="Filter by date" />
+          <Dialog open={showAdd} onOpenChange={setShowAdd}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Create Batch</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Create Batch</DialogTitle></DialogHeader>
+              <form onSubmit={handleCreateBatch} className="space-y-3">
+                <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
+                <div>
+                  <Label>Assign Teachers (select multiple)</Label>
+                  <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
+                    {teachers.map(t => (
+                      <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedTeachers.includes(t.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedTeachers(prev => [...prev, t.id]);
+                            else setSelectedTeachers(prev => prev.filter(id => id !== t.id));
+                          }}
+                        />
+                        {(t.profiles as any)?.name}
+                      </label>
+                    ))}
+                    {teachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
+                  </div>
                 </div>
-              </div>
-              <Button type="submit" className="w-full">Create</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <Button type="submit" className="w-full">Create</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {batches.map(b => (
+        {(filterDate ? batches.filter(b => {
+          const [year, month] = filterDate.split('-').map(Number);
+          const d = new Date(b.created_at);
+          return d.getFullYear() === year && d.getMonth() + 1 === month;
+        }) : batches).map(b => (
           <Card key={b.id}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
