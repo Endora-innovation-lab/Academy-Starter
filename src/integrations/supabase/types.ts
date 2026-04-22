@@ -329,6 +329,39 @@ export type Database = {
           },
         ]
       }
+      teacher_attendance: {
+        Row: {
+          batch_id: string
+          created_at: string
+          date: string
+          id: string
+          institute_id: string
+          marked_by: string | null
+          status: string
+          teacher_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          date: string
+          id?: string
+          institute_id: string
+          marked_by?: string | null
+          status?: string
+          teacher_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          institute_id?: string
+          marked_by?: string | null
+          status?: string
+          teacher_id?: string
+        }
+        Relationships: []
+      }
       teachers: {
         Row: {
           birth_year: string
