@@ -28,7 +28,6 @@ const TeacherDashboard = () => {
     { label: 'My Batches', value: 'batches' },
     { label: 'My Attendance', value: 'my-attendance' },
     { label: 'Mark Attendance', value: 'attendance' },
-    { label: 'Update Fees', value: 'fees' },
   ];
 
   if (loading || (user && !instituteId)) {
