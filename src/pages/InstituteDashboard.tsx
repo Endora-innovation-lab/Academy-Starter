@@ -215,14 +215,35 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
 
       <div className="grid sm:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Attendance Summary</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Student Attendance</CardTitle></CardHeader>
           <CardContent className="flex gap-6">
             <div>
               <p className="text-2xl font-bold text-accent">{stats.present}</p>
               <p className="text-sm text-muted-foreground">Present</p>
             </div>
             <div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
+              <p className="text-sm text-muted-foreground">Late</p>
+            </div>
+            <div>
               <p className="text-2xl font-bold text-destructive">{stats.absent}</p>
+              <p className="text-sm text-muted-foreground">Absent</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Teacher Attendance</CardTitle></CardHeader>
+          <CardContent className="flex gap-6">
+            <div>
+              <p className="text-2xl font-bold text-accent">{stats.teacherPresent}</p>
+              <p className="text-sm text-muted-foreground">Present</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.teacherLate}</p>
+              <p className="text-sm text-muted-foreground">Late</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-destructive">{stats.teacherAbsent}</p>
               <p className="text-sm text-muted-foreground">Absent</p>
             </div>
           </CardContent>
