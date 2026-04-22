@@ -213,7 +213,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         </Card>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Student Attendance</CardTitle></CardHeader>
           <CardContent className="flex gap-6">
