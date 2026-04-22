@@ -264,17 +264,16 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Collected</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-accent">₹{stats.totalCollected.toLocaleString()}</p>
-            <p className="text-sm text-muted-foreground">Total amount collected</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Pending</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-destructive">₹{stats.totalPending.toLocaleString()}</p>
-            <p className="text-sm text-muted-foreground">Total amount pending</p>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Collected & Pending</CardTitle></CardHeader>
+          <CardContent className="flex gap-6">
+            <div>
+              <p className="text-2xl font-bold text-accent">₹{stats.totalCollected.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Collected</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-destructive">₹{stats.totalPending.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Pending</p>
+            </div>
           </CardContent>
         </Card>
       </div>
