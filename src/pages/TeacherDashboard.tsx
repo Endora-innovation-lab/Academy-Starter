@@ -43,7 +43,6 @@ const TeacherDashboard = () => {
       {activeTab === 'batches' && teacherRecord && <TeacherBatchesTab teacherId={teacherRecord.id} instituteId={instituteId} />}
       {activeTab === 'my-attendance' && teacherRecord && <MyAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
       {activeTab === 'attendance' && teacherRecord && <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
-      {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
     </DashboardLayout>
   );
 };
