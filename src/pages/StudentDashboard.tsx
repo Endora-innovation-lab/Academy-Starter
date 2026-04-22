@@ -96,6 +96,8 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
   }, [studentId, filterMonth, filterBatch]);
 
   const presentCount = attendance.filter(a => a.status === 'present').length;
+  const lateCount = attendance.filter(a => a.status === 'late').length;
+  const absentCount = attendance.filter(a => a.status === 'absent').length;
   const totalCount = attendance.length;
 
   return (
@@ -119,9 +121,10 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
         </div>
       </div>
       {totalCount > 0 && (
-        <div className="flex gap-4 text-sm">
-          <span className="px-3 py-1 rounded bg-accent/10 text-accent font-medium">Present: {presentCount}</span>
-          <span className="px-3 py-1 rounded bg-destructive/10 text-destructive font-medium">Absent: {totalCount - presentCount}</span>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <span className="px-3 py-1 rounded bg-accent/10 text-accent font-medium">Present (P): {presentCount}</span>
+          <span className="px-3 py-1 rounded bg-yellow-500/10 text-yellow-700 dark:text-yellow-500 font-medium">Late (L): {lateCount}</span>
+          <span className="px-3 py-1 rounded bg-destructive/10 text-destructive font-medium">Absent (A): {absentCount}</span>
           <span className="px-3 py-1 rounded bg-muted font-medium">Total: {totalCount}</span>
         </div>
       )}
@@ -142,9 +145,13 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
                 <td className="p-3">{a.date}</td>
                 <td className="p-3">{(a.batches as any)?.name || '-'}</td>
                 <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    a.status === 'present' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>{a.status}</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block w-8 text-center ${
+                    a.status === 'present'
+                      ? 'bg-accent/10 text-accent'
+                      : a.status === 'late'
+                        ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-500'
+                        : 'bg-destructive/10 text-destructive'
+                  }`}>{a.status === 'present' ? 'P' : a.status === 'late' ? 'L' : 'A'}</span>
                 </td>
               </tr>
             ))}
