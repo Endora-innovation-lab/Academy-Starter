@@ -116,39 +116,48 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         feeQuery = feeQuery.eq('month', feeMonth);
       }
 
+      let teaAttQuery = supabase.from('teacher_attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
+
       if (filterBatch !== 'all') {
         attQuery = attQuery.eq('batch_id', filterBatch);
+        teaAttQuery = teaAttQuery.eq('batch_id', filterBatch);
         const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
         const studentIds = batchStudents?.map(bs => bs.student_id) || [];
         if (studentIds.length > 0) {
           feeQuery = feeQuery.in('student_id', studentIds);
         } else {
-          setStats({ present: 0, absent: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0 });
+          setStats({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
           return;
         }
       }
 
-      const [attRes, feeRes, stuRes, teaRes] = await Promise.all([
+      const [attRes, feeRes, stuRes, teaRes, teaAttRes] = await Promise.all([
         attQuery,
         feeQuery,
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+        teaAttQuery,
       ]);
 
       const attData = attRes.data || [];
       const feeData = feeRes.data || [];
+      const teaAttData = teaAttRes.data || [];
 
       const paidFees = feeData.filter(f => f.status === 'paid');
       const unpaidFees = feeData.filter(f => f.status === 'unpaid');
       setStats({
         present: attData.filter(a => a.status === 'present').length,
         absent: attData.filter(a => a.status === 'absent').length,
+        late: attData.filter(a => a.status === 'late').length,
         paid: paidFees.length,
         unpaid: unpaidFees.length,
         students: stuRes.count || 0,
         teachers: teaRes.count || 0,
         totalCollected: paidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
         totalPending: unpaidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
+        teacherPresent: teaAttData.filter(a => a.status === 'present').length,
+        teacherAbsent: teaAttData.filter(a => a.status === 'absent').length,
+        teacherLate: teaAttData.filter(a => a.status === 'late').length,
       });
     };
     fetchStats();
