@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Teachers can manage fees" ON public.fees;
