@@ -1008,12 +1008,23 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 
 // ============= FEES TAB =============
 const FeesTab = ({ instituteId }: { instituteId: string }) => {
+  const { user } = useAuth();
   const [fees, setFees] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFeeId, setEditFeeId] = useState<string | null>(null);
+  const [editStudentId, setEditStudentId] = useState('');
+  const [editMonth, setEditMonth] = useState(filterMonth);
+  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid'>('unpaid');
+  const [editAmount, setEditAmount] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const fetchFees = async () => {
     let query = supabase
@@ -1027,11 +1038,90 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setFees(data || []);
   };
 
+  const fetchStudents = async () => {
+    const { data } = await supabase
+      .from('students')
+      .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
+      .eq('institute_id', instituteId);
+    setStudents(data || []);
+  };
+
   const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const paidAmount = fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const unpaidAmount = fees.filter(f => f.status === 'unpaid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
+  useEffect(() => { fetchStudents(); }, [instituteId]);
+
+  const openNew = () => {
+    setEditFeeId(null);
+    setEditStudentId('');
+    setEditMonth(filterMonth);
+    setEditStatus('unpaid');
+    setEditAmount('');
+    setEditOpen(true);
+  };
+
+  const openEdit = (f: any) => {
+    setEditFeeId(f.id);
+    setEditStudentId(f.student_id);
+    setEditMonth(f.month);
+    setEditStatus(f.status === 'paid' ? 'paid' : 'unpaid');
+    setEditAmount(f.amount != null ? String(f.amount) : '');
+    setEditOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!editStudentId || !editMonth) {
+      toast.error('Select a student and month');
+      return;
+    }
+    setSaving(true);
+    const payload: any = {
+      student_id: editStudentId,
+      month: editMonth,
+      status: editStatus,
+      amount: editAmount === '' ? 0 : Number(editAmount),
+      institute_id: instituteId,
+      updated_by: user?.id ?? null,
+    };
+    let error;
+    if (editFeeId) {
+      ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
+    } else {
+      // Check for existing record for that student+month to avoid duplicates
+      const { data: existing } = await supabase
+        .from('fees')
+        .select('id')
+        .eq('institute_id', instituteId)
+        .eq('student_id', editStudentId)
+        .eq('month', editMonth)
+        .maybeSingle();
+      if (existing) {
+        ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
+      } else {
+        ({ error } = await supabase.from('fees').insert(payload));
+      }
+    }
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Fee record saved');
+      setEditOpen(false);
+      fetchFees();
+    }
+  };
+
+  const quickToggle = async (f: any) => {
+    const next = f.status === 'paid' ? 'unpaid' : 'paid';
+    const { error } = await supabase
+      .from('fees')
+      .update({ status: next, updated_by: user?.id ?? null })
+      .eq('id', f.id);
+    if (error) toast.error(error.message);
+    else { toast.success(`Marked ${next}`); fetchFees(); }
+  };
 
   return (
     <div className="space-y-4">
