@@ -1127,7 +1127,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -1137,6 +1137,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <SelectItem value="unpaid">Unpaid</SelectItem>
             </SelectContent>
           </Select>
+          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Update Fee</Button>
         </div>
       </div>
 
@@ -1156,6 +1157,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Month</th>
               <th className="text-left p-3 font-medium">Amount</th>
               <th className="text-left p-3 font-medium">Status</th>
+              <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1171,14 +1173,69 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
                   }`}>{f.status}</span>
                 </td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => quickToggle(f)}>
+                      Mark {f.status === 'paid' ? 'Unpaid' : 'Paid'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </td>
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editFeeId ? 'Edit Fee Record' : 'Update Fee'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Student</Label>
+              <Select value={editStudentId} onValueChange={setEditStudentId} disabled={!!editFeeId}>
+                <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
+                <SelectContent>
+                  {students.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {(s.profiles as any)?.name} ({s.reg_no})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Month</Label>
+              <Input type="month" value={editMonth} onChange={e => setEditMonth(e.target.value)} />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as 'paid' | 'unpaid')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Amount Collected (optional)</Label>
+              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="0" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
