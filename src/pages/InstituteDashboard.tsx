@@ -1008,12 +1008,23 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 
 // ============= FEES TAB =============
 const FeesTab = ({ instituteId }: { instituteId: string }) => {
+  const { user } = useAuth();
   const [fees, setFees] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFeeId, setEditFeeId] = useState<string | null>(null);
+  const [editStudentId, setEditStudentId] = useState('');
+  const [editMonth, setEditMonth] = useState(filterMonth);
+  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid'>('unpaid');
+  const [editAmount, setEditAmount] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const fetchFees = async () => {
     let query = supabase
@@ -1027,17 +1038,96 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setFees(data || []);
   };
 
+  const fetchStudents = async () => {
+    const { data } = await supabase
+      .from('students')
+      .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
+      .eq('institute_id', instituteId);
+    setStudents(data || []);
+  };
+
   const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const paidAmount = fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const unpaidAmount = fees.filter(f => f.status === 'unpaid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
+  useEffect(() => { fetchStudents(); }, [instituteId]);
+
+  const openNew = () => {
+    setEditFeeId(null);
+    setEditStudentId('');
+    setEditMonth(filterMonth);
+    setEditStatus('unpaid');
+    setEditAmount('');
+    setEditOpen(true);
+  };
+
+  const openEdit = (f: any) => {
+    setEditFeeId(f.id);
+    setEditStudentId(f.student_id);
+    setEditMonth(f.month);
+    setEditStatus(f.status === 'paid' ? 'paid' : 'unpaid');
+    setEditAmount(f.amount != null ? String(f.amount) : '');
+    setEditOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!editStudentId || !editMonth) {
+      toast.error('Select a student and month');
+      return;
+    }
+    setSaving(true);
+    const payload: any = {
+      student_id: editStudentId,
+      month: editMonth,
+      status: editStatus,
+      amount: editAmount === '' ? 0 : Number(editAmount),
+      institute_id: instituteId,
+      updated_by: user?.id ?? null,
+    };
+    let error;
+    if (editFeeId) {
+      ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
+    } else {
+      // Check for existing record for that student+month to avoid duplicates
+      const { data: existing } = await supabase
+        .from('fees')
+        .select('id')
+        .eq('institute_id', instituteId)
+        .eq('student_id', editStudentId)
+        .eq('month', editMonth)
+        .maybeSingle();
+      if (existing) {
+        ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
+      } else {
+        ({ error } = await supabase.from('fees').insert(payload));
+      }
+    }
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Fee record saved');
+      setEditOpen(false);
+      fetchFees();
+    }
+  };
+
+  const quickToggle = async (f: any) => {
+    const next = f.status === 'paid' ? 'unpaid' : 'paid';
+    const { error } = await supabase
+      .from('fees')
+      .update({ status: next, updated_by: user?.id ?? null })
+      .eq('id', f.id);
+    if (error) toast.error(error.message);
+    else { toast.success(`Marked ${next}`); fetchFees(); }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -1047,6 +1137,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <SelectItem value="unpaid">Unpaid</SelectItem>
             </SelectContent>
           </Select>
+          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Update Fee</Button>
         </div>
       </div>
 
@@ -1066,6 +1157,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Month</th>
               <th className="text-left p-3 font-medium">Amount</th>
               <th className="text-left p-3 font-medium">Status</th>
+              <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1081,14 +1173,69 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
                   }`}>{f.status}</span>
                 </td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => quickToggle(f)}>
+                      Mark {f.status === 'paid' ? 'Unpaid' : 'Paid'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </td>
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editFeeId ? 'Edit Fee Record' : 'Update Fee'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Student</Label>
+              <Select value={editStudentId} onValueChange={setEditStudentId} disabled={!!editFeeId}>
+                <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
+                <SelectContent>
+                  {students.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {(s.profiles as any)?.name} ({s.reg_no})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Month</Label>
+              <Input type="month" value={editMonth} onChange={e => setEditMonth(e.target.value)} />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as 'paid' | 'unpaid')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Amount Collected (optional)</Label>
+              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="0" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
