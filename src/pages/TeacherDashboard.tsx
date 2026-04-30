@@ -26,7 +26,6 @@ const TeacherDashboard = () => {
 
   const tabs = [
     { label: 'My Batches', value: 'batches' },
-    { label: 'My Attendance', value: 'my-attendance' },
     { label: 'Mark Attendance', value: 'attendance' },
   ];
 
@@ -41,8 +40,12 @@ const TeacherDashboard = () => {
   return (
     <DashboardLayout title="Teacher Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'batches' && teacherRecord && <TeacherBatchesTab teacherId={teacherRecord.id} instituteId={instituteId} />}
-      {activeTab === 'my-attendance' && teacherRecord && <MyAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
-      {activeTab === 'attendance' && teacherRecord && <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
+      {activeTab === 'attendance' && teacherRecord && (
+        <div className="space-y-8">
+          <MyAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />
+          <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />
+        </div>
+      )}
     </DashboardLayout>
   );
 };

@@ -894,6 +894,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
+  const [filterRole, setFilterRole] = useState<'student' | 'teacher'>('student');
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -926,25 +927,57 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       lastDay = `${filterYear}-12-31`;
     }
 
-    let query = supabase
-      .from('attendance')
-      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name)), batches(name)')
-      .eq('institute_id', instituteId)
-      .gte('date', firstDay)
-      .lte('date', lastDay)
-      .order('date', { ascending: false });
-    if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
-    const { data } = await query.limit(500);
-    setAttendance(data || []);
+    if (filterRole === 'student') {
+      let query = supabase
+        .from('attendance')
+        .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name)), batches(name)')
+        .eq('institute_id', instituteId)
+        .gte('date', firstDay)
+        .lte('date', lastDay)
+        .order('date', { ascending: false });
+      if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
+      const { data } = await query.limit(500);
+      setAttendance(data || []);
+    } else {
+      let query = supabase
+        .from('teacher_attendance')
+        .select('*, teachers(phone, profiles:user_id(name)), batches(name)')
+        .eq('institute_id', instituteId)
+        .gte('date', firstDay)
+        .lte('date', lastDay)
+        .order('date', { ascending: false });
+      if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
+      const { data } = await query.limit(500);
+      // teachers.profiles join via user_id may not work without FK; fetch names separately
+      const records = data || [];
+      const teacherIds = Array.from(new Set(records.map((r: any) => r.teacher_id)));
+      let nameMap: Record<string, string> = {};
+      if (teacherIds.length > 0) {
+        const { data: tData } = await supabase.from('teachers').select('id, user_id').in('id', teacherIds);
+        const userIds = (tData || []).map(t => t.user_id);
+        const { data: pData } = await supabase.from('profiles').select('user_id, name').in('user_id', userIds);
+        const userToName: Record<string, string> = {};
+        (pData || []).forEach(p => { userToName[p.user_id] = p.name; });
+        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || ''; });
+      }
+      setAttendance(records.map((r: any) => ({ ...r, _teacherName: nameMap[r.teacher_id] || '-' })));
+    }
   };
 
-  useEffect(() => { fetchAttendance(); }, [instituteId, filterType, filterDate, filterMonth, filterYear, filterBatch]);
+  useEffect(() => { fetchAttendance(); }, [instituteId, filterRole, filterType, filterDate, filterMonth, filterYear, filterBatch]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Attendance</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Select value={filterRole} onValueChange={(v: 'student' | 'teacher') => setFilterRole(v)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="student">Students</SelectItem>
+              <SelectItem value="teacher">Teachers</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -970,8 +1003,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Student</th>
-              <th className="text-left p-3 font-medium">Reg No</th>
+              <th className="text-left p-3 font-medium">{filterRole === 'student' ? 'Student' : 'Teacher'}</th>
+              <th className="text-left p-3 font-medium">{filterRole === 'student' ? 'Reg No' : 'Phone'}</th>
               <th className="text-left p-3 font-medium">Batch</th>
               <th className="text-left p-3 font-medium">Date</th>
               <th className="text-left p-3 font-medium">Status</th>
@@ -981,8 +1014,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
             {attendance.map((a, index) => (
               <tr key={a.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
-                <td className="p-3">{(a.students as any)?.profiles?.name}</td>
-                <td className="p-3">{(a.students as any)?.reg_no}</td>
+                <td className="p-3">{filterRole === 'student' ? (a.students as any)?.profiles?.name : a._teacherName}</td>
+                <td className="p-3">{filterRole === 'student' ? (a.students as any)?.reg_no : (a.teachers as any)?.phone || '-'}</td>
                 <td className="p-3">{(a.batches as any)?.name || '-'}</td>
                 <td className="p-3">{a.date}</td>
                 <td className="p-3">
