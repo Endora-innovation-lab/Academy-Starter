@@ -201,6 +201,14 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
       if (activeRole === 'institute') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single();
+          if (!roleData || roleData.role !== 'admin') {
+            await supabase.auth.signOut();
+            throw new Error('This account is not an Institute account. Please use the Teacher or Student tab.');
+          }
+        }
         toast.success('Logged in successfully');
         onClose();
         navigate('/dashboard/institute');
@@ -210,13 +218,15 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
         if (error) throw new Error('Invalid credentials');
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: roleData } = await supabase.from('user_roles').select('institute_id').eq('user_id', user.id).single();
-          if (roleData) {
-            const { data: instData } = await supabase.from('institutes').select('code').eq('id', roleData.institute_id).single();
-            if (!instData || instData.code !== instituteId.toUpperCase()) {
-              await supabase.auth.signOut();
-              throw new Error('Institute ID does not match');
-            }
+          const { data: roleData } = await supabase.from('user_roles').select('role, institute_id').eq('user_id', user.id).single();
+          if (!roleData || roleData.role !== 'teacher') {
+            await supabase.auth.signOut();
+            throw new Error('This account is not a Teacher account.');
+          }
+          const { data: instData } = await supabase.from('institutes').select('code').eq('id', roleData.institute_id).single();
+          if (!instData || instData.code !== instituteId.toUpperCase()) {
+            await supabase.auth.signOut();
+            throw new Error('Institute ID does not match');
           }
         }
         toast.success('Logged in successfully');
@@ -229,13 +239,15 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
         if (error) throw new Error('Invalid credentials. Check your Reg Number, Password, and Institute ID.');
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: roleData } = await supabase.from('user_roles').select('institute_id').eq('user_id', user.id).single();
-          if (roleData) {
-            const { data: instData } = await supabase.from('institutes').select('code').eq('id', roleData.institute_id).single();
-            if (!instData || instData.code !== instituteId.toUpperCase()) {
-              await supabase.auth.signOut();
-              throw new Error('Institute ID does not match');
-            }
+          const { data: roleData } = await supabase.from('user_roles').select('role, institute_id').eq('user_id', user.id).single();
+          if (!roleData || roleData.role !== 'student') {
+            await supabase.auth.signOut();
+            throw new Error('This account is not a Student account.');
+          }
+          const { data: instData } = await supabase.from('institutes').select('code').eq('id', roleData.institute_id).single();
+          if (!instData || instData.code !== instituteId.toUpperCase()) {
+            await supabase.auth.signOut();
+            throw new Error('Institute ID does not match');
           }
         }
         toast.success('Logged in successfully');
