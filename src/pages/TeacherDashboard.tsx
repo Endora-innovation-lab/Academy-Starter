@@ -121,9 +121,13 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" label={{ value: 'Status', position: 'insideBottom', offset: -2, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" label={{ value: 'Days', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))' }} />
+                <Tooltip
+                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                  labelFormatter={(label, payload) => (payload?.[0]?.payload as any)?.fullName || label}
+                  formatter={(value: any) => [`${value} day(s)`, 'Count']}
+                />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
