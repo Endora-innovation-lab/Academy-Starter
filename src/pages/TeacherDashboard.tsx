@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ClipboardList, DollarSign, Layers, Search, UserCheck } from 'lucide-react';
+import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const TeacherDashboard = () => {
   const { user, instituteId, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('batches');
+  const [activeTab, setActiveTab] = useState('overview');
   const [teacherRecord, setTeacherRecord] = useState<any>(null);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ const TeacherDashboard = () => {
   }, [user]);
 
   const tabs = [
-    { label: 'My Batches', value: 'batches' },
+    { label: 'Overview', value: 'overview' },
     { label: 'Mark Attendance', value: 'attendance' },
   ];
 
@@ -39,7 +40,7 @@ const TeacherDashboard = () => {
 
   return (
     <DashboardLayout title="Teacher Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'batches' && teacherRecord && <TeacherBatchesTab teacherId={teacherRecord.id} instituteId={instituteId} />}
+      {activeTab === 'overview' && teacherRecord && <OverviewTab teacherId={teacherRecord.id} instituteId={instituteId} />}
       {activeTab === 'attendance' && teacherRecord && (
         <div className="space-y-8">
           <MyAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />
@@ -47,6 +48,91 @@ const TeacherDashboard = () => {
         </div>
       )}
     </DashboardLayout>
+  );
+};
+
+// ============= OVERVIEW TAB =============
+const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteId: string }) => {
+  const [counts, setCounts] = useState({ present: 0, absent: 0, late: 0 });
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    const load = async () => {
+      const firstDay = `${month}-01`;
+      const [y, m] = month.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('teacher_attendance')
+        .select('status')
+        .eq('teacher_id', teacherId)
+        .gte('date', firstDay)
+        .lte('date', lastDay);
+      const c = { present: 0, absent: 0, late: 0 };
+      (data || []).forEach((r: any) => {
+        if (r.status === 'present') c.present++;
+        else if (r.status === 'late') c.late++;
+        else c.absent++;
+      });
+      setCounts(c);
+    };
+    load();
+  }, [teacherId, month]);
+
+  const total = counts.present + counts.absent + counts.late;
+  const chartData = [
+    { name: 'Present', value: counts.present, fill: 'hsl(var(--accent))' },
+    { name: 'Late', value: counts.late, fill: 'hsl(45 93% 47%)' },
+    { name: 'Absent', value: counts.absent, fill: 'hsl(var(--destructive))' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> My Attendance Overview</h2>
+        <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Days</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{total}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Present</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-accent">{counts.present}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Late</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-yellow-500">{counts.late}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Absent</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-destructive">{counts.absent}</div></CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Attendance Breakdown</CardTitle></CardHeader>
+        <CardContent>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <TeacherBatchesTab teacherId={teacherId} instituteId={instituteId} />
+    </div>
   );
 };
 
