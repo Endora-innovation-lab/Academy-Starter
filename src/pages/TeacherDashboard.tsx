@@ -83,9 +83,9 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
 
   const total = counts.present + counts.absent + counts.late;
   const chartData = [
-    { name: 'Present', value: counts.present, fill: 'hsl(var(--accent))' },
-    { name: 'Late', value: counts.late, fill: 'hsl(45 93% 47%)' },
-    { name: 'Absent', value: counts.absent, fill: 'hsl(var(--destructive))' },
+    { name: 'P', fullName: 'Present', value: counts.present, fill: 'hsl(var(--accent))' },
+    { name: 'L', fullName: 'Late', value: counts.late, fill: 'hsl(45 93% 47%)' },
+    { name: 'A', fullName: 'Absent', value: counts.absent, fill: 'hsl(var(--destructive))' },
   ];
 
   return (
