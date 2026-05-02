@@ -941,7 +941,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     } else {
       let query = supabase
         .from('teacher_attendance')
-        .select('*, teachers(phone, profiles:user_id(name)), batches(name)')
+        .select('*, batches(name)')
         .eq('institute_id', instituteId)
         .gte('date', firstDay)
         .lte('date', lastDay)
@@ -952,15 +952,16 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       const records = data || [];
       const teacherIds = Array.from(new Set(records.map((r: any) => r.teacher_id)));
       let nameMap: Record<string, string> = {};
+      let phoneMap: Record<string, string> = {};
       if (teacherIds.length > 0) {
-        const { data: tData } = await supabase.from('teachers').select('id, user_id').in('id', teacherIds);
+        const { data: tData } = await supabase.from('teachers').select('id, user_id, phone').in('id', teacherIds);
         const userIds = (tData || []).map(t => t.user_id);
         const { data: pData } = await supabase.from('profiles').select('user_id, name').in('user_id', userIds);
         const userToName: Record<string, string> = {};
         (pData || []).forEach(p => { userToName[p.user_id] = p.name; });
-        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || ''; });
+        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || ''; phoneMap[t.id] = t.phone || ''; });
       }
-      setAttendance(records.map((r: any) => ({ ...r, _teacherName: nameMap[r.teacher_id] || '-' })));
+      setAttendance(records.map((r: any) => ({ ...r, _teacherName: nameMap[r.teacher_id] || '-', teachers: { phone: phoneMap[r.teacher_id] || '-' } })));
     }
   };
 
