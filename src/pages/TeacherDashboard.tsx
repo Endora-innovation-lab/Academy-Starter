@@ -28,6 +28,7 @@ const TeacherDashboard = () => {
   const tabs = [
     { label: 'Overview', value: 'overview' },
     { label: 'Mark Attendance', value: 'attendance' },
+    { label: 'Update Fees', value: 'fees' },
   ];
 
   if (loading || (user && !instituteId)) {
