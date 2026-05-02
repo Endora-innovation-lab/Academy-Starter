@@ -1202,7 +1202,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Month</th>
-              <th className="text-left p-3 font-medium">Amount</th>
+              <th className="text-left p-3 font-medium">Fee Set (₹)</th>
+              <th className="text-left p-3 font-medium">Collected (₹)</th>
               <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
