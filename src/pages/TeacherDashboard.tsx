@@ -679,22 +679,25 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         const status = setAmt > 0 && collected >= setAmt ? 'paid' : 'unpaid';
         if (feeId) {
           updates.push(
-            supabase.from('fees')
-              .update({ collected_amount: collected, status, updated_by: userId })
-              .eq('id', feeId)
+            Promise.resolve(
+              supabase.from('fees')
+                .update({ collected_amount: collected, status, updated_by: userId })
+                .eq('id', feeId)
+            )
           );
         } else if (collected > 0) {
-          // Insert only if teacher entered a collected amount but institute hasn't created the record yet
           updates.push(
-            supabase.from('fees').insert({
-              student_id: sid,
-              month,
-              status,
-              amount: 0,
-              collected_amount: collected,
-              institute_id: instituteId,
-              updated_by: userId,
-            })
+            Promise.resolve(
+              supabase.from('fees').insert({
+                student_id: sid,
+                month,
+                status,
+                amount: 0,
+                collected_amount: collected,
+                institute_id: instituteId,
+                updated_by: userId,
+              })
+            )
           );
         }
       }
