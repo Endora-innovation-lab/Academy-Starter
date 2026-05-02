@@ -86,13 +86,15 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
         if (!cur || rank(r.status) > rank(cur)) byDate[r.date] = r.status;
       });
       setCounts(c);
-      const cd = Object.entries(byDate).map(([date, status]) => ({
-        date: date.slice(8),
-        fullDate: date,
-        status,
-        value: status === 'present' ? 3 : status === 'late' ? 2 : 1,
-        fill: status === 'present' ? 'hsl(var(--accent))' : status === 'late' ? 'hsl(45 93% 47%)' : 'hsl(var(--destructive))',
-      }));
+      const cd = Object.entries(byDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, status]) => ({
+          date: date.slice(8),
+          fullDate: date,
+          status,
+          value: status === 'present' ? 3 : status === 'late' ? 2 : 1,
+          fill: status === 'present' ? 'hsl(var(--accent))' : status === 'late' ? 'hsl(45 93% 47%)' : 'hsl(var(--destructive))',
+        }));
       setChartData(cd);
     };
     load();
