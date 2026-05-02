@@ -602,7 +602,9 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
   const [month, setMonth] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [feeMap, setFeeMap] = useState<Record<string, string>>({});
-  const [amountMap, setAmountMap] = useState<Record<string, number>>({});
+  const [amountMap, setAmountMap] = useState<Record<string, number>>({}); // institute-set fee (read-only)
+  const [feeIdMap, setFeeIdMap] = useState<Record<string, string>>({});
+  const [collectedMap, setCollectedMap] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -636,48 +638,71 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
 
     const studentIds = studs.map(s => s.student_id);
     const map: Record<string, string> = {};
+    const aMap: Record<string, number> = {};
+    const cMap: Record<string, number> = {};
+    const idMap: Record<string, string> = {};
 
     if (studentIds.length > 0) {
       const { data: fees } = await supabase
         .from('fees')
-        .select('student_id, status, amount')
+        .select('id, student_id, status, amount, collected_amount')
         .in('student_id', studentIds)
         .eq('month', month);
 
-      const aMap: Record<string, number> = {};
-      fees?.forEach(f => { map[f.student_id] = f.status; aMap[f.student_id] = Number(f.amount) || 0; });
-      setAmountMap(prev => ({ ...prev, ...aMap }));
+      fees?.forEach((f: any) => {
+        map[f.student_id] = f.status;
+        aMap[f.student_id] = Number(f.amount) || 0;
+        cMap[f.student_id] = Number(f.collected_amount) || 0;
+        idMap[f.student_id] = f.id;
+      });
     }
 
     studentIds.forEach(id => { if (!map[id]) map[id] = 'unpaid'; });
     setFeeMap(map);
+    setAmountMap(aMap);
+    setCollectedMap(cMap);
+    setFeeIdMap(idMap);
     setHasLoaded(true);
   };
 
   useEffect(() => { setHasLoaded(false); loadStudents(); }, [selectedBatch, month]);
 
-  const toggleFee = (studentId: string) => {
-    setFeeMap(prev => ({
-      ...prev,
-      [studentId]: prev[studentId] === 'paid' ? 'unpaid' : 'paid',
-    }));
-  };
-
   const saveFees = async () => {
     try {
-      const records = Object.entries(feeMap).map(([student_id, status]) => ({
-        student_id,
-        month,
-        status,
-        institute_id: instituteId,
-        updated_by: userId,
-        amount: amountMap[student_id] || 0,
-      }));
-      const { error } = await supabase.from('fees').upsert(records, {
-        onConflict: 'student_id,month',
-      });
-      if (error) throw error;
-      toast.success('Fees saved!');
+      const updates: Promise<any>[] = [];
+      for (const s of students) {
+        const sid = s.student_id;
+        const feeId = feeIdMap[sid];
+        const setAmt = amountMap[sid] || 0;
+        const collected = collectedMap[sid] || 0;
+        // Auto-derive status: paid only if a fee was set and collected >= set
+        const status = setAmt > 0 && collected >= setAmt ? 'paid' : 'unpaid';
+        if (feeId) {
+          updates.push(
+            supabase.from('fees')
+              .update({ collected_amount: collected, status, updated_by: userId })
+              .eq('id', feeId)
+          );
+        } else if (collected > 0) {
+          // Insert only if teacher entered a collected amount but institute hasn't created the record yet
+          updates.push(
+            supabase.from('fees').insert({
+              student_id: sid,
+              month,
+              status,
+              amount: 0,
+              collected_amount: collected,
+              institute_id: instituteId,
+              updated_by: userId,
+            })
+          );
+        }
+      }
+      const results = await Promise.all(updates);
+      const firstError = results.find(r => r.error);
+      if (firstError?.error) throw firstError.error;
+      toast.success('Fees updated!');
+      loadStudents();
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -693,6 +718,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Update Fees</h2>
+      <p className="text-sm text-muted-foreground">The institute sets the fee amount. Enter how much you actually collected from each student. Status updates automatically once collected ≥ fee.</p>
       <div className="flex flex-wrap gap-3">
         <Select value={selectedBatch} onValueChange={setSelectedBatch}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Select batch" /></SelectTrigger>
@@ -718,39 +744,42 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                   <th className="text-left p-3 font-medium">S.No</th>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Reg No</th>
-                  <th className="text-left p-3 font-medium">Amount</th>
+                  <th className="text-left p-3 font-medium">Fee Set (₹)</th>
+                  <th className="text-left p-3 font-medium">Collected (₹)</th>
                   <th className="text-left p-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {displayStudents.map((s, index) => {
                   const student = s.students as any;
+                  const sid = s.student_id;
+                  const setAmt = amountMap[sid] || 0;
+                  const collected = collectedMap[sid] || 0;
+                  const status = setAmt > 0 && collected >= setAmt ? 'paid' : 'unpaid';
                   return (
-                    <tr key={s.student_id} className="border-t">
+                    <tr key={sid} className="border-t">
                       <td className="p-3">{index + 1}</td>
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
+                      <td className="p-3">
+                        {setAmt > 0
+                          ? <span className="font-medium">₹{setAmt.toLocaleString()}</span>
+                          : <span className="text-xs text-muted-foreground">Not set by institute</span>}
+                      </td>
                       <td className="p-3">
                         <Input
                           type="number"
                           min="0"
                           className="w-28"
-                          value={amountMap[s.student_id] || ''}
-                          onChange={e => setAmountMap(prev => ({ ...prev, [s.student_id]: Number(e.target.value) || 0 }))}
+                          value={collectedMap[sid] ?? ''}
+                          onChange={e => setCollectedMap(prev => ({ ...prev, [sid]: Number(e.target.value) || 0 }))}
                           placeholder="₹ 0"
                         />
                       </td>
                       <td className="p-3">
-                        <button
-                          onClick={() => toggleFee(s.student_id)}
-                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                            feeMap[s.student_id] === 'paid'
-                              ? 'bg-accent text-accent-foreground'
-                              : 'bg-destructive text-destructive-foreground'
-                          }`}
-                        >
-                          {feeMap[s.student_id] || 'unpaid'}
-                        </button>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
+                        }`}>{status}</span>
                       </td>
                     </tr>
                   );
