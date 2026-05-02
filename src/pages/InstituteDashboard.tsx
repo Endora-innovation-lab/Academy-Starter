@@ -1216,6 +1216,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">{(f.students as any)?.reg_no}</td>
                 <td className="p-3">{f.month}</td>
                 <td className="p-3">₹{Number(f.amount || 0).toLocaleString()}</td>
+                <td className="p-3">₹{Number(f.collected_amount || 0).toLocaleString()}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
