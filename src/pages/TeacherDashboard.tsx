@@ -138,7 +138,7 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" label={{ value: 'Date', position: 'insideBottom', offset: -2, fill: 'hsl(var(--muted-foreground))' }} />
+                  <XAxis dataKey="date" interval={0} stroke="hsl(var(--muted-foreground))" label={{ value: 'Date', position: 'insideBottom', offset: -2, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis
                     stroke="hsl(var(--muted-foreground))"
                     domain={[0, 3]}
