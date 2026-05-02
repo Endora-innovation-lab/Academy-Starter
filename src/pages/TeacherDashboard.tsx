@@ -28,6 +28,7 @@ const TeacherDashboard = () => {
   const tabs = [
     { label: 'Overview', value: 'overview' },
     { label: 'Mark Attendance', value: 'attendance' },
+    { label: 'Update Fees', value: 'fees' },
   ];
 
   if (loading || (user && !instituteId)) {
@@ -47,6 +48,7 @@ const TeacherDashboard = () => {
           <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />
         </div>
       )}
+      {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
     </DashboardLayout>
   );
 };
@@ -54,6 +56,7 @@ const TeacherDashboard = () => {
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteId: string }) => {
   const [counts, setCounts] = useState({ present: 0, absent: 0, late: 0 });
+  const [chartData, setChartData] = useState<any[]>([]);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -66,27 +69,36 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
       const lastDay = new Date(y, m, 0).toISOString().split('T')[0];
       const { data } = await supabase
         .from('teacher_attendance')
-        .select('status')
+        .select('status, date')
         .eq('teacher_id', teacherId)
         .gte('date', firstDay)
-        .lte('date', lastDay);
+        .lte('date', lastDay)
+        .order('date', { ascending: true });
       const c = { present: 0, absent: 0, late: 0 };
+      const byDate: Record<string, string> = {};
       (data || []).forEach((r: any) => {
         if (r.status === 'present') c.present++;
         else if (r.status === 'late') c.late++;
         else c.absent++;
+        // If multiple batches same day, prefer present > late > absent
+        const cur = byDate[r.date];
+        const rank = (s: string) => (s === 'present' ? 3 : s === 'late' ? 2 : 1);
+        if (!cur || rank(r.status) > rank(cur)) byDate[r.date] = r.status;
       });
       setCounts(c);
+      const cd = Object.entries(byDate).map(([date, status]) => ({
+        date: date.slice(8),
+        fullDate: date,
+        status,
+        value: status === 'present' ? 3 : status === 'late' ? 2 : 1,
+        fill: status === 'present' ? 'hsl(var(--accent))' : status === 'late' ? 'hsl(45 93% 47%)' : 'hsl(var(--destructive))',
+      }));
+      setChartData(cd);
     };
     load();
   }, [teacherId, month]);
 
   const total = counts.present + counts.absent + counts.late;
-  const chartData = [
-    { name: 'P', fullName: 'Present', value: counts.present, fill: 'hsl(var(--accent))' },
-    { name: 'L', fullName: 'Late', value: counts.late, fill: 'hsl(45 93% 47%)' },
-    { name: 'A', fullName: 'Absent', value: counts.absent, fill: 'hsl(var(--destructive))' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -115,22 +127,35 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
       </div>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Attendance Breakdown</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Attendance Breakdown (by date)</CardTitle></CardHeader>
         <CardContent>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" label={{ value: 'Status', position: 'insideBottom', offset: -2, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" label={{ value: 'Days', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
-                  labelFormatter={(label, payload) => (payload?.[0]?.payload as any)?.fullName || label}
-                  formatter={(value: any) => [`${value} day(s)`, 'Count']}
-                />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-72 w-full">
+            {chartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">No attendance records this month</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" label={{ value: 'Date', position: 'insideBottom', offset: -2, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    domain={[0, 3]}
+                    ticks={[1, 2, 3]}
+                    tickFormatter={(v: number) => (v === 3 ? 'P' : v === 2 ? 'L' : v === 1 ? 'A' : '')}
+                    label={{ value: 'Status', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                    labelFormatter={(label, payload) => (payload?.[0]?.payload as any)?.fullDate || label}
+                    formatter={(_v: any, _n: any, item: any) => {
+                      const s = item?.payload?.status;
+                      return [s === 'present' ? 'Present (P)' : s === 'late' ? 'Late (L)' : 'Absent (A)', 'Status'];
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </CardContent>
       </Card>
