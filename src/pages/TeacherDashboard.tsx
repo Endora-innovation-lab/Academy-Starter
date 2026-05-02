@@ -48,6 +48,7 @@ const TeacherDashboard = () => {
           <MarkAttendanceTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />
         </div>
       )}
+      {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
     </DashboardLayout>
   );
 };
