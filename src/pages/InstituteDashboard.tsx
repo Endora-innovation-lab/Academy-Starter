@@ -1275,8 +1275,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </Select>
             </div>
             <div>
-              <Label>Amount Collected (optional)</Label>
-              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="0" />
+              <Label>Fee Amount (₹) — set by institute</Label>
+              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="e.g. 500" />
+              <p className="text-xs text-muted-foreground mt-1">Teachers will record how much they actually collected from this student.</p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
