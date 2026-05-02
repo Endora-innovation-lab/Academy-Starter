@@ -941,27 +941,40 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     } else {
       let query = supabase
         .from('teacher_attendance')
-        .select('*, batches(name)')
+        .select('*')
         .eq('institute_id', instituteId)
         .gte('date', firstDay)
         .lte('date', lastDay)
         .order('date', { ascending: false });
       if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
-      const { data } = await query.limit(500);
-      // teachers.profiles join via user_id may not work without FK; fetch names separately
+      const { data, error } = await query.limit(500);
+      if (error) console.error('teacher_attendance fetch error', error);
       const records = data || [];
       const teacherIds = Array.from(new Set(records.map((r: any) => r.teacher_id)));
-      let nameMap: Record<string, string> = {};
-      let phoneMap: Record<string, string> = {};
+      const batchIds = Array.from(new Set(records.map((r: any) => r.batch_id).filter(Boolean)));
+      const nameMap: Record<string, string> = {};
+      const phoneMap: Record<string, string> = {};
+      const batchMap: Record<string, string> = {};
       if (teacherIds.length > 0) {
         const { data: tData } = await supabase.from('teachers').select('id, user_id, phone').in('id', teacherIds);
         const userIds = (tData || []).map(t => t.user_id);
-        const { data: pData } = await supabase.from('profiles').select('user_id, name').in('user_id', userIds);
+        const { data: pData } = userIds.length > 0
+          ? await supabase.from('profiles').select('user_id, name').in('user_id', userIds)
+          : { data: [] as any[] };
         const userToName: Record<string, string> = {};
-        (pData || []).forEach(p => { userToName[p.user_id] = p.name; });
-        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || ''; phoneMap[t.id] = t.phone || ''; });
+        (pData || []).forEach((p: any) => { userToName[p.user_id] = p.name; });
+        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || '-'; phoneMap[t.id] = t.phone || '-'; });
       }
-      setAttendance(records.map((r: any) => ({ ...r, _teacherName: nameMap[r.teacher_id] || '-', teachers: { phone: phoneMap[r.teacher_id] || '-' } })));
+      if (batchIds.length > 0) {
+        const { data: bData } = await supabase.from('batches').select('id, name').in('id', batchIds);
+        (bData || []).forEach(b => { batchMap[b.id] = b.name; });
+      }
+      setAttendance(records.map((r: any) => ({
+        ...r,
+        _teacherName: nameMap[r.teacher_id] || '-',
+        teachers: { phone: phoneMap[r.teacher_id] || '-' },
+        batches: { name: batchMap[r.batch_id] || '-' },
+      })));
     }
   };
 
@@ -1081,8 +1094,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const paidAmount = fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const unpaidAmount = fees.filter(f => f.status === 'unpaid').reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const paidAmount = fees.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
+  const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
   useEffect(() => { fetchStudents(); }, [instituteId]);
@@ -1189,7 +1202,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Student</th>
               <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Month</th>
-              <th className="text-left p-3 font-medium">Amount</th>
+              <th className="text-left p-3 font-medium">Fee Set (₹)</th>
+              <th className="text-left p-3 font-medium">Collected (₹)</th>
               <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
@@ -1202,6 +1216,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">{(f.students as any)?.reg_no}</td>
                 <td className="p-3">{f.month}</td>
                 <td className="p-3">₹{Number(f.amount || 0).toLocaleString()}</td>
+                <td className="p-3">₹{Number(f.collected_amount || 0).toLocaleString()}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                     f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
@@ -1220,7 +1235,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
@@ -1260,8 +1275,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </Select>
             </div>
             <div>
-              <Label>Amount Collected (optional)</Label>
-              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="0" />
+              <Label>Fee Amount (₹) — set by institute</Label>
+              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="e.g. 500" />
+              <p className="text-xs text-muted-foreground mt-1">Teachers will record how much they actually collected from this student.</p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
