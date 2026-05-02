@@ -1235,7 +1235,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {fees.length === 0 && (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
