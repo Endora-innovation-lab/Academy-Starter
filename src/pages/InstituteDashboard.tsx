@@ -941,7 +941,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     } else {
       let query = supabase
         .from('teacher_attendance')
-        .select('*, teachers(phone, profiles:user_id(name)), batches(name)')
+        .select('*, batches(name)')
         .eq('institute_id', instituteId)
         .gte('date', firstDay)
         .lte('date', lastDay)
