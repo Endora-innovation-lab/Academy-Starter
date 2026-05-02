@@ -177,6 +177,7 @@ export type Database = {
       fees: {
         Row: {
           amount: number | null
+          collected_amount: number | null
           created_at: string
           id: string
           institute_id: string
@@ -187,6 +188,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          collected_amount?: number | null
           created_at?: string
           id?: string
           institute_id: string
@@ -197,6 +199,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          collected_amount?: number | null
           created_at?: string
           id?: string
           institute_id?: string

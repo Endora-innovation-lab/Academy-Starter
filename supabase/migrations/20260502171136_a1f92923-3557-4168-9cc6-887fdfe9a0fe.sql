@@ -1,0 +1,1 @@
+ALTER TABLE public.fees ADD COLUMN IF NOT EXISTS collected_amount numeric DEFAULT 0;
