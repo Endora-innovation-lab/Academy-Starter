@@ -941,27 +941,40 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     } else {
       let query = supabase
         .from('teacher_attendance')
-        .select('*, batches(name)')
+        .select('*')
         .eq('institute_id', instituteId)
         .gte('date', firstDay)
         .lte('date', lastDay)
         .order('date', { ascending: false });
       if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
-      const { data } = await query.limit(500);
-      // teachers.profiles join via user_id may not work without FK; fetch names separately
+      const { data, error } = await query.limit(500);
+      if (error) console.error('teacher_attendance fetch error', error);
       const records = data || [];
       const teacherIds = Array.from(new Set(records.map((r: any) => r.teacher_id)));
-      let nameMap: Record<string, string> = {};
-      let phoneMap: Record<string, string> = {};
+      const batchIds = Array.from(new Set(records.map((r: any) => r.batch_id).filter(Boolean)));
+      const nameMap: Record<string, string> = {};
+      const phoneMap: Record<string, string> = {};
+      const batchMap: Record<string, string> = {};
       if (teacherIds.length > 0) {
         const { data: tData } = await supabase.from('teachers').select('id, user_id, phone').in('id', teacherIds);
         const userIds = (tData || []).map(t => t.user_id);
-        const { data: pData } = await supabase.from('profiles').select('user_id, name').in('user_id', userIds);
+        const { data: pData } = userIds.length > 0
+          ? await supabase.from('profiles').select('user_id, name').in('user_id', userIds)
+          : { data: [] as any[] };
         const userToName: Record<string, string> = {};
-        (pData || []).forEach(p => { userToName[p.user_id] = p.name; });
-        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || ''; phoneMap[t.id] = t.phone || ''; });
+        (pData || []).forEach((p: any) => { userToName[p.user_id] = p.name; });
+        (tData || []).forEach(t => { nameMap[t.id] = userToName[t.user_id] || '-'; phoneMap[t.id] = t.phone || '-'; });
       }
-      setAttendance(records.map((r: any) => ({ ...r, _teacherName: nameMap[r.teacher_id] || '-', teachers: { phone: phoneMap[r.teacher_id] || '-' } })));
+      if (batchIds.length > 0) {
+        const { data: bData } = await supabase.from('batches').select('id, name').in('id', batchIds);
+        (bData || []).forEach(b => { batchMap[b.id] = b.name; });
+      }
+      setAttendance(records.map((r: any) => ({
+        ...r,
+        _teacherName: nameMap[r.teacher_id] || '-',
+        teachers: { phone: phoneMap[r.teacher_id] || '-' },
+        batches: { name: batchMap[r.batch_id] || '-' },
+      })));
     }
   };
 
