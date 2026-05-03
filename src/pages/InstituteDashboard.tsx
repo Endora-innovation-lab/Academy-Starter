@@ -410,6 +410,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" /> Students</h2>
         <div className="flex flex-wrap gap-2">
+          <Select value={filterBatch} onValueChange={setFilterBatch}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-48" placeholder="Search name or reg no..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
