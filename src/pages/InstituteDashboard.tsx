@@ -246,7 +246,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">{stats.classes}</p>
-              <p className="text-sm text-muted-foreground">Classes</p>
+              <p className="text-sm text-muted-foreground">Classes Conducted</p>
             </div>
           </CardContent>
         </Card>
