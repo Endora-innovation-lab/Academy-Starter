@@ -1156,7 +1156,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   const openEdit = (f: any) => {
-    setEditFeeId(f.id);
+    setEditFeeId(f._placeholder ? null : f.id);
     setEditStudentId(f.student_id);
     setEditMonth(f.month);
     setEditStatus(f.status === 'paid' ? 'paid' : 'unpaid');
