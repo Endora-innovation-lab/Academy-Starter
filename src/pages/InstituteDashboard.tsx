@@ -309,6 +309,8 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [editStudent, setEditStudent] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [batches, setBatches] = useState<any[]>([]);
+  const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
@@ -326,20 +328,32 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
     setBatches(batchData || []);
 
+    const batchIds = (batchData || []).map(b => b.id);
+    if (batchIds.length > 0) {
+      const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', batchIds);
+      setBatchStudents(bsData || []);
+    } else {
+      setBatchStudents([]);
+    }
+
     setStudents(data || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchStudents(); }, [instituteId]);
 
+  const filteredByBatch = filterBatch === 'all'
+    ? students
+    : students.filter(s => batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id));
+
   const displayStudents = searchTerm
-    ? students.filter(s => {
+    ? filteredByBatch.filter(s => {
         const sName = (s.profiles as any)?.name?.toLowerCase() || '';
         const sReg = s.reg_no?.toLowerCase() || '';
         const term = searchTerm.toLowerCase();
         return sName.includes(term) || sReg.includes(term);
       })
-    : students;
+    : filteredByBatch;
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -396,6 +410,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" /> Students</h2>
         <div className="flex flex-wrap gap-2">
+          <Select value={filterBatch} onValueChange={setFilterBatch}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-48" placeholder="Search name or reg no..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -1077,6 +1098,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const { user } = useAuth();
   const [fees, setFees] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
@@ -1102,6 +1126,12 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     const { data: feeRows } = await query;
     const feeData = feeRows || [];
 
+    // Restrict to batch's students if filter set
+    let allowedStudentIds: string[] | null = null;
+    if (filterBatch !== 'all') {
+      allowedStudentIds = batchStudents.filter(bs => bs.batch_id === filterBatch).map(bs => bs.student_id);
+    }
+
     // Build a default unpaid placeholder for any student missing a record this month
     let merged: any[] = feeData;
     if (filterMonth) {
@@ -1125,6 +1155,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         }));
       merged = [...feeData, ...placeholders];
     }
+    if (allowedStudentIds !== null) {
+      const allowed = new Set(allowedStudentIds);
+      merged = merged.filter(f => allowed.has(f.student_id));
+    }
     if (filterStatus !== 'all') merged = merged.filter(f => f.status === filterStatus);
     setFees(merged);
   };
@@ -1137,12 +1171,24 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setStudents(data || []);
   };
 
+  const fetchBatches = async () => {
+    const { data: bData } = await supabase.from('batches').select('id, name').eq('institute_id', instituteId);
+    setBatches(bData || []);
+    const ids = (bData || []).map(b => b.id);
+    if (ids.length > 0) {
+      const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', ids);
+      setBatchStudents(bsData || []);
+    } else {
+      setBatchStudents([]);
+    }
+  };
+
   const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const paidAmount = fees.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
   const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
-  useEffect(() => { fetchStudents(); }, [instituteId]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterBatch, batchStudents]);
+  useEffect(() => { fetchStudents(); fetchBatches(); }, [instituteId]);
 
   const openNew = () => {
     setEditFeeId(null);
@@ -1228,6 +1274,13 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
         <div className="flex flex-wrap gap-2">
+          <Select value={filterBatch} onValueChange={setFilterBatch}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
