@@ -309,6 +309,8 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [editStudent, setEditStudent] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [batches, setBatches] = useState<any[]>([]);
+  const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
@@ -326,20 +328,32 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
     setBatches(batchData || []);
 
+    const batchIds = (batchData || []).map(b => b.id);
+    if (batchIds.length > 0) {
+      const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', batchIds);
+      setBatchStudents(bsData || []);
+    } else {
+      setBatchStudents([]);
+    }
+
     setStudents(data || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchStudents(); }, [instituteId]);
 
+  const filteredByBatch = filterBatch === 'all'
+    ? students
+    : students.filter(s => batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id));
+
   const displayStudents = searchTerm
-    ? students.filter(s => {
+    ? filteredByBatch.filter(s => {
         const sName = (s.profiles as any)?.name?.toLowerCase() || '';
         const sReg = s.reg_no?.toLowerCase() || '';
         const term = searchTerm.toLowerCase();
         return sName.includes(term) || sReg.includes(term);
       })
-    : students;
+    : filteredByBatch;
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
