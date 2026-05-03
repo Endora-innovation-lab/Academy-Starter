@@ -69,7 +69,7 @@ const NoBatchWarning = ({ onGoToBatches }: { onGoToBatches?: () => void }) => (
 
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ instituteId }: { instituteId: string }) => {
-  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
+  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, classes: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
@@ -117,31 +117,45 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       }
 
       let teaAttQuery = supabase.from('teacher_attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
+      let classesQuery = supabase.from('attendance').select('date, batch_id').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
+
+      let studentCount = 0;
+      let teacherCount = 0;
 
       if (filterBatch !== 'all') {
         attQuery = attQuery.eq('batch_id', filterBatch);
         teaAttQuery = teaAttQuery.eq('batch_id', filterBatch);
-        const { data: batchStudents } = await supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch);
+        classesQuery = classesQuery.eq('batch_id', filterBatch);
+        const [{ data: batchStudents }, { data: batchTeachers }] = await Promise.all([
+          supabase.from('batch_students').select('student_id').eq('batch_id', filterBatch),
+          supabase.from('batch_teachers').select('teacher_id').eq('batch_id', filterBatch),
+        ]);
         const studentIds = batchStudents?.map(bs => bs.student_id) || [];
+        studentCount = studentIds.length;
+        teacherCount = batchTeachers?.length || 0;
         if (studentIds.length > 0) {
           feeQuery = feeQuery.in('student_id', studentIds);
         } else {
-          setStats({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
-          return;
+          feeQuery = feeQuery.eq('student_id', '00000000-0000-0000-0000-000000000000');
         }
+      } else {
+        const [stuRes, teaRes] = await Promise.all([
+          supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+          supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+        ]);
+        studentCount = stuRes.count || 0;
+        teacherCount = teaRes.count || 0;
       }
 
-      const [attRes, feeRes, stuRes, teaRes, teaAttRes] = await Promise.all([
-        attQuery,
-        feeQuery,
-        supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
-        supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
-        teaAttQuery,
+      const [attRes, feeRes, teaAttRes, classesRes] = await Promise.all([
+        attQuery, feeQuery, teaAttQuery, classesQuery,
       ]);
 
       const attData = attRes.data || [];
       const feeData = feeRes.data || [];
       const teaAttData = teaAttRes.data || [];
+      const classesData = classesRes.data || [];
+      const classesSet = new Set(classesData.map((c: any) => `${c.date}__${c.batch_id}`));
 
       const paidFees = feeData.filter(f => f.status === 'paid');
       const unpaidFees = feeData.filter(f => f.status === 'unpaid');
@@ -151,8 +165,9 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         late: attData.filter(a => a.status === 'late').length,
         paid: paidFees.length,
         unpaid: unpaidFees.length,
-        students: stuRes.count || 0,
-        teachers: teaRes.count || 0,
+        students: studentCount,
+        teachers: teacherCount,
+        classes: classesSet.size,
         totalCollected: paidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
         totalPending: unpaidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
         teacherPresent: teaAttData.filter(a => a.status === 'present').length,
@@ -209,6 +224,12 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           <CardContent className="pt-5">
             <p className="text-sm text-muted-foreground">Total Teachers</p>
             <p className="text-3xl font-bold text-primary">{stats.teachers}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm text-muted-foreground">Classes Conducted</p>
+            <p className="text-3xl font-bold text-primary">{stats.classes}</p>
           </CardContent>
         </Card>
       </div>
@@ -1079,10 +1100,35 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('institute_id', instituteId)
       .order('month', { ascending: false });
-    if (filterStatus !== 'all') query = query.eq('status', filterStatus);
     if (filterMonth) query = query.eq('month', filterMonth);
-    const { data } = await query;
-    setFees(data || []);
+    const { data: feeRows } = await query;
+    const feeData = feeRows || [];
+
+    // Build a default unpaid placeholder for any student missing a record this month
+    let merged: any[] = feeData;
+    if (filterMonth) {
+      const { data: stuRows } = await supabase
+        .from('students')
+        .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
+        .eq('institute_id', instituteId);
+      const studentList = stuRows || [];
+      const covered = new Set(feeData.map((f: any) => f.student_id));
+      const placeholders = studentList
+        .filter(s => !covered.has(s.id))
+        .map(s => ({
+          id: `placeholder-${s.id}-${filterMonth}`,
+          _placeholder: true,
+          student_id: s.id,
+          month: filterMonth,
+          status: 'unpaid',
+          amount: 0,
+          collected_amount: 0,
+          students: s,
+        }));
+      merged = [...feeData, ...placeholders];
+    }
+    if (filterStatus !== 'all') merged = merged.filter(f => f.status === filterStatus);
+    setFees(merged);
   };
 
   const fetchStudents = async () => {
@@ -1110,7 +1156,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   const openEdit = (f: any) => {
-    setEditFeeId(f.id);
+    setEditFeeId(f._placeholder ? null : f.id);
     setEditStudentId(f.student_id);
     setEditMonth(f.month);
     setEditStatus(f.status === 'paid' ? 'paid' : 'unpaid');
@@ -1162,6 +1208,15 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const quickToggle = async (f: any) => {
     const next = f.status === 'paid' ? 'unpaid' : 'paid';
+    if (f._placeholder) {
+      const { error } = await supabase.from('fees').insert({
+        student_id: f.student_id, month: f.month, status: next,
+        amount: 0, institute_id: instituteId, updated_by: user?.id ?? null,
+      });
+      if (error) toast.error(error.message);
+      else { toast.success(`Marked ${next}`); fetchFees(); }
+      return;
+    }
     const { error } = await supabase
       .from('fees')
       .update({ status: next, updated_by: user?.id ?? null })
