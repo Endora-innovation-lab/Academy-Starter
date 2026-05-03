@@ -1171,12 +1171,24 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setStudents(data || []);
   };
 
+  const fetchBatches = async () => {
+    const { data: bData } = await supabase.from('batches').select('id, name').eq('institute_id', instituteId);
+    setBatches(bData || []);
+    const ids = (bData || []).map(b => b.id);
+    if (ids.length > 0) {
+      const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', ids);
+      setBatchStudents(bsData || []);
+    } else {
+      setBatchStudents([]);
+    }
+  };
+
   const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const paidAmount = fees.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
   const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth]);
-  useEffect(() => { fetchStudents(); }, [instituteId]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterBatch, batchStudents]);
+  useEffect(() => { fetchStudents(); fetchBatches(); }, [instituteId]);
 
   const openNew = () => {
     setEditFeeId(null);
