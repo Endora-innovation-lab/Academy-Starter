@@ -226,18 +226,12 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
             <p className="text-3xl font-bold text-primary">{stats.teachers}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Classes Conducted</p>
-            <p className="text-3xl font-bold text-primary">{stats.classes}</p>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Student Attendance</CardTitle></CardHeader>
-          <CardContent className="flex gap-6">
+          <CardContent className="flex gap-6 flex-wrap">
             <div>
               <p className="text-2xl font-bold text-accent">{stats.present}</p>
               <p className="text-sm text-muted-foreground">Present</p>
@@ -249,6 +243,10 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
             <div>
               <p className="text-2xl font-bold text-destructive">{stats.absent}</p>
               <p className="text-sm text-muted-foreground">Absent</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-primary">{stats.classes}</p>
+              <p className="text-sm text-muted-foreground">Classes</p>
             </div>
           </CardContent>
         </Card>
