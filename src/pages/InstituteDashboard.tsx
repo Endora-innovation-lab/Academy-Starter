@@ -1098,6 +1098,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const { user } = useAuth();
   const [fees, setFees] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [filterBatch, setFilterBatch] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
@@ -1123,6 +1126,12 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     const { data: feeRows } = await query;
     const feeData = feeRows || [];
 
+    // Restrict to batch's students if filter set
+    let allowedStudentIds: string[] | null = null;
+    if (filterBatch !== 'all') {
+      allowedStudentIds = batchStudents.filter(bs => bs.batch_id === filterBatch).map(bs => bs.student_id);
+    }
+
     // Build a default unpaid placeholder for any student missing a record this month
     let merged: any[] = feeData;
     if (filterMonth) {
@@ -1145,6 +1154,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           students: s,
         }));
       merged = [...feeData, ...placeholders];
+    }
+    if (allowedStudentIds !== null) {
+      const allowed = new Set(allowedStudentIds);
+      merged = merged.filter(f => allowed.has(f.student_id));
     }
     if (filterStatus !== 'all') merged = merged.filter(f => f.status === filterStatus);
     setFees(merged);
