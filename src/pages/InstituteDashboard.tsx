@@ -1100,10 +1100,35 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
       .eq('institute_id', instituteId)
       .order('month', { ascending: false });
-    if (filterStatus !== 'all') query = query.eq('status', filterStatus);
     if (filterMonth) query = query.eq('month', filterMonth);
-    const { data } = await query;
-    setFees(data || []);
+    const { data: feeRows } = await query;
+    const feeData = feeRows || [];
+
+    // Build a default unpaid placeholder for any student missing a record this month
+    let merged: any[] = feeData;
+    if (filterMonth) {
+      const { data: stuRows } = await supabase
+        .from('students')
+        .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
+        .eq('institute_id', instituteId);
+      const studentList = stuRows || [];
+      const covered = new Set(feeData.map((f: any) => f.student_id));
+      const placeholders = studentList
+        .filter(s => !covered.has(s.id))
+        .map(s => ({
+          id: `placeholder-${s.id}-${filterMonth}`,
+          _placeholder: true,
+          student_id: s.id,
+          month: filterMonth,
+          status: 'unpaid',
+          amount: 0,
+          collected_amount: 0,
+          students: s,
+        }));
+      merged = [...feeData, ...placeholders];
+    }
+    if (filterStatus !== 'all') merged = merged.filter(f => f.status === filterStatus);
+    setFees(merged);
   };
 
   const fetchStudents = async () => {
