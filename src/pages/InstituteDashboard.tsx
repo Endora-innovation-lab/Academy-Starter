@@ -1208,6 +1208,15 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const quickToggle = async (f: any) => {
     const next = f.status === 'paid' ? 'unpaid' : 'paid';
+    if (f._placeholder) {
+      const { error } = await supabase.from('fees').insert({
+        student_id: f.student_id, month: f.month, status: next,
+        amount: 0, institute_id: instituteId, updated_by: user?.id ?? null,
+      });
+      if (error) toast.error(error.message);
+      else { toast.success(`Marked ${next}`); fetchFees(); }
+      return;
+    }
     const { error } = await supabase
       .from('fees')
       .update({ status: next, updated_by: user?.id ?? null })
