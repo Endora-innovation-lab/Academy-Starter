@@ -226,6 +226,12 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
             <p className="text-3xl font-bold text-primary">{stats.teachers}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm text-muted-foreground">Classes Conducted</p>
+            <p className="text-3xl font-bold text-primary">{stats.classes}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
