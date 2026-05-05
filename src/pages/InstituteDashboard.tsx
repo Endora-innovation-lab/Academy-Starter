@@ -775,35 +775,105 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
     if (!enrollRegNo.trim() || !showAssign) return;
     const student = students.find(s => s.reg_no.toLowerCase() === enrollRegNo.trim().toLowerCase());
     if (!student) { toast.error('Student not found with that Reg Number'); return; }
+    if (batchStudents.some(bs => bs.student_id === student.id)) {
+      toast.error('Student already enrolled in this batch');
+      return;
+    }
     try {
-      await supabase.from('batch_students').insert({ batch_id: showAssign, student_id: student.id });
-      toast.success('Student enrolled');
+      const { data, error } = await supabase
+        .from('batch_students')
+        .insert({ batch_id: showAssign, student_id: student.id })
+        .select()
+        .single();
+      if (error) throw error;
       setEnrollRegNo('');
-      fetchBatchDetails(showAssign);
+      await fetchBatchDetails(showAssign);
+      toast.success(`${(student.profiles as any)?.name || student.reg_no} enrolled`, {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await supabase.from('batch_students').delete().eq('id', data.id);
+            if (showAssign) fetchBatchDetails(showAssign);
+            toast.message('Enrollment undone');
+          },
+        },
+      });
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to enroll student');
     }
   };
 
   const handleRemoveFromBatch = async (bsId: string) => {
-    await supabase.from('batch_students').delete().eq('id', bsId);
-    if (showAssign) fetchBatchDetails(showAssign);
+    const removed = batchStudents.find(bs => bs.id === bsId);
+    if (!removed) return;
+    if (!confirm('Remove this student from the batch?')) return;
+    const { error } = await supabase.from('batch_students').delete().eq('id', bsId);
+    if (error) { toast.error(error.message); return; }
+    if (showAssign) await fetchBatchDetails(showAssign);
+    toast.success('Student removed', {
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          const { error: insErr } = await supabase
+            .from('batch_students')
+            .insert({ batch_id: removed.batch_id, student_id: removed.student_id });
+          if (insErr) { toast.error(insErr.message); return; }
+          if (showAssign) fetchBatchDetails(showAssign);
+          toast.message('Removal undone');
+        },
+      },
+    });
   };
 
   const handleAddTeacherToBatch = async (teacherId: string) => {
     if (!showAssign) return;
+    if (batchTeachers.some(bt => (bt.teachers as any)?.id === teacherId)) {
+      toast.error('Teacher already in this batch');
+      return;
+    }
     try {
-      await supabase.from('batch_teachers').insert({ batch_id: showAssign, teacher_id: teacherId });
-      toast.success('Teacher added to batch');
-      fetchBatchDetails(showAssign);
+      const { data, error } = await supabase
+        .from('batch_teachers')
+        .insert({ batch_id: showAssign, teacher_id: teacherId })
+        .select()
+        .single();
+      if (error) throw error;
+      await fetchBatchDetails(showAssign);
+      toast.success('Teacher added to batch', {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await supabase.from('batch_teachers').delete().eq('id', data.id);
+            if (showAssign) fetchBatchDetails(showAssign);
+            toast.message('Removed teacher');
+          },
+        },
+      });
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to add teacher');
     }
   };
 
   const handleRemoveTeacherFromBatch = async (btId: string) => {
-    await supabase.from('batch_teachers').delete().eq('id', btId);
-    if (showAssign) fetchBatchDetails(showAssign);
+    const removed = batchTeachers.find(bt => bt.id === btId);
+    if (!removed) return;
+    if (!confirm('Remove this teacher from the batch?')) return;
+    const { error } = await supabase.from('batch_teachers').delete().eq('id', btId);
+    if (error) { toast.error(error.message); return; }
+    if (showAssign) await fetchBatchDetails(showAssign);
+    toast.success('Teacher removed', {
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          const { error: insErr } = await supabase
+            .from('batch_teachers')
+            .insert({ batch_id: removed.batch_id, teacher_id: removed.teacher_id });
+          if (insErr) { toast.error(insErr.message); return; }
+          if (showAssign) fetchBatchDetails(showAssign);
+          toast.message('Removal undone');
+        },
+      },
+    });
   };
 
   return (
