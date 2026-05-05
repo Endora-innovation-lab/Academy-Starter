@@ -376,13 +376,15 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const handleDelete = async (studentId: string) => {
     if (!confirm('Delete this student?')) return;
     try {
-      await supabase.functions.invoke('admin-operations', {
+      const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'delete_student', student_id: studentId },
       });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success('Student deleted');
       fetchStudents();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to delete student');
     }
   };
 
