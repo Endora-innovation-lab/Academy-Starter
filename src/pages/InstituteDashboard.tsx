@@ -983,6 +983,19 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                 <Input placeholder="Enter Reg Number" value={enrollRegNo} onChange={e => setEnrollRegNo(e.target.value)} className="flex-1" />
                 <Button onClick={handleEnrollByRegNo}>Add</Button>
               </div>
+              {enrollRegNo.trim() && (() => {
+                const match = students.find(s => s.reg_no.toLowerCase() === enrollRegNo.trim().toLowerCase());
+                const already = match && batchStudents.some(bs => (bs as any).student_id === match.id);
+                return (
+                  <div className={`text-xs mb-2 p-2 rounded border ${match ? (already ? 'border-amber-500 text-amber-700 bg-amber-50' : 'border-green-500 text-green-700 bg-green-50') : 'border-destructive text-destructive bg-destructive/10'}`}>
+                    {match ? (
+                      <>Preview: <strong>{(match.profiles as any)?.name}</strong> ({match.reg_no}){already && ' — already in batch'}</>
+                    ) : (
+                      <>No student found with this Reg No</>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="space-y-1">
                 {batchStudents.map(bs => (
                   <div key={bs.id} className="flex items-center justify-between p-2 rounded bg-muted">
