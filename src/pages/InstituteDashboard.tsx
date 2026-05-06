@@ -1296,6 +1296,15 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterBatch, batchStudents]);
+
+  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
+    name: (f: any) => (f.students as any)?.profiles?.name || '',
+    reg_no: (f: any) => (f.students as any)?.reg_no || '',
+    month: (f: any) => f.month || '',
+    amount: (f: any) => Number(f.amount) || 0,
+    collected_amount: (f: any) => Number(f.collected_amount) || 0,
+    status: (f: any) => f.status || '',
+  });
   useEffect(() => { fetchStudents(); fetchBatches(); }, [instituteId]);
 
   const openNew = () => {
