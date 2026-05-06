@@ -140,13 +140,13 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Date</th>
-              <th className="text-left p-3 font-medium">Batch</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="date" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Date</SortableTH>
+              <SortableTH sortKey="batch" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Batch</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
             </tr>
           </thead>
           <tbody>
-            {attendance.map((a, index) => (
+            {sortedAttendance.map((a, index) => (
               <tr key={a.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{a.date}</td>
