@@ -187,6 +187,11 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
     fetch();
   }, [studentId, filterMonth]);
 
+  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
+    month: (f: any) => f.month || '',
+    status: (f: any) => f.status || '',
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
