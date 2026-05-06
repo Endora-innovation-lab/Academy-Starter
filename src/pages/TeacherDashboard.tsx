@@ -582,9 +582,9 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left p-3 font-medium">S.No</th>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Reg No</th>
-                  <th className="text-left p-3 font-medium">Status</th>
+                  <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+                  <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
                 </tr>
               </thead>
               <tbody>
