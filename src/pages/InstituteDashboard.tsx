@@ -347,7 +347,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     ? students
     : students.filter(s => batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id));
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? filteredByBatch.filter(s => {
         const sName = (s.profiles as any)?.name?.toLowerCase() || '';
         const sReg = s.reg_no?.toLowerCase() || '';
@@ -355,6 +355,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         return sName.includes(term) || sReg.includes(term);
       })
     : filteredByBatch;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.profiles as any)?.name || '',
+    reg_no: (s: any) => s.reg_no || '',
+    dob: (s: any) => s.dob || '',
+    parent_phone: (s: any) => s.parent_phone || '',
+  });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
