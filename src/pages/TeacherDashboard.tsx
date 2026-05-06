@@ -432,13 +432,13 @@ const MyAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: string
             <thead className="bg-muted">
               <tr>
                 <th className="text-left p-3 font-medium">S.No</th>
-                <th className="text-left p-3 font-medium">Date</th>
-                <th className="text-left p-3 font-medium">Batch</th>
-                <th className="text-left p-3 font-medium">Status</th>
+                <SortableTH sortKey="date" currentKey={hSortKey} dir={hSortDir} onToggle={hToggle}>Date</SortableTH>
+                <SortableTH sortKey="batch" currentKey={hSortKey} dir={hSortDir} onToggle={hToggle}>Batch</SortableTH>
+                <SortableTH sortKey="status" currentKey={hSortKey} dir={hSortDir} onToggle={hToggle}>Status</SortableTH>
               </tr>
             </thead>
             <tbody>
-              {history.map((h, index) => (
+              {sortedHistory.map((h, index) => (
                 <tr key={h.id} className="border-t">
                   <td className="p-3">{index + 1}</td>
                   <td className="p-3">{h.date}</td>
