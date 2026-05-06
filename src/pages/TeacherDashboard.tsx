@@ -235,12 +235,17 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
     setStudents(data || []);
   };
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? students.filter(s => {
         const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
         return name.includes(searchTerm.toLowerCase());
       })
     : students;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.students as any)?.profiles?.name || '',
+    reg_no: (s: any) => (s.students as any)?.reg_no || '',
+  });
 
   return (
     <div className="space-y-4">
