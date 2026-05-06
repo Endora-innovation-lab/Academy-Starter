@@ -1120,6 +1120,14 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 
   useEffect(() => { fetchAttendance(); }, [instituteId, filterRole, filterType, filterDate, filterMonth, filterYear, filterBatch]);
 
+  const { sorted: sortedAttendance, sortKey, sortDir, toggle } = useSort(attendance, {
+    name: (a: any) => filterRole === 'student' ? ((a.students as any)?.profiles?.name || '') : (a._teacherName || ''),
+    ref: (a: any) => filterRole === 'student' ? ((a.students as any)?.reg_no || '') : ((a.teachers as any)?.phone || ''),
+    batch: (a: any) => (a.batches as any)?.name || '',
+    date: (a: any) => a.date || '',
+    status: (a: any) => a.status || '',
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
