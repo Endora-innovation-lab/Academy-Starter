@@ -542,12 +542,18 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     }
   };
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? students.filter(s => {
         const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
         return name.includes(searchTerm.toLowerCase());
       })
     : students;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.students as any)?.profiles?.name || '',
+    reg_no: (s: any) => (s.students as any)?.reg_no || '',
+    status: (s: any) => attendanceMap[s.student_id] || 'absent',
+  });
 
   return (
     <div className="space-y-4">
