@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
@@ -7,14 +8,21 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import InstituteRegister from "./pages/InstituteRegister";
-import ForgotPassword from "./pages/ForgotPassword";
-import InstituteDashboard from "./pages/InstituteDashboard";
-import TeacherDashboard from "./pages/TeacherDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
+
+const NotFound = lazy(() => import("./pages/NotFound"));
+const InstituteRegister = lazy(() => import("./pages/InstituteRegister"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const InstituteDashboard = lazy(() => import("./pages/InstituteDashboard"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 
 const queryClient = new QueryClient();
+
+const PageFallback = () => (
+  <div className="flex min-h-screen items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -23,15 +31,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/register" element={<InstituteRegister />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/dashboard/institute" element={<InstituteDashboard />} />
-            <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
-            <Route path="/dashboard/student" element={<StudentDashboard />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/register" element={<InstituteRegister />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/dashboard/institute" element={<InstituteDashboard />} />
+              <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
+              <Route path="/dashboard/student" element={<StudentDashboard />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
