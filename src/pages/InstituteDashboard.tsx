@@ -647,10 +647,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Name</th>
-              <th className="text-left p-3 font-medium">Email</th>
-              <th className="text-left p-3 font-medium">Phone</th>
-              <th className="text-left p-3 font-medium">Birth Year</th>
+              <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+              <SortableTH sortKey="email" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Email</SortableTH>
+              <SortableTH sortKey="phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Phone</SortableTH>
+              <SortableTH sortKey="birth_year" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Birth Year</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
