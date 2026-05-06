@@ -453,7 +453,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         </Card>
       )}
 
-      <StudentsTable
+      <SortableStudentsTable
         students={displayStudents}
         onEdit={(s) => {
           setEditStudent(s);
@@ -464,26 +464,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         }}
         onDelete={handleDelete}
       />
-      {false && (
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-3 font-medium">S.No</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayStudents.map((s, index) => (
-              <tr key={s.id} className="border-t">
-                <td className="p-3">{index + 1}</td>
-              </tr>
-            ))}
-            {displayStudents.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
         <DialogContent>
