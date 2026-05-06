@@ -101,6 +101,12 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
   const absentCount = attendance.filter(a => a.status === 'absent').length;
   const totalCount = attendance.length;
 
+  const { sorted: sortedAttendance, sortKey, sortDir, toggle } = useSort(attendance, {
+    date: (a: any) => a.date || '',
+    batch: (a: any) => (a.batches as any)?.name || '',
+    status: (a: any) => a.status || '',
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
