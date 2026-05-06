@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList, DollarSign } from 'lucide-react';
+import { SortableTH, useSort } from '@/components/SortableTable';
 
 const StudentDashboard = () => {
   const { user, loading } = useAuth();
