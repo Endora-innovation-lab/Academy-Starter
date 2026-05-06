@@ -729,12 +729,24 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     }
   };
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? students.filter(s => {
         const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
         return name.includes(searchTerm.toLowerCase());
       })
     : students;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.students as any)?.profiles?.name || '',
+    reg_no: (s: any) => (s.students as any)?.reg_no || '',
+    amount: (s: any) => Number(amountMap[s.student_id]) || 0,
+    collected: (s: any) => Number(collectedMap[s.student_id]) || 0,
+    status: (s: any) => {
+      const setAmt = amountMap[s.student_id] || 0;
+      const collected = collectedMap[s.student_id] || 0;
+      return setAmt > 0 && collected >= setAmt ? 'paid' : 'unpaid';
+    },
+  });
 
   return (
     <div className="space-y-4">
