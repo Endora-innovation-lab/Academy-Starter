@@ -453,38 +453,29 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         </Card>
       )}
 
+      <StudentsTable
+        students={displayStudents}
+        onEdit={(s) => {
+          setEditStudent(s);
+          setName((s.profiles as any)?.name || '');
+          setDob(s.dob);
+          setParentPhone(s.parent_phone || '');
+          setShowEdit(true);
+        }}
+        onDelete={handleDelete}
+      />
+      {false && (
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Name</th>
-              <th className="text-left p-3 font-medium">Reg No</th>
-              <th className="text-left p-3 font-medium">DOB</th>
-              <th className="text-left p-3 font-medium">Parent Phone</th>
-              <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {displayStudents.map((s, index) => (
               <tr key={s.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
-                <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
-                <td className="p-3">{s.reg_no}</td>
-                <td className="p-3">{s.dob}</td>
-                <td className="p-3">{s.parent_phone || '-'}</td>
-                <td className="p-3 flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    setEditStudent(s);
-                    setName((s.profiles as any)?.name || '');
-                    setDob(s.dob);
-                    setParentPhone(s.parent_phone || '');
-                    setShowEdit(true);
-                  }}><Pencil className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(s.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </td>
               </tr>
             ))}
             {displayStudents.length === 0 && (
