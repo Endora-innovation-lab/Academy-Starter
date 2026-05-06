@@ -359,6 +359,12 @@ const MyAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: string
 
   useEffect(() => { fetchHistory(); }, [teacherId, historyMonth]);
 
+  const { sorted: sortedHistory, sortKey: hSortKey, sortDir: hSortDir, toggle: hToggle } = useSort(history, {
+    date: (h: any) => h.date || '',
+    batch: (h: any) => (h.batches as any)?.name || '',
+    status: (h: any) => h.status || '',
+  });
+
   const handleSave = async () => {
     if (!selectedBatch) {
       toast.error('Please select a batch first');
