@@ -1422,17 +1422,17 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Student</th>
-              <th className="text-left p-3 font-medium">Reg No</th>
-              <th className="text-left p-3 font-medium">Month</th>
-              <th className="text-left p-3 font-medium">Fee Set (₹)</th>
-              <th className="text-left p-3 font-medium">Collected (₹)</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Student</SortableTH>
+              <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+              <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee Set (₹)</SortableTH>
+              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {fees.map((f, index) => (
+            {sortedFees.map((f, index) => (
               <tr key={f.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(f.students as any)?.profiles?.name}</td>
