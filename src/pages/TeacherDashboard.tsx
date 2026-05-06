@@ -775,11 +775,11 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left p-3 font-medium">S.No</th>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Reg No</th>
-                  <th className="text-left p-3 font-medium">Fee Set (₹)</th>
-                  <th className="text-left p-3 font-medium">Collected (₹)</th>
-                  <th className="text-left p-3 font-medium">Status</th>
+                  <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+                  <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee Set (₹)</SortableTH>
+                  <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+                  <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
                 </tr>
               </thead>
               <tbody>
