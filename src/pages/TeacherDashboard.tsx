@@ -273,8 +273,8 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left p-3 font-medium">S.No</th>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Reg No</th>
+                  <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+                  <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
                 </tr>
               </thead>
               <tbody>
