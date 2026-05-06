@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SortableTH, useSort } from '@/components/SortableTable';
 
 const InstituteDashboard = () => {
   const { user, instituteId, loading } = useAuth();
