@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SortableTH, useSort } from '@/components/SortableTable';
 
 const InstituteDashboard = () => {
   const { user, instituteId, loading } = useAuth();
@@ -346,7 +347,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     ? students
     : students.filter(s => batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id));
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? filteredByBatch.filter(s => {
         const sName = (s.profiles as any)?.name?.toLowerCase() || '';
         const sReg = s.reg_no?.toLowerCase() || '';
@@ -354,6 +355,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         return sName.includes(term) || sReg.includes(term);
       })
     : filteredByBatch;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.profiles as any)?.name || '',
+    reg_no: (s: any) => s.reg_no || '',
+    dob: (s: any) => s.dob || '',
+    parent_phone: (s: any) => s.parent_phone || '',
+  });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -457,10 +465,10 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Name</th>
-              <th className="text-left p-3 font-medium">Reg No</th>
-              <th className="text-left p-3 font-medium">DOB</th>
-              <th className="text-left p-3 font-medium">Parent Phone</th>
+              <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+              <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+              <SortableTH sortKey="dob" currentKey={sortKey} dir={sortDir} onToggle={toggle}>DOB</SortableTH>
+              <SortableTH sortKey="parent_phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Parent Phone</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -531,7 +539,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
 
   useEffect(() => { fetchTeachers(); }, [instituteId]);
 
-  const displayTeachers = searchTerm
+  const filteredTeachers = searchTerm
     ? teachers.filter(t => {
         const tName = (t.profiles as any)?.name?.toLowerCase() || '';
         const tEmail = (t.profiles as any)?.email?.toLowerCase() || '';
@@ -539,6 +547,13 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         return tName.includes(term) || tEmail.includes(term);
       })
     : teachers;
+
+  const { sorted: displayTeachers, sortKey, sortDir, toggle } = useSort(filteredTeachers, {
+    name: (t: any) => (t.profiles as any)?.name || '',
+    email: (t: any) => (t.profiles as any)?.email || '',
+    phone: (t: any) => t.phone || '',
+    birth_year: (t: any) => Number(t.birth_year) || 0,
+  });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -632,10 +647,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Name</th>
-              <th className="text-left p-3 font-medium">Email</th>
-              <th className="text-left p-3 font-medium">Phone</th>
-              <th className="text-left p-3 font-medium">Birth Year</th>
+              <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+              <SortableTH sortKey="email" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Email</SortableTH>
+              <SortableTH sortKey="phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Phone</SortableTH>
+              <SortableTH sortKey="birth_year" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Birth Year</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -1105,6 +1120,14 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 
   useEffect(() => { fetchAttendance(); }, [instituteId, filterRole, filterType, filterDate, filterMonth, filterYear, filterBatch]);
 
+  const { sorted: sortedAttendance, sortKey, sortDir, toggle } = useSort(attendance, {
+    name: (a: any) => filterRole === 'student' ? ((a.students as any)?.profiles?.name || '') : (a._teacherName || ''),
+    ref: (a: any) => filterRole === 'student' ? ((a.students as any)?.reg_no || '') : ((a.teachers as any)?.phone || ''),
+    batch: (a: any) => (a.batches as any)?.name || '',
+    date: (a: any) => a.date || '',
+    status: (a: any) => a.status || '',
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1142,15 +1165,15 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">{filterRole === 'student' ? 'Student' : 'Teacher'}</th>
-              <th className="text-left p-3 font-medium">{filterRole === 'student' ? 'Reg No' : 'Phone'}</th>
-              <th className="text-left p-3 font-medium">Batch</th>
-              <th className="text-left p-3 font-medium">Date</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>{filterRole === 'student' ? 'Student' : 'Teacher'}</SortableTH>
+              <SortableTH sortKey="ref" currentKey={sortKey} dir={sortDir} onToggle={toggle}>{filterRole === 'student' ? 'Reg No' : 'Phone'}</SortableTH>
+              <SortableTH sortKey="batch" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Batch</SortableTH>
+              <SortableTH sortKey="date" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Date</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
             </tr>
           </thead>
           <tbody>
-            {attendance.map((a, index) => (
+            {sortedAttendance.map((a, index) => (
               <tr key={a.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{filterRole === 'student' ? (a.students as any)?.profiles?.name : a._teacherName}</td>
@@ -1273,6 +1296,15 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
   useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterBatch, batchStudents]);
+
+  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
+    name: (f: any) => (f.students as any)?.profiles?.name || '',
+    reg_no: (f: any) => (f.students as any)?.reg_no || '',
+    month: (f: any) => f.month || '',
+    amount: (f: any) => Number(f.amount) || 0,
+    collected_amount: (f: any) => Number(f.collected_amount) || 0,
+    status: (f: any) => f.status || '',
+  });
   useEffect(() => { fetchStudents(); fetchBatches(); }, [instituteId]);
 
   const openNew = () => {
@@ -1390,17 +1422,17 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Student</th>
-              <th className="text-left p-3 font-medium">Reg No</th>
-              <th className="text-left p-3 font-medium">Month</th>
-              <th className="text-left p-3 font-medium">Fee Set (₹)</th>
-              <th className="text-left p-3 font-medium">Collected (₹)</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Student</SortableTH>
+              <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+              <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee Set (₹)</SortableTH>
+              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {fees.map((f, index) => (
+            {sortedFees.map((f, index) => (
               <tr key={f.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(f.students as any)?.profiles?.name}</td>

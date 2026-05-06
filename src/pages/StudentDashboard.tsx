@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList, DollarSign } from 'lucide-react';
+import { SortableTH, useSort } from '@/components/SortableTable';
 
 const StudentDashboard = () => {
   const { user, loading } = useAuth();
@@ -100,6 +101,12 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
   const absentCount = attendance.filter(a => a.status === 'absent').length;
   const totalCount = attendance.length;
 
+  const { sorted: sortedAttendance, sortKey, sortDir, toggle } = useSort(attendance, {
+    date: (a: any) => a.date || '',
+    batch: (a: any) => (a.batches as any)?.name || '',
+    status: (a: any) => a.status || '',
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -133,13 +140,13 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Date</th>
-              <th className="text-left p-3 font-medium">Batch</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="date" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Date</SortableTH>
+              <SortableTH sortKey="batch" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Batch</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
             </tr>
           </thead>
           <tbody>
-            {attendance.map((a, index) => (
+            {sortedAttendance.map((a, index) => (
               <tr key={a.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{a.date}</td>
@@ -180,6 +187,11 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
     fetch();
   }, [studentId, filterMonth]);
 
+  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
+    month: (f: any) => f.month || '',
+    status: (f: any) => f.status || '',
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -197,12 +209,12 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Month</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
             </tr>
           </thead>
           <tbody>
-            {fees.map((f, index) => (
+            {sortedFees.map((f, index) => (
               <tr key={f.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{f.month}</td>

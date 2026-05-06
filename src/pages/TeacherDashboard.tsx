@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { SortableTH, useSort } from '@/components/SortableTable';
 
 const TeacherDashboard = () => {
   const { user, instituteId, loading } = useAuth();
@@ -234,12 +235,17 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
     setStudents(data || []);
   };
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? students.filter(s => {
         const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
         return name.includes(searchTerm.toLowerCase());
       })
     : students;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.students as any)?.profiles?.name || '',
+    reg_no: (s: any) => (s.students as any)?.reg_no || '',
+  });
 
   return (
     <div className="space-y-4">
@@ -267,8 +273,8 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left p-3 font-medium">S.No</th>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Reg No</th>
+                  <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+                  <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
                 </tr>
               </thead>
               <tbody>
@@ -353,6 +359,12 @@ const MyAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: string
 
   useEffect(() => { fetchHistory(); }, [teacherId, historyMonth]);
 
+  const { sorted: sortedHistory, sortKey: hSortKey, sortDir: hSortDir, toggle: hToggle } = useSort(history, {
+    date: (h: any) => h.date || '',
+    batch: (h: any) => (h.batches as any)?.name || '',
+    status: (h: any) => h.status || '',
+  });
+
   const handleSave = async () => {
     if (!selectedBatch) {
       toast.error('Please select a batch first');
@@ -420,13 +432,13 @@ const MyAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: string
             <thead className="bg-muted">
               <tr>
                 <th className="text-left p-3 font-medium">S.No</th>
-                <th className="text-left p-3 font-medium">Date</th>
-                <th className="text-left p-3 font-medium">Batch</th>
-                <th className="text-left p-3 font-medium">Status</th>
+                <SortableTH sortKey="date" currentKey={hSortKey} dir={hSortDir} onToggle={hToggle}>Date</SortableTH>
+                <SortableTH sortKey="batch" currentKey={hSortKey} dir={hSortDir} onToggle={hToggle}>Batch</SortableTH>
+                <SortableTH sortKey="status" currentKey={hSortKey} dir={hSortDir} onToggle={hToggle}>Status</SortableTH>
               </tr>
             </thead>
             <tbody>
-              {history.map((h, index) => (
+              {sortedHistory.map((h, index) => (
                 <tr key={h.id} className="border-t">
                   <td className="p-3">{index + 1}</td>
                   <td className="p-3">{h.date}</td>
@@ -530,12 +542,18 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     }
   };
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? students.filter(s => {
         const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
         return name.includes(searchTerm.toLowerCase());
       })
     : students;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.students as any)?.profiles?.name || '',
+    reg_no: (s: any) => (s.students as any)?.reg_no || '',
+    status: (s: any) => attendanceMap[s.student_id] || 'absent',
+  });
 
   return (
     <div className="space-y-4">
@@ -564,9 +582,9 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left p-3 font-medium">S.No</th>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Reg No</th>
-                  <th className="text-left p-3 font-medium">Status</th>
+                  <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+                  <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
                 </tr>
               </thead>
               <tbody>
@@ -711,12 +729,24 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     }
   };
 
-  const displayStudents = searchTerm
+  const filteredStudents = searchTerm
     ? students.filter(s => {
         const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
         return name.includes(searchTerm.toLowerCase());
       })
     : students;
+
+  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
+    name: (s: any) => (s.students as any)?.profiles?.name || '',
+    reg_no: (s: any) => (s.students as any)?.reg_no || '',
+    amount: (s: any) => Number(amountMap[s.student_id]) || 0,
+    collected: (s: any) => Number(collectedMap[s.student_id]) || 0,
+    status: (s: any) => {
+      const setAmt = amountMap[s.student_id] || 0;
+      const collected = collectedMap[s.student_id] || 0;
+      return setAmt > 0 && collected >= setAmt ? 'paid' : 'unpaid';
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -745,11 +775,11 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
               <thead className="bg-muted">
                 <tr>
                   <th className="text-left p-3 font-medium">S.No</th>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Reg No</th>
-                  <th className="text-left p-3 font-medium">Fee Set (₹)</th>
-                  <th className="text-left p-3 font-medium">Collected (₹)</th>
-                  <th className="text-left p-3 font-medium">Status</th>
+                  <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+                  <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee Set (₹)</SortableTH>
+                  <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+                  <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
                 </tr>
               </thead>
               <tbody>
