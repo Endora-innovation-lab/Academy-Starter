@@ -209,12 +209,12 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Month</th>
-              <th className="text-left p-3 font-medium">Status</th>
+              <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
             </tr>
           </thead>
           <tbody>
-            {fees.map((f, index) => (
+            {sortedFees.map((f, index) => (
               <tr key={f.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{f.month}</td>
