@@ -539,7 +539,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
 
   useEffect(() => { fetchTeachers(); }, [instituteId]);
 
-  const displayTeachers = searchTerm
+  const filteredTeachers = searchTerm
     ? teachers.filter(t => {
         const tName = (t.profiles as any)?.name?.toLowerCase() || '';
         const tEmail = (t.profiles as any)?.email?.toLowerCase() || '';
@@ -547,6 +547,13 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         return tName.includes(term) || tEmail.includes(term);
       })
     : teachers;
+
+  const { sorted: displayTeachers, sortKey, sortDir, toggle } = useSort(filteredTeachers, {
+    name: (t: any) => (t.profiles as any)?.name || '',
+    email: (t: any) => (t.profiles as any)?.email || '',
+    phone: (t: any) => t.phone || '',
+    birth_year: (t: any) => Number(t.birth_year) || 0,
+  });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
