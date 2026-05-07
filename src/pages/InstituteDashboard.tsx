@@ -1128,10 +1128,25 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     status: (a: any) => a.status || '',
   });
 
+  const counts = {
+    present: attendance.filter((a: any) => a.status === 'present').length,
+    absent: attendance.filter((a: any) => a.status === 'absent').length,
+    late: attendance.filter((a: any) => a.status === 'late').length,
+    total: new Set(attendance.map((a: any) => filterRole === 'student' ? a.student_id : a.teacher_id)).size,
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Attendance</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Attendance</h2>
+          <div className="flex flex-wrap gap-2 rounded-lg border bg-card px-3 py-2">
+            <span className="rounded-md bg-green-100 dark:bg-green-950 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">Present: {counts.present}</span>
+            <span className="rounded-md bg-red-100 dark:bg-red-950 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-300">Absent: {counts.absent}</span>
+            <span className="rounded-md bg-yellow-100 dark:bg-yellow-950 px-2 py-1 text-xs font-medium text-yellow-700 dark:text-yellow-300">Late: {counts.late}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-foreground">Total {filterRole === 'student' ? 'Students' : 'Teachers'}: {counts.total}</span>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Select value={filterRole} onValueChange={(v: 'student' | 'teacher') => setFilterRole(v)}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
