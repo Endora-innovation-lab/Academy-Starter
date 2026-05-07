@@ -982,6 +982,15 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
           <DialogHeader><DialogTitle>Edit Batch</DialogTitle></DialogHeader>
           <form onSubmit={handleEditBatch} className="space-y-3">
             <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
+            <div>
+              <Label>Game / Course</Label>
+              <Select value={batchGameId} onValueChange={setBatchGameId}>
+                <SelectTrigger><SelectValue placeholder="Select a game/course" /></SelectTrigger>
+                <SelectContent>
+                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <Button type="submit" className="w-full">Update</Button>
           </form>
         </DialogContent>
