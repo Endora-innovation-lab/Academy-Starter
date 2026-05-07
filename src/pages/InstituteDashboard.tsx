@@ -914,6 +914,16 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
             <form onSubmit={handleCreateBatch} className="space-y-3">
               <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
               <div>
+                <Label>Game / Course</Label>
+                <Select value={batchGameId} onValueChange={setBatchGameId}>
+                  <SelectTrigger><SelectValue placeholder="Select a game/course" /></SelectTrigger>
+                  <SelectContent>
+                    {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {games.length === 0 && <p className="text-xs text-destructive mt-1">Create a game/course first in the Games tab.</p>}
+              </div>
+              <div>
                 <Label>Assign Teachers (select multiple)</Label>
                 <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
                   {teachers.map(t => (
