@@ -742,11 +742,13 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!batchGameId) { toast.error('Select a game/course'); return; }
     try {
       const { data: newBatch, error } = await supabase.from('batches').insert({
         name: batchName,
         institute_id: instituteId,
         teacher_id: selectedTeachers[0] || null,
+        game_id: batchGameId,
       }).select().single();
       if (error) throw error;
 
@@ -759,6 +761,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
       toast.success('Batch created');
       setShowAdd(false);
       setBatchName('');
+      setBatchGameId('');
       setSelectedTeachers([]);
       fetchData();
     } catch (err: any) {
@@ -769,10 +772,11 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const handleEditBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await supabase.from('batches').update({ name: batchName }).eq('id', showEdit.id);
+      await supabase.from('batches').update({ name: batchName, game_id: batchGameId || null }).eq('id', showEdit.id);
       toast.success('Batch updated');
       setShowEdit(null);
       setBatchName('');
+      setBatchGameId('');
       fetchData();
     } catch (err: any) {
       toast.error(err.message);
