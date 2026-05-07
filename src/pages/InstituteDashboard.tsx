@@ -967,14 +967,6 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                 </div>
               </div>
             </CardHeader>
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteBatch(b.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
             <CardContent>
               <Button size="sm" variant="outline" onClick={() => { setShowAssign(b.id); fetchBatchDetails(b.id); }}>
                 Manage
