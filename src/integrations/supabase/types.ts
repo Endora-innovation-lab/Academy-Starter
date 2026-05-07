@@ -138,6 +138,7 @@ export type Database = {
       batches: {
         Row: {
           created_at: string
+          game_id: string | null
           id: string
           institute_id: string
           name: string
@@ -145,6 +146,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          game_id?: string | null
           id?: string
           institute_id: string
           name: string
@@ -152,6 +154,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          game_id?: string | null
           id?: string
           institute_id?: string
           name?: string
@@ -224,6 +227,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      games: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          institute_id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          institute_id: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          institute_id?: string
+          name?: string
+        }
+        Relationships: []
       }
       institutes: {
         Row: {
