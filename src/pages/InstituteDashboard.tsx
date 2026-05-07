@@ -700,6 +700,107 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   );
 };
 
+// ============= GAMES TAB =============
+const GamesTab = ({ instituteId }: { instituteId: string }) => {
+  const [games, setGames] = useState<any[]>([]);
+  const [batchCounts, setBatchCounts] = useState<Record<string, number>>({});
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState<any>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+
+  const fetchGames = async () => {
+    const { data } = await supabase.from('games').select('*').eq('institute_id', instituteId).order('name');
+    setGames(data || []);
+    const { data: bData } = await supabase.from('batches').select('game_id').eq('institute_id', instituteId);
+    const counts: Record<string, number> = {};
+    (bData || []).forEach((b: any) => { if (b.game_id) counts[b.game_id] = (counts[b.game_id] || 0) + 1; });
+    setBatchCounts(counts);
+  };
+
+  useEffect(() => { fetchGames(); }, [instituteId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (showEdit) {
+        await supabase.from('games').update({ name, description }).eq('id', showEdit.id);
+        toast.success('Game updated');
+      } else {
+        await supabase.from('games').insert({ name, description, institute_id: instituteId });
+        toast.success('Game created');
+      }
+      setShowAdd(false); setShowEdit(null); setName(''); setDescription('');
+      fetchGames();
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleDelete = async (g: any) => {
+    if ((batchCounts[g.id] || 0) > 0) { toast.error('Cannot delete: batches are linked to this game'); return; }
+    if (!confirm(`Delete "${g.name}"?`)) return;
+    const { error } = await supabase.from('games').delete().eq('id', g.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Game deleted');
+    fetchGames();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="h-5 w-5" /> Games / Courses</h2>
+        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); } }}>
+          <DialogTrigger asChild>
+            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{showEdit ? 'Edit' : 'Add'} Game / Course</DialogTitle></DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Chess, Cricket" /></div>
+              <div><Label>Description (optional)</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
+              <Button type="submit" className="w-full">{showEdit ? 'Update' : 'Create'}</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted">
+            <tr>
+              <th className="px-3 py-2 text-left">S.No</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-left">Description</th>
+              <th className="px-3 py-2 text-left">Batches</th>
+              <th className="px-3 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {games.map((g, i) => (
+              <tr key={g.id} className="border-t">
+                <td className="px-3 py-2">{i + 1}</td>
+                <td className="px-3 py-2 font-medium">{g.name}</td>
+                <td className="px-3 py-2 text-muted-foreground">{g.description || '—'}</td>
+                <td className="px-3 py-2">{batchCounts[g.id] || 0}</td>
+                <td className="px-3 py-2 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(g)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {games.length === 0 && (
+              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No games/courses yet. Add one to start creating batches.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // ============= BATCHES TAB =============
 const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
