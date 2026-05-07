@@ -705,10 +705,12 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [games, setGames] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showAssign, setShowAssign] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState<any>(null);
   const [batchName, setBatchName] = useState('');
+  const [batchGameId, setBatchGameId] = useState<string>('');
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [enrollRegNo, setEnrollRegNo] = useState('');
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
