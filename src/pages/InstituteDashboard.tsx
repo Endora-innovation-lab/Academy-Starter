@@ -48,6 +48,7 @@ const InstituteDashboard = () => {
   return (
     <DashboardLayout title="Institute Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'overview' && <OverviewTab instituteId={instituteId} />}
+      {activeTab === 'games' && <GamesTab instituteId={instituteId} />}
       {activeTab === 'batches' && <BatchesTab instituteId={instituteId} />}
       {activeTab === 'students' && <StudentsTab instituteId={instituteId} hasBatches={hasBatches} />}
       {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} hasBatches={hasBatches} />}
