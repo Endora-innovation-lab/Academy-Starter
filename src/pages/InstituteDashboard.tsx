@@ -1099,7 +1099,18 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
       <Dialog open={!!showAssign} onOpenChange={() => setShowAssign(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Manage Batch</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Manage Batch</DialogTitle>
+            {(() => {
+              const cur = batches.find((b: any) => b.id === showAssign);
+              const gameName = (cur?.games as any)?.name;
+              return (
+                <p className="text-sm text-muted-foreground">
+                  {cur?.name}{gameName && <> · 🎯 Game/Course: <strong className="text-foreground">{gameName}</strong></>}
+                </p>
+              );
+            })()}
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <h4 className="font-semibold text-sm mb-2">Teachers</h4>
