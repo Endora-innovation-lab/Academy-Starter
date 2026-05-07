@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
 const TeacherDashboard = () => {
@@ -58,6 +58,7 @@ const TeacherDashboard = () => {
 const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteId: string }) => {
   const [counts, setCounts] = useState({ present: 0, absent: 0, late: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
+  const [batches, setBatches] = useState<{ id: string; name: string; color: string }[]>([]);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -70,33 +71,28 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
       const lastDay = new Date(y, m, 0).toISOString().split('T')[0];
       const { data } = await supabase
         .from('teacher_attendance')
-        .select('status, date')
+        .select('status, date, batch_id, batches(name)')
         .eq('teacher_id', teacherId)
         .gte('date', firstDay)
         .lte('date', lastDay)
         .order('date', { ascending: true });
       const c = { present: 0, absent: 0, late: 0 };
-      const byDate: Record<string, string> = {};
+      const batchMap: Record<string, string> = {};
+      const palette = ['hsl(217 91% 60%)', 'hsl(280 80% 60%)', 'hsl(160 70% 45%)', 'hsl(35 95% 55%)', 'hsl(0 80% 60%)', 'hsl(190 85% 50%)', 'hsl(320 75% 60%)', 'hsl(50 90% 50%)'];
+      const dateMap: Record<string, any> = {};
       (data || []).forEach((r: any) => {
         if (r.status === 'present') c.present++;
         else if (r.status === 'late') c.late++;
         else c.absent++;
-        // If multiple batches same day, prefer present > late > absent
-        const cur = byDate[r.date];
-        const rank = (s: string) => (s === 'present' ? 3 : s === 'late' ? 2 : 1);
-        if (!cur || rank(r.status) > rank(cur)) byDate[r.date] = r.status;
+        const bname = r.batches?.name || 'Batch';
+        batchMap[r.batch_id] = bname;
+        if (!dateMap[r.date]) dateMap[r.date] = { date: r.date.slice(8), fullDate: r.date };
+        dateMap[r.date][r.batch_id] = r.status === 'present' ? 3 : r.status === 'late' ? 2 : 1;
       });
       setCounts(c);
-      const cd = Object.entries(byDate)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, status]) => ({
-          date: date.slice(8),
-          fullDate: date,
-          status,
-          value: status === 'present' ? 3 : status === 'late' ? 2 : 1,
-          fill: status === 'present' ? 'hsl(var(--accent))' : status === 'late' ? 'hsl(45 93% 47%)' : 'hsl(var(--destructive))',
-        }));
-      setChartData(cd);
+      const bArr = Object.entries(batchMap).map(([id, name], i) => ({ id, name, color: palette[i % palette.length] }));
+      setBatches(bArr);
+      setChartData(Object.values(dateMap).sort((a: any, b: any) => a.fullDate.localeCompare(b.fullDate)));
     };
     load();
   }, [teacherId, month]);
@@ -130,14 +126,14 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
       </div>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Attendance Breakdown (by date)</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Attendance Trend (by batch)</CardTitle></CardHeader>
         <CardContent>
           <div className="h-72 w-full">
             {chartData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-muted-foreground text-sm">No attendance records this month</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="date" interval={0} stroke="hsl(var(--muted-foreground))" label={{ value: 'Date', position: 'insideBottom', offset: -2, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis
@@ -150,13 +146,13 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
                     labelFormatter={(label, payload) => (payload?.[0]?.payload as any)?.fullDate || label}
-                    formatter={(_v: any, _n: any, item: any) => {
-                      const s = item?.payload?.status;
-                      return [s === 'present' ? 'Present (P)' : s === 'late' ? 'Late (L)' : 'Absent (A)', 'Status'];
-                    }}
+                    formatter={(v: any) => [v === 3 ? 'Present' : v === 2 ? 'Late' : v === 1 ? 'Absent' : '-', 'Status']}
                   />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} />
-                </BarChart>
+                  <Legend />
+                  {batches.map(b => (
+                    <Line key={b.id} type="monotone" dataKey={b.id} name={b.name} stroke={b.color} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                  ))}
+                </LineChart>
               </ResponsiveContainer>
             )}
           </div>
