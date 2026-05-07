@@ -717,14 +717,16 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batchTeachers, setBatchTeachers] = useState<any[]>([]);
 
   const fetchData = async () => {
-    const [{ data: b }, { data: t }, { data: s }] = await Promise.all([
-      supabase.from('batches').select('*').eq('institute_id', instituteId),
+    const [{ data: b }, { data: t }, { data: s }, { data: g }] = await Promise.all([
+      supabase.from('batches').select('*, games(id, name)').eq('institute_id', instituteId),
       supabase.from('teachers').select('*, profiles!teachers_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
       supabase.from('students').select('*, profiles!students_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
+      supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
     ]);
     setBatches(b || []);
     setTeachers(t || []);
     setStudents(s || []);
+    setGames(g || []);
   };
 
   const fetchBatchDetails = async (batchId: string) => {
