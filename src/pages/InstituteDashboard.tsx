@@ -29,6 +29,7 @@ const InstituteDashboard = () => {
 
   const tabs = [
     { label: 'Overview', value: 'overview' },
+    { label: 'Games', value: 'games' },
     { label: 'Batches', value: 'batches' },
     { label: 'Students', value: 'students' },
     { label: 'Teachers', value: 'teachers' },
