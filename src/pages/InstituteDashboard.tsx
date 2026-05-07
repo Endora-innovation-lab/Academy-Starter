@@ -953,9 +953,20 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
           <Card key={b.id}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{b.name}</CardTitle>
+                <div>
+                  <CardTitle className="text-base">{b.name}</CardTitle>
+                  {(b.games as any)?.name && <p className="text-xs text-muted-foreground mt-0.5">🎯 {(b.games as any).name}</p>}
+                </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(b); setBatchName(b.name); }}>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(b); setBatchName(b.name); setBatchGameId(b.game_id || ''); }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteBatch(b.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
                     <Pencil className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteBatch(b.id)}>
