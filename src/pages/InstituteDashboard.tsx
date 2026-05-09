@@ -29,6 +29,7 @@ const InstituteDashboard = () => {
 
   const tabs = [
     { label: 'Overview', value: 'overview' },
+    { label: 'Games', value: 'games' },
     { label: 'Batches', value: 'batches' },
     { label: 'Students', value: 'students' },
     { label: 'Teachers', value: 'teachers' },
@@ -47,6 +48,7 @@ const InstituteDashboard = () => {
   return (
     <DashboardLayout title="Institute Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'overview' && <OverviewTab instituteId={instituteId} />}
+      {activeTab === 'games' && <GamesTab instituteId={instituteId} />}
       {activeTab === 'batches' && <BatchesTab instituteId={instituteId} />}
       {activeTab === 'students' && <StudentsTab instituteId={instituteId} hasBatches={hasBatches} />}
       {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} hasBatches={hasBatches} />}
@@ -698,29 +700,134 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   );
 };
 
+// ============= GAMES TAB =============
+const GamesTab = ({ instituteId }: { instituteId: string }) => {
+  const [games, setGames] = useState<any[]>([]);
+  const [batchCounts, setBatchCounts] = useState<Record<string, number>>({});
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState<any>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+
+  const fetchGames = async () => {
+    const { data } = await supabase.from('games').select('*').eq('institute_id', instituteId).order('name');
+    setGames(data || []);
+    const { data: bData } = await supabase.from('batches').select('game_id').eq('institute_id', instituteId);
+    const counts: Record<string, number> = {};
+    (bData || []).forEach((b: any) => { if (b.game_id) counts[b.game_id] = (counts[b.game_id] || 0) + 1; });
+    setBatchCounts(counts);
+  };
+
+  useEffect(() => { fetchGames(); }, [instituteId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (showEdit) {
+        await supabase.from('games').update({ name, description }).eq('id', showEdit.id);
+        toast.success('Game updated');
+      } else {
+        await supabase.from('games').insert({ name, description, institute_id: instituteId });
+        toast.success('Game created');
+      }
+      setShowAdd(false); setShowEdit(null); setName(''); setDescription('');
+      fetchGames();
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleDelete = async (g: any) => {
+    if ((batchCounts[g.id] || 0) > 0) { toast.error('Cannot delete: batches are linked to this game'); return; }
+    if (!confirm(`Delete "${g.name}"?`)) return;
+    const { error } = await supabase.from('games').delete().eq('id', g.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Game deleted');
+    fetchGames();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="h-5 w-5" /> Games / Courses</h2>
+        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); } }}>
+          <DialogTrigger asChild>
+            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{showEdit ? 'Edit' : 'Add'} Game / Course</DialogTitle></DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Chess, Cricket" /></div>
+              <div><Label>Description (optional)</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
+              <Button type="submit" className="w-full">{showEdit ? 'Update' : 'Create'}</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted">
+            <tr>
+              <th className="px-3 py-2 text-left">S.No</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-left">Description</th>
+              <th className="px-3 py-2 text-left">Batches</th>
+              <th className="px-3 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {games.map((g, i) => (
+              <tr key={g.id} className="border-t">
+                <td className="px-3 py-2">{i + 1}</td>
+                <td className="px-3 py-2 font-medium">{g.name}</td>
+                <td className="px-3 py-2 text-muted-foreground">{g.description || '—'}</td>
+                <td className="px-3 py-2">{batchCounts[g.id] || 0}</td>
+                <td className="px-3 py-2 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); }}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(g)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {games.length === 0 && (
+              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No games/courses yet. Add one to start creating batches.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // ============= BATCHES TAB =============
 const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [games, setGames] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showAssign, setShowAssign] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState<any>(null);
   const [batchName, setBatchName] = useState('');
+  const [batchGameId, setBatchGameId] = useState<string>('');
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [enrollRegNo, setEnrollRegNo] = useState('');
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
   const [batchTeachers, setBatchTeachers] = useState<any[]>([]);
 
   const fetchData = async () => {
-    const [{ data: b }, { data: t }, { data: s }] = await Promise.all([
-      supabase.from('batches').select('*').eq('institute_id', instituteId),
+    const [{ data: b }, { data: t }, { data: s }, { data: g }] = await Promise.all([
+      supabase.from('batches').select('*, games(id, name)').eq('institute_id', instituteId),
       supabase.from('teachers').select('*, profiles!teachers_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
       supabase.from('students').select('*, profiles!students_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
+      supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
     ]);
     setBatches(b || []);
     setTeachers(t || []);
     setStudents(s || []);
+    setGames(g || []);
   };
 
   const fetchBatchDetails = async (batchId: string) => {
@@ -736,11 +843,13 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!batchGameId) { toast.error('Select a game/course'); return; }
     try {
       const { data: newBatch, error } = await supabase.from('batches').insert({
         name: batchName,
         institute_id: instituteId,
         teacher_id: selectedTeachers[0] || null,
+        game_id: batchGameId,
       }).select().single();
       if (error) throw error;
 
@@ -753,6 +862,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
       toast.success('Batch created');
       setShowAdd(false);
       setBatchName('');
+      setBatchGameId('');
       setSelectedTeachers([]);
       fetchData();
     } catch (err: any) {
@@ -763,10 +873,11 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const handleEditBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await supabase.from('batches').update({ name: batchName }).eq('id', showEdit.id);
+      await supabase.from('batches').update({ name: batchName, game_id: batchGameId || null }).eq('id', showEdit.id);
       toast.success('Batch updated');
       setShowEdit(null);
       setBatchName('');
+      setBatchGameId('');
       fetchData();
     } catch (err: any) {
       toast.error(err.message);
@@ -904,6 +1015,16 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
             <form onSubmit={handleCreateBatch} className="space-y-3">
               <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
               <div>
+                <Label>Game / Course</Label>
+                <Select value={batchGameId} onValueChange={setBatchGameId}>
+                  <SelectTrigger><SelectValue placeholder="Select a game/course" /></SelectTrigger>
+                  <SelectContent>
+                    {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {games.length === 0 && <p className="text-xs text-destructive mt-1">Create a game/course first in the Games tab.</p>}
+              </div>
+              <div>
                 <Label>Assign Teachers (select multiple)</Label>
                 <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
                   {teachers.map(t => (
@@ -933,9 +1054,12 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
           <Card key={b.id}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{b.name}</CardTitle>
+                <div>
+                  <CardTitle className="text-base">{b.name}</CardTitle>
+                  {(b.games as any)?.name && <p className="text-xs text-muted-foreground mt-0.5">🎯 {(b.games as any).name}</p>}
+                </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(b); setBatchName(b.name); }}>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(b); setBatchName(b.name); setBatchGameId(b.game_id || ''); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteBatch(b.id)}>
@@ -959,6 +1083,15 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
           <DialogHeader><DialogTitle>Edit Batch</DialogTitle></DialogHeader>
           <form onSubmit={handleEditBatch} className="space-y-3">
             <div><Label>Batch Name</Label><Input value={batchName} onChange={e => setBatchName(e.target.value)} required /></div>
+            <div>
+              <Label>Game / Course</Label>
+              <Select value={batchGameId} onValueChange={setBatchGameId}>
+                <SelectTrigger><SelectValue placeholder="Select a game/course" /></SelectTrigger>
+                <SelectContent>
+                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <Button type="submit" className="w-full">Update</Button>
           </form>
         </DialogContent>
@@ -966,7 +1099,18 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
       <Dialog open={!!showAssign} onOpenChange={() => setShowAssign(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Manage Batch</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Manage Batch</DialogTitle>
+            {(() => {
+              const cur = batches.find((b: any) => b.id === showAssign);
+              const gameName = (cur?.games as any)?.name;
+              return (
+                <p className="text-sm text-muted-foreground">
+                  {cur?.name}{gameName && <> · 🎯 Game/Course: <strong className="text-foreground">{gameName}</strong></>}
+                </p>
+              );
+            })()}
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <h4 className="font-semibold text-sm mb-2">Teachers</h4>
