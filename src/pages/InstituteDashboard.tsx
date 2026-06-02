@@ -42,7 +42,7 @@ const InstituteDashboard = () => {
   }
 
   if (!user || !instituteId) {
-    return <Navigate to="/login/institute" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
