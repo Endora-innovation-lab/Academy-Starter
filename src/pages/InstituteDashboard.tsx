@@ -818,16 +818,25 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batchTeachers, setBatchTeachers] = useState<any[]>([]);
 
   const fetchData = async () => {
-    const [{ data: b }, { data: t }, { data: s }, { data: g }] = await Promise.all([
-      supabase.from('batches').select('*, games(id, name)').eq('institute_id', instituteId),
+    const [batchesRes, teachersRes, studentsRes, gamesRes] = await Promise.all([
+      supabase.from('batches').select('*').eq('institute_id', instituteId),
       supabase.from('teachers').select('*, profiles!teachers_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
       supabase.from('students').select('*, profiles!students_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
       supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
     ]);
-    setBatches(b || []);
-    setTeachers(t || []);
-    setStudents(s || []);
-    setGames(g || []);
+    if (batchesRes.error) console.error('[BatchesTab] batches fetch error:', batchesRes.error);
+    console.log('[BatchesTab] fetched batches:', batchesRes.data?.length, batchesRes.data);
+    const gamesList = gamesRes.data || [];
+    const gameMap = Object.fromEntries(gamesList.map((g: any) => [g.id, g]));
+    // Backward compat: old batches may have null game_id — keep them visible with games:null
+    const merged = (batchesRes.data || []).map((b: any) => ({
+      ...b,
+      games: b.game_id && gameMap[b.game_id] ? { id: gameMap[b.game_id].id, name: gameMap[b.game_id].name } : null,
+    }));
+    setBatches(merged);
+    setTeachers(teachersRes.data || []);
+    setStudents(studentsRes.data || []);
+    setGames(gamesList);
   };
 
   const fetchBatchDetails = async (batchId: string) => {
