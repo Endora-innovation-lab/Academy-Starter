@@ -189,8 +189,23 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
 
   const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
     month: (f: any) => f.month || '',
+    amount: (f: any) => Number(f.amount) || 0,
+    collected: (f: any) => Number(f.collected_amount) || 0,
     status: (f: any) => f.status || '',
   });
+
+  const totals = fees.reduce((acc, f) => {
+    const amt = Number(f.amount) || 0;
+    const col = Number(f.collected_amount) || 0;
+    acc.total += amt;
+    acc.paid += col;
+    acc.due += Math.max(0, amt - col);
+    return acc;
+  }, { total: 0, paid: 0, due: 0 });
+
+  const statusCls = (s: string) => s === 'paid' ? 'bg-accent/10 text-accent'
+    : s === 'partial' ? 'bg-yellow-500/10 text-yellow-600'
+    : 'bg-destructive/10 text-destructive';
 
   return (
     <div className="space-y-4">
@@ -204,29 +219,56 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
           </SelectContent>
         </Select>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Total Fee</p>
+          <p className="text-2xl font-bold">₹{totals.total.toLocaleString()}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Paid</p>
+          <p className="text-2xl font-bold text-accent">₹{totals.paid.toLocaleString()}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Due</p>
+          <p className="text-2xl font-bold text-destructive">₹{totals.due.toLocaleString()}</p>
+        </div>
+      </div>
+
       <div className="rounded-lg border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Total (₹)</SortableTH>
+              <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Paid (₹)</SortableTH>
+              <th className="text-left p-3 font-medium">Due (₹)</th>
               <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
+              <th className="text-left p-3 font-medium">Note</th>
             </tr>
           </thead>
           <tbody>
-            {sortedFees.map((f, index) => (
-              <tr key={f.id} className="border-t">
-                <td className="p-3">{index + 1}</td>
-                <td className="p-3">{f.month}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>{f.status}</span>
-                </td>
-              </tr>
-            ))}
+            {sortedFees.map((f, index) => {
+              const amt = Number(f.amount) || 0;
+              const col = Number(f.collected_amount) || 0;
+              const due = Math.max(0, amt - col);
+              return (
+                <tr key={f.id} className="border-t">
+                  <td className="p-3">{index + 1}</td>
+                  <td className="p-3">{f.month}</td>
+                  <td className="p-3">₹{amt.toLocaleString()}</td>
+                  <td className="p-3">₹{col.toLocaleString()}</td>
+                  <td className="p-3 font-medium">₹{due.toLocaleString()}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusCls(f.status)}`}>{f.status}</span>
+                  </td>
+                  <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate" title={f.notes || ''}>{f.notes || '—'}</td>
+                </tr>
+              );
+            })}
             {fees.length === 0 && (
-              <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
