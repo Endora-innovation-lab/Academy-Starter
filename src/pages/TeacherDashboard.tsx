@@ -164,22 +164,25 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
   );
 };
 
-// Helper: cycle absent → present → late → absent
+// Helper: cycle unmarked → present → late → absent → unmarked
 const cycleStatus = (current: string): string => {
-  if (current === 'absent') return 'present';
+  if (current === 'unmarked') return 'present';
   if (current === 'present') return 'late';
-  return 'absent';
+  if (current === 'late') return 'absent';
+  return 'unmarked';
 };
 
-// Helper: render status as P/L/A badge
+// Helper: render status as P/L/A/— badge
 const StatusBadge = ({ status, onClick }: { status: string; onClick?: () => void }) => {
-  const label = status === 'present' ? 'P' : status === 'late' ? 'L' : 'A';
+  const label = status === 'present' ? 'P' : status === 'late' ? 'L' : status === 'absent' ? 'A' : '—';
   const cls =
     status === 'present'
       ? 'bg-accent text-accent-foreground'
       : status === 'late'
         ? 'bg-yellow-500 text-white'
-        : 'bg-destructive text-destructive-foreground';
+        : status === 'absent'
+          ? 'bg-destructive text-destructive-foreground'
+          : 'bg-muted text-muted-foreground';
   if (onClick) {
     return (
       <button
