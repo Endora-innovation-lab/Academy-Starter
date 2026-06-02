@@ -1065,7 +1065,9 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base">{b.name}</CardTitle>
-                  {(b.games as any)?.name && <p className="text-xs text-muted-foreground mt-0.5">🎯 {(b.games as any).name}</p>}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    🎯 {(b.games as any)?.name || <span className="italic">Unassigned — edit to link a game/course</span>}
+                  </p>
                 </div>
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" onClick={() => { setShowEdit(b); setBatchName(b.name); setBatchGameId(b.game_id || ''); }}>
