@@ -177,6 +177,51 @@ export type Database = {
           },
         ]
       }
+      fee_history: {
+        Row: {
+          amount: number | null
+          collected_amount: number | null
+          created_at: string
+          fee_id: string | null
+          id: string
+          institute_id: string
+          month: string
+          notes: string | null
+          status: string
+          student_id: string
+          updated_by: string | null
+          updated_by_role: string | null
+        }
+        Insert: {
+          amount?: number | null
+          collected_amount?: number | null
+          created_at?: string
+          fee_id?: string | null
+          id?: string
+          institute_id: string
+          month: string
+          notes?: string | null
+          status: string
+          student_id: string
+          updated_by?: string | null
+          updated_by_role?: string | null
+        }
+        Update: {
+          amount?: number | null
+          collected_amount?: number | null
+          created_at?: string
+          fee_id?: string | null
+          id?: string
+          institute_id?: string
+          month?: string
+          notes?: string | null
+          status?: string
+          student_id?: string
+          updated_by?: string | null
+          updated_by_role?: string | null
+        }
+        Relationships: []
+      }
       fees: {
         Row: {
           amount: number | null
@@ -185,6 +230,7 @@ export type Database = {
           id: string
           institute_id: string
           month: string
+          notes: string | null
           status: string
           student_id: string
           updated_by: string | null
@@ -196,6 +242,7 @@ export type Database = {
           id?: string
           institute_id: string
           month: string
+          notes?: string | null
           status?: string
           student_id: string
           updated_by?: string | null
@@ -207,6 +254,7 @@ export type Database = {
           id?: string
           institute_id?: string
           month?: string
+          notes?: string | null
           status?: string
           student_id?: string
           updated_by?: string | null
