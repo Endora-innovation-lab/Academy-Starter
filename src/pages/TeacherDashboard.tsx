@@ -602,7 +602,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
                       <td className="p-3">{student?.reg_no}</td>
                       <td className="p-3">
                         <StatusBadge
-                          status={attendanceMap[s.student_id] || 'absent'}
+                          status={attendanceMap[s.student_id] || 'unmarked'}
                           onClick={() => toggleAttendance(s.student_id)}
                         />
                       </td>
