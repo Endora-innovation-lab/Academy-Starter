@@ -37,7 +37,7 @@ const TeacherDashboard = () => {
   }
 
   if (!user || !instituteId) {
-    return <Navigate to="/login/teacher" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
