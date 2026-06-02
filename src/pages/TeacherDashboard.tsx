@@ -557,13 +557,13 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
     name: (s: any) => (s.students as any)?.profiles?.name || '',
     reg_no: (s: any) => (s.students as any)?.reg_no || '',
-    status: (s: any) => attendanceMap[s.student_id] || 'absent',
+    status: (s: any) => attendanceMap[s.student_id] || 'unmarked',
   });
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Mark Student Attendance</h2>
-      <p className="text-sm text-muted-foreground">Tap the badge to cycle: Absent → Present (P) → Late (L) → Absent.</p>
+      <p className="text-sm text-muted-foreground">Tap the badge to cycle: — (unmarked) → P → L → A → —. Past dates with no record show —.</p>
       <div className="flex flex-wrap gap-3">
         <Select value={selectedBatch} onValueChange={setSelectedBatch}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Select batch" /></SelectTrigger>
