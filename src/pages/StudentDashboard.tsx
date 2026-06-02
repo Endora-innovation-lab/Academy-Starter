@@ -31,7 +31,7 @@ const StudentDashboard = () => {
   }
 
   if (!user) {
-    return <Navigate to="/login/student" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
