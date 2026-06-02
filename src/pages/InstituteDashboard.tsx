@@ -1390,9 +1390,13 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
   const [editStudentId, setEditStudentId] = useState('');
   const [editMonth, setEditMonth] = useState(filterMonth);
-  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid'>('unpaid');
+  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
   const [editAmount, setEditAmount] = useState('');
+  const [editCollected, setEditCollected] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRows, setHistoryRows] = useState<any[]>([]);
 
   const fetchFees = async () => {
     let query = supabase
