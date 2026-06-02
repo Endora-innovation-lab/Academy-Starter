@@ -1390,9 +1390,13 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
   const [editStudentId, setEditStudentId] = useState('');
   const [editMonth, setEditMonth] = useState(filterMonth);
-  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid'>('unpaid');
+  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
   const [editAmount, setEditAmount] = useState('');
+  const [editCollected, setEditCollected] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRows, setHistoryRows] = useState<any[]>([]);
 
   const fetchFees = async () => {
     let query = supabase
@@ -1483,6 +1487,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setEditMonth(filterMonth);
     setEditStatus('unpaid');
     setEditAmount('');
+    setEditCollected('');
+    setEditNotes('');
     setEditOpen(true);
   };
 
@@ -1490,9 +1496,22 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setEditFeeId(f._placeholder ? null : f.id);
     setEditStudentId(f.student_id);
     setEditMonth(f.month);
-    setEditStatus(f.status === 'paid' ? 'paid' : 'unpaid');
+    setEditStatus((f.status === 'paid' || f.status === 'partial') ? f.status : 'unpaid');
     setEditAmount(f.amount != null ? String(f.amount) : '');
+    setEditCollected(f.collected_amount != null ? String(f.collected_amount) : '');
+    setEditNotes(f.notes || '');
     setEditOpen(true);
+  };
+
+  const openHistory = async (f: any) => {
+    const { data } = await supabase
+      .from('fee_history')
+      .select('*')
+      .eq('student_id', f.student_id)
+      .eq('month', f.month)
+      .order('created_at', { ascending: false });
+    setHistoryRows(data || []);
+    setHistoryOpen(true);
   };
 
   const handleSave = async () => {
@@ -1501,31 +1520,42 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       return;
     }
     setSaving(true);
+    const amt = editAmount === '' ? 0 : Number(editAmount);
+    const col = editCollected === '' ? 0 : Number(editCollected);
     const payload: any = {
       student_id: editStudentId,
       month: editMonth,
       status: editStatus,
-      amount: editAmount === '' ? 0 : Number(editAmount),
+      amount: amt,
+      collected_amount: col,
+      notes: editNotes || null,
       institute_id: instituteId,
       updated_by: user?.id ?? null,
     };
     let error;
+    let savedId: string | undefined = editFeeId || undefined;
     if (editFeeId) {
       ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
     } else {
-      // Check for existing record for that student+month to avoid duplicates
       const { data: existing } = await supabase
-        .from('fees')
-        .select('id')
-        .eq('institute_id', instituteId)
-        .eq('student_id', editStudentId)
-        .eq('month', editMonth)
+        .from('fees').select('id')
+        .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth)
         .maybeSingle();
       if (existing) {
+        savedId = existing.id;
         ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
       } else {
-        ({ error } = await supabase.from('fees').insert(payload));
+        const { data: ins, error: insErr } = await supabase.from('fees').insert(payload).select('id').single();
+        error = insErr;
+        savedId = ins?.id;
       }
+    }
+    if (!error && savedId) {
+      await supabase.from('fee_history').insert({
+        fee_id: savedId, student_id: editStudentId, institute_id: instituteId, month: editMonth,
+        amount: amt, collected_amount: col, status: editStatus, notes: editNotes || null,
+        updated_by: user?.id ?? null, updated_by_role: 'admin',
+      });
     }
     setSaving(false);
     if (error) {
@@ -1539,21 +1569,29 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const quickToggle = async (f: any) => {
     const next = f.status === 'paid' ? 'unpaid' : 'paid';
+    const amt = Number(f.amount) || 0;
+    const col = next === 'paid' ? Math.max(amt, Number(f.collected_amount) || 0) : (Number(f.collected_amount) || 0);
+    let savedId = f._placeholder ? undefined : f.id;
     if (f._placeholder) {
-      const { error } = await supabase.from('fees').insert({
+      const { data: ins, error } = await supabase.from('fees').insert({
         student_id: f.student_id, month: f.month, status: next,
-        amount: 0, institute_id: instituteId, updated_by: user?.id ?? null,
-      });
-      if (error) toast.error(error.message);
-      else { toast.success(`Marked ${next}`); fetchFees(); }
-      return;
+        amount: amt, collected_amount: col, institute_id: instituteId, updated_by: user?.id ?? null,
+      }).select('id').single();
+      if (error) { toast.error(error.message); return; }
+      savedId = ins?.id;
+    } else {
+      const { error } = await supabase.from('fees')
+        .update({ status: next, collected_amount: col, updated_by: user?.id ?? null })
+        .eq('id', f.id);
+      if (error) { toast.error(error.message); return; }
     }
-    const { error } = await supabase
-      .from('fees')
-      .update({ status: next, updated_by: user?.id ?? null })
-      .eq('id', f.id);
-    if (error) toast.error(error.message);
-    else { toast.success(`Marked ${next}`); fetchFees(); }
+    await supabase.from('fee_history').insert({
+      fee_id: savedId, student_id: f.student_id, institute_id: instituteId, month: f.month,
+      amount: amt, collected_amount: col, status: next, notes: f.notes || null,
+      updated_by: user?.id ?? null, updated_by_role: 'admin',
+    });
+    toast.success(`Marked ${next}`);
+    fetchFees();
   };
 
   return (
@@ -1574,6 +1612,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
               <SelectItem value="unpaid">Unpaid</SelectItem>
             </SelectContent>
           </Select>
@@ -1595,40 +1634,55 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Student</SortableTH>
               <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
               <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
-              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee Set (₹)</SortableTH>
-              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee (₹)</SortableTH>
+              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Paid (₹)</SortableTH>
+              <th className="text-left p-3 font-medium">Due (₹)</th>
               <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
+              <th className="text-left p-3 font-medium">Note</th>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {sortedFees.map((f, index) => (
-              <tr key={f.id} className="border-t">
-                <td className="p-3">{index + 1}</td>
-                <td className="p-3">{(f.students as any)?.profiles?.name}</td>
-                <td className="p-3">{(f.students as any)?.reg_no}</td>
-                <td className="p-3">{f.month}</td>
-                <td className="p-3">₹{Number(f.amount || 0).toLocaleString()}</td>
-                <td className="p-3">₹{Number(f.collected_amount || 0).toLocaleString()}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    f.status === 'paid' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                  }`}>{f.status}</span>
-                </td>
-                <td className="p-3">
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => quickToggle(f)}>
-                      Mark {f.status === 'paid' ? 'Unpaid' : 'Paid'}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {sortedFees.map((f, index) => {
+              const amt = Number(f.amount) || 0;
+              const col = Number(f.collected_amount) || 0;
+              const due = Math.max(0, amt - col);
+              const cls = f.status === 'paid' ? 'bg-accent/10 text-accent'
+                : f.status === 'partial' ? 'bg-yellow-500/10 text-yellow-600'
+                : 'bg-destructive/10 text-destructive';
+              return (
+                <tr key={f.id} className="border-t">
+                  <td className="p-3">{index + 1}</td>
+                  <td className="p-3">{(f.students as any)?.profiles?.name}</td>
+                  <td className="p-3">{(f.students as any)?.reg_no}</td>
+                  <td className="p-3">{f.month}</td>
+                  <td className="p-3">₹{amt.toLocaleString()}</td>
+                  <td className="p-3">₹{col.toLocaleString()}</td>
+                  <td className="p-3">₹{due.toLocaleString()}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{f.status}</span>
+                  </td>
+                  <td className="p-3 text-xs text-muted-foreground max-w-[160px] truncate" title={f.notes || ''}>{f.notes || '—'}</td>
+                  <td className="p-3">
+                    <div className="flex gap-1 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={() => quickToggle(f)}>
+                        Mark {f.status === 'paid' ? 'Unpaid' : 'Paid'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {!f._placeholder && (
+                        <Button size="sm" variant="ghost" onClick={() => openHistory(f)} title="History">
+                          <ClipboardList className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {fees.length === 0 && (
-              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
@@ -1657,25 +1711,66 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <Label>Month</Label>
               <Input type="month" value={editMonth} onChange={e => setEditMonth(e.target.value)} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Fee Amount (₹)</Label>
+                <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="e.g. 1500" />
+              </div>
+              <div>
+                <Label>Paid (₹)</Label>
+                <Input type="number" min="0" step="0.01" value={editCollected} onChange={e => setEditCollected(e.target.value)} placeholder="e.g. 1000" />
+              </div>
+            </div>
             <div>
               <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as 'paid' | 'unpaid')}>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
                   <SelectItem value="unpaid">Unpaid</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Fee Amount (₹) — set by institute</Label>
-              <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="e.g. 500" />
-              <p className="text-xs text-muted-foreground mt-1">Teachers will record how much they actually collected from this student.</p>
+              <Label>Payment Note</Label>
+              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Optional note (e.g. cash, partial paid by parent)" />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Payment History</DialogTitle></DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {historyRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-4">No history yet.</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead className="bg-muted"><tr>
+                  <th className="text-left p-2">Date</th><th className="text-left p-2">Amount</th>
+                  <th className="text-left p-2">Paid</th><th className="text-left p-2">Status</th>
+                  <th className="text-left p-2">By</th><th className="text-left p-2">Note</th>
+                </tr></thead>
+                <tbody>
+                  {historyRows.map(h => (
+                    <tr key={h.id} className="border-t">
+                      <td className="p-2">{new Date(h.created_at).toLocaleString()}</td>
+                      <td className="p-2">₹{Number(h.amount).toLocaleString()}</td>
+                      <td className="p-2">₹{Number(h.collected_amount).toLocaleString()}</td>
+                      <td className="p-2">{h.status}</td>
+                      <td className="p-2 capitalize">{h.updated_by_role || '—'}</td>
+                      <td className="p-2">{h.notes || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </DialogContent>
       </Dialog>
