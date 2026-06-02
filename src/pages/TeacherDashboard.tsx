@@ -37,7 +37,7 @@ const TeacherDashboard = () => {
   }
 
   if (!user || !instituteId) {
-    return <Navigate to="/login/teacher" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -164,22 +164,25 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
   );
 };
 
-// Helper: cycle absent → present → late → absent
+// Helper: cycle unmarked → present → late → absent → unmarked
 const cycleStatus = (current: string): string => {
-  if (current === 'absent') return 'present';
+  if (current === 'unmarked') return 'present';
   if (current === 'present') return 'late';
-  return 'absent';
+  if (current === 'late') return 'absent';
+  return 'unmarked';
 };
 
-// Helper: render status as P/L/A badge
+// Helper: render status as P/L/A/— badge
 const StatusBadge = ({ status, onClick }: { status: string; onClick?: () => void }) => {
-  const label = status === 'present' ? 'P' : status === 'late' ? 'L' : 'A';
+  const label = status === 'present' ? 'P' : status === 'late' ? 'L' : status === 'absent' ? 'A' : '—';
   const cls =
     status === 'present'
       ? 'bg-accent text-accent-foreground'
       : status === 'late'
         ? 'bg-yellow-500 text-white'
-        : 'bg-destructive text-destructive-foreground';
+        : status === 'absent'
+          ? 'bg-destructive text-destructive-foreground'
+          : 'bg-muted text-muted-foreground';
   if (onClick) {
     return (
       <button
@@ -504,7 +507,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       att?.forEach(a => { map[a.student_id] = a.status; });
     }
 
-    studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    studentIds.forEach(id => { if (!map[id]) map[id] = 'unmarked'; });
     setAttendanceMap(map);
     setHasLoaded(true);
   };
@@ -514,20 +517,26 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const toggleAttendance = (studentId: string) => {
     setAttendanceMap(prev => ({
       ...prev,
-      [studentId]: cycleStatus(prev[studentId] || 'absent'),
+      [studentId]: cycleStatus(prev[studentId] || 'unmarked'),
     }));
   };
 
   const saveAttendance = async () => {
     try {
-      const records = Object.entries(attendanceMap).map(([student_id, status]) => ({
-        student_id,
-        batch_id: selectedBatch,
-        date,
-        status,
-        marked_by: userId,
-        institute_id: instituteId,
-      }));
+      const records = Object.entries(attendanceMap)
+        .filter(([, status]) => status !== 'unmarked')
+        .map(([student_id, status]) => ({
+          student_id,
+          batch_id: selectedBatch,
+          date,
+          status,
+          marked_by: userId,
+          institute_id: instituteId,
+        }));
+      if (records.length === 0) {
+        toast.error('No attendance marked yet.');
+        return;
+      }
       const { error } = await supabase.from('attendance').upsert(records, {
         onConflict: 'student_id,batch_id,date',
       });
@@ -548,13 +557,13 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
     name: (s: any) => (s.students as any)?.profiles?.name || '',
     reg_no: (s: any) => (s.students as any)?.reg_no || '',
-    status: (s: any) => attendanceMap[s.student_id] || 'absent',
+    status: (s: any) => attendanceMap[s.student_id] || 'unmarked',
   });
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Mark Student Attendance</h2>
-      <p className="text-sm text-muted-foreground">Tap the badge to cycle: Absent → Present (P) → Late (L) → Absent.</p>
+      <p className="text-sm text-muted-foreground">Tap the badge to cycle: — (unmarked) → P → L → A → —. Past dates with no record show —.</p>
       <div className="flex flex-wrap gap-3">
         <Select value={selectedBatch} onValueChange={setSelectedBatch}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Select batch" /></SelectTrigger>
@@ -593,7 +602,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
                       <td className="p-3">{student?.reg_no}</td>
                       <td className="p-3">
                         <StatusBadge
-                          status={attendanceMap[s.student_id] || 'absent'}
+                          status={attendanceMap[s.student_id] || 'unmarked'}
                           onClick={() => toggleAttendance(s.student_id)}
                         />
                       </td>
