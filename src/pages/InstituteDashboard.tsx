@@ -1487,6 +1487,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setEditMonth(filterMonth);
     setEditStatus('unpaid');
     setEditAmount('');
+    setEditCollected('');
+    setEditNotes('');
     setEditOpen(true);
   };
 
@@ -1494,9 +1496,22 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setEditFeeId(f._placeholder ? null : f.id);
     setEditStudentId(f.student_id);
     setEditMonth(f.month);
-    setEditStatus(f.status === 'paid' ? 'paid' : 'unpaid');
+    setEditStatus((f.status === 'paid' || f.status === 'partial') ? f.status : 'unpaid');
     setEditAmount(f.amount != null ? String(f.amount) : '');
+    setEditCollected(f.collected_amount != null ? String(f.collected_amount) : '');
+    setEditNotes(f.notes || '');
     setEditOpen(true);
+  };
+
+  const openHistory = async (f: any) => {
+    const { data } = await supabase
+      .from('fee_history')
+      .select('*')
+      .eq('student_id', f.student_id)
+      .eq('month', f.month)
+      .order('created_at', { ascending: false });
+    setHistoryRows(data || []);
+    setHistoryOpen(true);
   };
 
   const handleSave = async () => {
@@ -1505,31 +1520,42 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       return;
     }
     setSaving(true);
+    const amt = editAmount === '' ? 0 : Number(editAmount);
+    const col = editCollected === '' ? 0 : Number(editCollected);
     const payload: any = {
       student_id: editStudentId,
       month: editMonth,
       status: editStatus,
-      amount: editAmount === '' ? 0 : Number(editAmount),
+      amount: amt,
+      collected_amount: col,
+      notes: editNotes || null,
       institute_id: instituteId,
       updated_by: user?.id ?? null,
     };
     let error;
+    let savedId: string | undefined = editFeeId || undefined;
     if (editFeeId) {
       ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
     } else {
-      // Check for existing record for that student+month to avoid duplicates
       const { data: existing } = await supabase
-        .from('fees')
-        .select('id')
-        .eq('institute_id', instituteId)
-        .eq('student_id', editStudentId)
-        .eq('month', editMonth)
+        .from('fees').select('id')
+        .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth)
         .maybeSingle();
       if (existing) {
+        savedId = existing.id;
         ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
       } else {
-        ({ error } = await supabase.from('fees').insert(payload));
+        const { data: ins, error: insErr } = await supabase.from('fees').insert(payload).select('id').single();
+        error = insErr;
+        savedId = ins?.id;
       }
+    }
+    if (!error && savedId) {
+      await supabase.from('fee_history').insert({
+        fee_id: savedId, student_id: editStudentId, institute_id: instituteId, month: editMonth,
+        amount: amt, collected_amount: col, status: editStatus, notes: editNotes || null,
+        updated_by: user?.id ?? null, updated_by_role: 'admin',
+      });
     }
     setSaving(false);
     if (error) {
@@ -1543,21 +1569,29 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const quickToggle = async (f: any) => {
     const next = f.status === 'paid' ? 'unpaid' : 'paid';
+    const amt = Number(f.amount) || 0;
+    const col = next === 'paid' ? Math.max(amt, Number(f.collected_amount) || 0) : (Number(f.collected_amount) || 0);
+    let savedId = f._placeholder ? undefined : f.id;
     if (f._placeholder) {
-      const { error } = await supabase.from('fees').insert({
+      const { data: ins, error } = await supabase.from('fees').insert({
         student_id: f.student_id, month: f.month, status: next,
-        amount: 0, institute_id: instituteId, updated_by: user?.id ?? null,
-      });
-      if (error) toast.error(error.message);
-      else { toast.success(`Marked ${next}`); fetchFees(); }
-      return;
+        amount: amt, collected_amount: col, institute_id: instituteId, updated_by: user?.id ?? null,
+      }).select('id').single();
+      if (error) { toast.error(error.message); return; }
+      savedId = ins?.id;
+    } else {
+      const { error } = await supabase.from('fees')
+        .update({ status: next, collected_amount: col, updated_by: user?.id ?? null })
+        .eq('id', f.id);
+      if (error) { toast.error(error.message); return; }
     }
-    const { error } = await supabase
-      .from('fees')
-      .update({ status: next, updated_by: user?.id ?? null })
-      .eq('id', f.id);
-    if (error) toast.error(error.message);
-    else { toast.success(`Marked ${next}`); fetchFees(); }
+    await supabase.from('fee_history').insert({
+      fee_id: savedId, student_id: f.student_id, institute_id: instituteId, month: f.month,
+      amount: amt, collected_amount: col, status: next, notes: f.notes || null,
+      updated_by: user?.id ?? null, updated_by_role: 'admin',
+    });
+    toast.success(`Marked ${next}`);
+    fetchFees();
   };
 
   return (
