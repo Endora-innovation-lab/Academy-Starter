@@ -507,7 +507,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       att?.forEach(a => { map[a.student_id] = a.status; });
     }
 
-    studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    studentIds.forEach(id => { if (!map[id]) map[id] = 'unmarked'; });
     setAttendanceMap(map);
     setHasLoaded(true);
   };
@@ -517,20 +517,26 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const toggleAttendance = (studentId: string) => {
     setAttendanceMap(prev => ({
       ...prev,
-      [studentId]: cycleStatus(prev[studentId] || 'absent'),
+      [studentId]: cycleStatus(prev[studentId] || 'unmarked'),
     }));
   };
 
   const saveAttendance = async () => {
     try {
-      const records = Object.entries(attendanceMap).map(([student_id, status]) => ({
-        student_id,
-        batch_id: selectedBatch,
-        date,
-        status,
-        marked_by: userId,
-        institute_id: instituteId,
-      }));
+      const records = Object.entries(attendanceMap)
+        .filter(([, status]) => status !== 'unmarked')
+        .map(([student_id, status]) => ({
+          student_id,
+          batch_id: selectedBatch,
+          date,
+          status,
+          marked_by: userId,
+          institute_id: instituteId,
+        }));
+      if (records.length === 0) {
+        toast.error('No attendance marked yet.');
+        return;
+      }
       const { error } = await supabase.from('attendance').upsert(records, {
         onConflict: 'student_id,batch_id,date',
       });
