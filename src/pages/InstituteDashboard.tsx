@@ -1443,14 +1443,16 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     if (filterRole === 'student') {
       let query = supabase
         .from('attendance')
-        .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name)), batches(name)')
+        .select('*, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches(name)')
         .eq('institute_id', instituteId)
         .gte('date', firstDay)
         .lte('date', lastDay)
         .order('date', { ascending: false });
       if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
       const { data } = await query.limit(500);
-      setAttendance(data || []);
+      // Hide records belonging to currently inactive students
+      const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
+      setAttendance(filtered);
     } else {
       let query = supabase
         .from('teacher_attendance')
