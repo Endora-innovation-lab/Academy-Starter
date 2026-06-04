@@ -487,10 +487,10 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     if (!selectedBatch) return;
     const { data } = await supabase
       .from('batch_students')
-      .select('student_id, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))')
+      .select('student_id, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
 
-    const studs = data || [];
+    const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive');
     setStudents(studs);
 
     const studentIds = studs.map(s => s.student_id);
