@@ -11,12 +11,14 @@ const StudentDashboard = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('attendance');
   const [studentRecord, setStudentRecord] = useState<any>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
       if (!user) return;
       const { data } = await supabase.from('students').select('*').eq('user_id', user.id).single();
       setStudentRecord(data);
+      setChecked(true);
     };
     fetch();
   }, [user]);
@@ -26,12 +28,16 @@ const StudentDashboard = () => {
     { label: 'Fees', value: 'fees' },
   ];
 
-  if (loading) {
+  if (loading || (user && !checked)) {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading dashboard...</div>;
   }
 
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  if (studentRecord && studentRecord.status === 'inactive') {
+    return <Navigate to="/inactive" replace />;
   }
 
   return (
@@ -174,6 +180,7 @@ const StudentAttendanceTab = ({ studentId }: { studentId: string }) => {
 
 const StudentFeesTab = ({ studentId }: { studentId: string }) => {
   const [fees, setFees] = useState<any[]>([]);
+  const [gameMap, setGameMap] = useState<Record<string, string>>({});
   const [filterMonth, setFilterMonth] = useState('all');
   const monthOptions = getMonthOptions();
 
@@ -182,13 +189,24 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
       let query = supabase.from('fees').select('*').eq('student_id', studentId).order('month', { ascending: false });
       if (filterMonth !== 'all') query = query.eq('month', filterMonth);
       const { data } = await query;
-      setFees(data || []);
+      const rows = data || [];
+      setFees(rows);
+      const gameIds = Array.from(new Set(rows.map((r: any) => r.game_id).filter(Boolean)));
+      if (gameIds.length > 0) {
+        const { data: gs } = await supabase.from('games').select('id, name').in('id', gameIds);
+        const m: Record<string, string> = {};
+        (gs || []).forEach((g: any) => { m[g.id] = g.name; });
+        setGameMap(m);
+      } else {
+        setGameMap({});
+      }
     };
     fetch();
   }, [studentId, filterMonth]);
 
   const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
     month: (f: any) => f.month || '',
+    game: (f: any) => gameMap[f.game_id] || '',
     amount: (f: any) => Number(f.amount) || 0,
     collected: (f: any) => Number(f.collected_amount) || 0,
     status: (f: any) => f.status || '',
@@ -241,10 +259,12 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
-              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Total (₹)</SortableTH>
-              <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Paid (₹)</SortableTH>
-              <th className="text-left p-3 font-medium">Due (₹)</th>
+              <SortableTH sortKey="game" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Game</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Monthly Fee (₹)</SortableTH>
+              <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+              <th className="text-left p-3 font-medium">Balance (₹)</th>
               <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
+              <th className="text-left p-3 font-medium">Mode</th>
               <th className="text-left p-3 font-medium">Note</th>
             </tr>
           </thead>
@@ -253,22 +273,28 @@ const StudentFeesTab = ({ studentId }: { studentId: string }) => {
               const amt = Number(f.amount) || 0;
               const col = Number(f.collected_amount) || 0;
               const due = Math.max(0, amt - col);
+              const excess = Math.max(0, col - amt);
               return (
                 <tr key={f.id} className="border-t">
                   <td className="p-3">{index + 1}</td>
                   <td className="p-3">{f.month}</td>
+                  <td className="p-3">{gameMap[f.game_id] || '—'}</td>
                   <td className="p-3">₹{amt.toLocaleString()}</td>
-                  <td className="p-3">₹{col.toLocaleString()}</td>
+                  <td className="p-3">
+                    ₹{col.toLocaleString()}
+                    {excess > 0 && <span className="text-xs text-accent ml-1">(+₹{excess} excess)</span>}
+                  </td>
                   <td className="p-3 font-medium">₹{due.toLocaleString()}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusCls(f.status)}`}>{f.status}</span>
                   </td>
+                  <td className="p-3 capitalize text-xs">{f.payment_mode || '—'}</td>
                   <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate" title={f.notes || ''}>{f.notes || '—'}</td>
                 </tr>
               );
             })}
             {fees.length === 0 && (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>

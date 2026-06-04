@@ -260,11 +260,26 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update_student') {
-      const { student_id, name, dob, parent_phone } = body
+      const { student_id, name, dob, parent_phone, email, reg_no, status } = body
       const { data: student } = await supabaseAdmin.from('students').select('user_id').eq('id', student_id).single()
       if (student) {
-        await supabaseAdmin.from('students').update({ dob, parent_phone }).eq('id', student_id)
-        await supabaseAdmin.from('profiles').update({ name }).eq('user_id', student.user_id)
+        const stuPatch: any = {}
+        if (dob !== undefined) stuPatch.dob = dob
+        if (parent_phone !== undefined) stuPatch.parent_phone = parent_phone
+        if (reg_no !== undefined) stuPatch.reg_no = reg_no
+        if (status !== undefined) stuPatch.status = status
+        if (Object.keys(stuPatch).length > 0) {
+          await supabaseAdmin.from('students').update(stuPatch).eq('id', student_id)
+        }
+        const profPatch: any = {}
+        if (name !== undefined) profPatch.name = name
+        if (email !== undefined) profPatch.email = email
+        if (Object.keys(profPatch).length > 0) {
+          await supabaseAdmin.from('profiles').update(profPatch).eq('user_id', student.user_id)
+        }
+        if (email !== undefined) {
+          await supabaseAdmin.auth.admin.updateUserById(student.user_id, { email })
+        }
       }
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

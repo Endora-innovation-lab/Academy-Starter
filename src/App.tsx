@@ -15,6 +15,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const InstituteDashboard = lazy(() => import("./pages/InstituteDashboard"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
+const Inactive = lazy(() => import("./pages/Inactive"));
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/dashboard/institute" element={<InstituteDashboard />} />
               <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
               <Route path="/dashboard/student" element={<StudentDashboard />} />
+              <Route path="/inactive" element={<Inactive />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

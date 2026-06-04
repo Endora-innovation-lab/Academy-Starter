@@ -312,34 +312,48 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [editStudent, setEditStudent] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [batches, setBatches] = useState<any[]>([]);
+  const [games, setGames] = useState<any[]>([]);
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [studentGames, setStudentGames] = useState<any[]>([]); // all rows for institute
   const [filterBatch, setFilterBatch] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+
+  // Add-student flow: choose game first, monthly fee, then optional batch (filtered by game)
+  const [addGameId, setAddGameId] = useState('');
+  const [addMonthlyFee, setAddMonthlyFee] = useState('');
+  const [addBatchId, setAddBatchId] = useState('');
+
+  // Manage Games dialog
+  const [showGames, setShowGames] = useState<any>(null); // student
+  const [newGameId, setNewGameId] = useState('');
+  const [newGameFee, setNewGameFee] = useState('');
 
   const fetchStudents = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('students')
-      .select('*, profiles!students_user_id_profiles_fkey(name)')
-      .eq('institute_id', instituteId);
-
-    const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
-    setBatches(batchData || []);
-
-    const batchIds = (batchData || []).map(b => b.id);
+    const [stuRes, batchRes, gameRes, sgRes] = await Promise.all([
+      supabase.from('students').select('*, profiles!students_user_id_profiles_fkey(name, email)').eq('institute_id', instituteId),
+      supabase.from('batches').select('*').eq('institute_id', instituteId),
+      supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
+      supabase.from('student_games').select('*').eq('institute_id', instituteId),
+    ]);
+    setStudents(stuRes.data || []);
+    setBatches(batchRes.data || []);
+    setGames(gameRes.data || []);
+    setStudentGames(sgRes.data || []);
+    const batchIds = (batchRes.data || []).map(b => b.id);
     if (batchIds.length > 0) {
       const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', batchIds);
       setBatchStudents(bsData || []);
     } else {
       setBatchStudents([]);
     }
-
-    setStudents(data || []);
     setLoading(false);
   };
 
@@ -363,20 +377,37 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     reg_no: (s: any) => s.reg_no || '',
     dob: (s: any) => s.dob || '',
     parent_phone: (s: any) => s.parent_phone || '',
+    status: (s: any) => s.status || '',
   });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addGameId) { toast.error('Select a game/course'); return; }
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'create_student', name, reg_no: regNo, dob, parent_phone: parentPhone },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      const studentId = data.student?.id;
+      // Enroll into game
+      if (studentId) {
+        await supabase.from('student_games').insert({
+          student_id: studentId,
+          game_id: addGameId,
+          institute_id: instituteId,
+          monthly_fee: Number(addMonthlyFee) || 0,
+          status: 'active',
+        });
+        if (addBatchId) {
+          await supabase.from('batch_students').insert({ batch_id: addBatchId, student_id: studentId });
+        }
+      }
       setCreatedCreds(data.credentials);
       toast.success('Student added!');
       setShowAdd(false);
       setName(''); setRegNo(''); setDob(''); setParentPhone('');
+      setAddGameId(''); setAddMonthlyFee(''); setAddBatchId('');
       fetchStudents();
     } catch (err: any) {
       toast.error(err.message);
@@ -384,7 +415,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   };
 
   const handleDelete = async (studentId: string) => {
-    if (!confirm('Delete this student?')) return;
+    if (!confirm('Delete this student? Attendance and fee history will be removed.')) return;
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'delete_student', student_id: studentId },
@@ -402,7 +433,15 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     e.preventDefault();
     try {
       await supabase.functions.invoke('admin-operations', {
-        body: { action: 'update_student', student_id: editStudent.id, name, dob, parent_phone: parentPhone },
+        body: {
+          action: 'update_student',
+          student_id: editStudent.id,
+          name, dob,
+          parent_phone: parentPhone,
+          email: email || undefined,
+          reg_no: regNo || undefined,
+          status,
+        },
       });
       toast.success('Student updated');
       setShowEdit(false);
@@ -412,6 +451,51 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       toast.error(err.message);
     }
   };
+
+  const toggleStatus = async (s: any) => {
+    const next = s.status === 'inactive' ? 'active' : 'inactive';
+    try {
+      await supabase.functions.invoke('admin-operations', {
+        body: { action: 'update_student', student_id: s.id, status: next },
+      });
+      toast.success(`Student marked ${next}`);
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const addGameToStudent = async () => {
+    if (!showGames || !newGameId) { toast.error('Pick a game'); return; }
+    const exists = studentGames.find(sg => sg.student_id === showGames.id && sg.game_id === newGameId);
+    if (exists) { toast.error('Student already enrolled in this game'); return; }
+    const { error } = await supabase.from('student_games').insert({
+      student_id: showGames.id, game_id: newGameId,
+      institute_id: instituteId, monthly_fee: Number(newGameFee) || 0,
+      status: 'active',
+    });
+    if (error) { toast.error(error.message); return; }
+    setNewGameId(''); setNewGameFee('');
+    toast.success('Game added');
+    fetchStudents();
+  };
+
+  const updateStudentGame = async (sgId: string, patch: any) => {
+    const { error } = await supabase.from('student_games').update(patch).eq('id', sgId);
+    if (error) { toast.error(error.message); return; }
+    fetchStudents();
+  };
+
+  const removeStudentGame = async (sgId: string) => {
+    if (!confirm('Remove this game enrollment? Fee history is preserved.')) return;
+    const { error } = await supabase.from('student_games').delete().eq('id', sgId);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Removed');
+    fetchStudents();
+  };
+
+  const batchesForGame = (gameId: string) => batches.filter(b => b.game_id === gameId);
+  const studentGamesFor = (sid: string) => studentGames.filter(sg => sg.student_id === sid);
 
   if (hasBatches === false) {
     return <NoBatchWarning />;
@@ -437,14 +521,40 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Student</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Add Student</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
                 <div><Label>Registration Number</Label><Input value={regNo} onChange={e => setRegNo(e.target.value)} required /></div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
                 <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
-                <Button type="submit" className="w-full">Add Student</Button>
+                <div>
+                  <Label>Game / Course *</Label>
+                  <Select value={addGameId} onValueChange={(v) => { setAddGameId(v); setAddBatchId(''); }}>
+                    <SelectTrigger><SelectValue placeholder="Select a game/course" /></SelectTrigger>
+                    <SelectContent>
+                      {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {games.length === 0 && <p className="text-xs text-destructive mt-1">Create a game/course first.</p>}
+                </div>
+                <div>
+                  <Label>Monthly Fee for this Game (₹)</Label>
+                  <Input type="number" min="0" value={addMonthlyFee} onChange={e => setAddMonthlyFee(e.target.value)} placeholder="e.g. 1500" />
+                </div>
+                {addGameId && (
+                  <div>
+                    <Label>Batch (optional, filtered by selected game)</Label>
+                    <Select value={addBatchId} onValueChange={setAddBatchId}>
+                      <SelectTrigger><SelectValue placeholder="Select a batch" /></SelectTrigger>
+                      <SelectContent>
+                        {batchesForGame(addGameId).map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {batchesForGame(addGameId).length === 0 && <p className="text-xs text-muted-foreground mt-1">No batches exist for this game yet.</p>}
+                  </div>
+                )}
+                <Button type="submit" className="w-full" disabled={!addGameId}>Add Student</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -471,33 +581,63 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
               <SortableTH sortKey="dob" currentKey={sortKey} dir={sortDir} onToggle={toggle}>DOB</SortableTH>
               <SortableTH sortKey="parent_phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Parent Phone</SortableTH>
+              <th className="text-left p-3 font-medium">Games</th>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {displayStudents.map((s, index) => (
-              <tr key={s.id} className="border-t">
-                <td className="p-3">{index + 1}</td>
-                <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
-                <td className="p-3">{s.reg_no}</td>
-                <td className="p-3">{s.dob}</td>
-                <td className="p-3">{s.parent_phone || '-'}</td>
-                <td className="p-3 flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    setEditStudent(s);
-                    setName((s.profiles as any)?.name || '');
-                    setDob(s.dob);
-                    setParentPhone(s.parent_phone || '');
-                    setShowEdit(true);
-                  }}><Pencil className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(s.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {displayStudents.map((s, index) => {
+              const sgs = studentGamesFor(s.id);
+              return (
+                <tr key={s.id} className={`border-t ${s.status === 'inactive' ? 'opacity-60' : ''}`}>
+                  <td className="p-3">{index + 1}</td>
+                  <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
+                  <td className="p-3">{s.reg_no}</td>
+                  <td className="p-3">{s.dob}</td>
+                  <td className="p-3">{s.parent_phone || '-'}</td>
+                  <td className="p-3 text-xs">
+                    {sgs.length === 0 ? <span className="text-muted-foreground">—</span> :
+                      sgs.map(sg => {
+                        const g = games.find(g => g.id === sg.game_id);
+                        return (
+                          <span key={sg.id} className={`inline-block mr-1 mb-1 px-2 py-0.5 rounded ${sg.status === 'active' ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'}`}>
+                            {g?.name || '?'}
+                          </span>
+                        );
+                      })}
+                  </td>
+                  <td className="p-3">
+                    <button
+                      onClick={() => toggleStatus(s)}
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${s.status === 'inactive' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent'}`}
+                    >
+                      {s.status === 'inactive' ? 'Inactive' : 'Active'}
+                    </button>
+                  </td>
+                  <td className="p-3 flex gap-1">
+                    <Button size="sm" variant="ghost" title="Manage games" onClick={() => { setShowGames(s); setNewGameId(''); setNewGameFee(''); }}>
+                      <BookOpen className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setEditStudent(s);
+                      setName((s.profiles as any)?.name || '');
+                      setEmail((s.profiles as any)?.email || '');
+                      setRegNo(s.reg_no || '');
+                      setDob(s.dob);
+                      setParentPhone(s.parent_phone || '');
+                      setStatus((s.status === 'inactive' ? 'inactive' : 'active') as any);
+                      setShowEdit(true);
+                    }}><Pencil className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(s.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
             {displayStudents.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No students found</td></tr>
             )}
           </tbody>
         </table>
@@ -508,10 +648,88 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <DialogHeader><DialogTitle>Edit Student</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="student@example.com" />
+              <p className="text-xs text-muted-foreground mt-1">Changing email keeps attendance, fees, and enrollments linked.</p>
+            </div>
+            <div>
+              <Label>Registration Number</Label>
+              <Input value={regNo} onChange={e => setRegNo(e.target.value)} required />
+            </div>
             <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required /></div>
             <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+            <div>
+              <Label>Overall Status</Label>
+              <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button type="submit" className="w-full">Update</Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!showGames} onOpenChange={(o) => { if (!o) setShowGames(null); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Enrolled Games</DialogTitle>
+            {showGames && <p className="text-sm text-muted-foreground">{(showGames.profiles as any)?.name} · {showGames.reg_no}</p>}
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {showGames && studentGamesFor(showGames.id).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">No games yet.</p>
+              )}
+              {showGames && studentGamesFor(showGames.id).map(sg => {
+                const g = games.find(g => g.id === sg.game_id);
+                return (
+                  <div key={sg.id} className="flex items-center gap-2 p-2 rounded border">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{g?.name || '?'}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Label className="text-xs">Monthly Fee ₹</Label>
+                        <Input
+                          type="number" min="0" className="w-24 h-7"
+                          defaultValue={sg.monthly_fee}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            if (v !== Number(sg.monthly_fee)) updateStudentGame(sg.id, { monthly_fee: v });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline"
+                      onClick={() => updateStudentGame(sg.id, { status: sg.status === 'active' ? 'inactive' : 'active' })}>
+                      {sg.status === 'active' ? 'Active' : 'Inactive'}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeStudentGame(sg.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t pt-3 space-y-2">
+              <p className="text-sm font-medium">Add a game</p>
+              <div className="flex gap-2">
+                <Select value={newGameId} onValueChange={setNewGameId}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="Pick a game" /></SelectTrigger>
+                  <SelectContent>
+                    {games
+                      .filter(g => showGames && !studentGamesFor(showGames.id).some(sg => sg.game_id === g.id))
+                      .map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input type="number" min="0" placeholder="Monthly ₹" className="w-32" value={newGameFee} onChange={e => setNewGameFee(e.target.value)} />
+                <Button onClick={addGameToStudent}>Add</Button>
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -1225,14 +1443,16 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     if (filterRole === 'student') {
       let query = supabase
         .from('attendance')
-        .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name)), batches(name)')
+        .select('*, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches(name)')
         .eq('institute_id', instituteId)
         .gte('date', firstDay)
         .lte('date', lastDay)
         .order('date', { ascending: false });
       if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
       const { data } = await query.limit(500);
-      setAttendance(data || []);
+      // Hide records belonging to currently inactive students
+      const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
+      setAttendance(filtered);
     } else {
       let query = supabase
         .from('teacher_attendance')
@@ -1374,160 +1594,166 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 // ============= FEES TAB =============
 const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const { user } = useAuth();
-  const [fees, setFees] = useState<any[]>([]);
+  const [rows, setRows] = useState<any[]>([]); // merged enrollment+fee
   const [students, setStudents] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [batchStudents, setBatchStudents] = useState<any[]>([]);
-  const [filterBatch, setFilterBatch] = useState('all');
+  const [games, setGames] = useState<any[]>([]);
+  const [studentGames, setStudentGames] = useState<any[]>([]);
+  const [filterGame, setFilterGame] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Edit dialog state
   const [editOpen, setEditOpen] = useState(false);
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
   const [editStudentId, setEditStudentId] = useState('');
+  const [editGameId, setEditGameId] = useState('');
   const [editMonth, setEditMonth] = useState(filterMonth);
-  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
   const [editAmount, setEditAmount] = useState('');
   const [editCollected, setEditCollected] = useState('');
+  const [editMode, setEditMode] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
 
+  const fetchAll = async () => {
+    const [gRes, sgRes, stuRes] = await Promise.all([
+      supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
+      supabase.from('student_games').select('*').eq('institute_id', instituteId),
+      supabase.from('students').select('id, reg_no, status, profiles!students_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
+    ]);
+    setGames(gRes.data || []);
+    setStudentGames(sgRes.data || []);
+    setStudents(stuRes.data || []);
+  };
+
   const fetchFees = async () => {
-    let query = supabase
-      .from('fees')
-      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
-      .eq('institute_id', instituteId)
-      .order('month', { ascending: false });
-    if (filterMonth) query = query.eq('month', filterMonth);
-    const { data: feeRows } = await query;
-    const feeData = feeRows || [];
+    if (!filterMonth) return;
+    const studentMap = Object.fromEntries(students.map((s: any) => [s.id, s]));
+    const gameMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
-    // Restrict to batch's students if filter set
-    let allowedStudentIds: string[] | null = null;
-    if (filterBatch !== 'all') {
-      allowedStudentIds = batchStudents.filter(bs => bs.batch_id === filterBatch).map(bs => bs.student_id);
-    }
+    // Load existing fee rows for the month (any game)
+    let feeQ = supabase.from('fees').select('*').eq('institute_id', instituteId).eq('month', filterMonth);
+    if (filterGame !== 'all') feeQ = feeQ.eq('game_id', filterGame);
+    const { data: fees } = await feeQ;
+    const feeRows = fees || [];
 
-    // Build a default unpaid placeholder for any student missing a record this month
-    let merged: any[] = feeData;
-    if (filterMonth) {
-      const { data: stuRows } = await supabase
-        .from('students')
-        .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
-        .eq('institute_id', instituteId);
-      const studentList = stuRows || [];
-      const covered = new Set(feeData.map((f: any) => f.student_id));
-      const placeholders = studentList
-        .filter(s => !covered.has(s.id))
-        .map(s => ({
-          id: `placeholder-${s.id}-${filterMonth}`,
-          _placeholder: true,
-          student_id: s.id,
-          month: filterMonth,
-          status: 'unpaid',
-          amount: 0,
-          collected_amount: 0,
-          students: s,
-        }));
-      merged = [...feeData, ...placeholders];
+    // Build keyed map by student_id+game_id
+    const feeKey = (sid: string, gid: string | null) => `${sid}__${gid || 'none'}`;
+    const feeByKey: Record<string, any> = {};
+    feeRows.forEach((f: any) => { feeByKey[feeKey(f.student_id, f.game_id)] = f; });
+
+    // Generate placeholders from active student_games matching filterGame
+    const activeEnrolls = studentGames.filter(sg =>
+      sg.status === 'active' &&
+      (filterGame === 'all' || sg.game_id === filterGame) &&
+      studentMap[sg.student_id]?.status !== 'inactive'
+    );
+
+    const merged: any[] = [];
+    // Add enrollment-driven rows
+    for (const sg of activeEnrolls) {
+      const stu = studentMap[sg.student_id];
+      if (!stu) continue;
+      const existing = feeByKey[feeKey(sg.student_id, sg.game_id)];
+      merged.push({
+        id: existing?.id || `placeholder-${sg.student_id}-${sg.game_id}-${filterMonth}`,
+        _placeholder: !existing,
+        _enrollment: sg,
+        student_id: sg.student_id,
+        game_id: sg.game_id,
+        month: filterMonth,
+        amount: existing?.amount ?? sg.monthly_fee ?? 0,
+        collected_amount: existing?.collected_amount ?? 0,
+        excess_amount: existing?.excess_amount ?? 0,
+        status: existing?.status ?? 'unpaid',
+        payment_mode: existing?.payment_mode ?? null,
+        notes: existing?.notes ?? null,
+        students: stu,
+        _gameName: gameMap[sg.game_id]?.name || '—',
+      });
     }
-    if (allowedStudentIds !== null) {
-      const allowed = new Set(allowedStudentIds);
-      merged = merged.filter(f => allowed.has(f.student_id));
-    }
-    if (filterStatus !== 'all') merged = merged.filter(f => f.status === filterStatus);
-    setFees(merged);
+    // Add orphan legacy fees (no matching enrollment) so old data stays visible
+    feeRows.forEach((f: any) => {
+      if (!merged.find(m => m.student_id === f.student_id && m.game_id === f.game_id && !m._placeholder ? m.id === f.id : false)) {
+        const hasEnrollment = activeEnrolls.find(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
+        if (hasEnrollment) return;
+        merged.push({
+          ...f,
+          students: studentMap[f.student_id],
+          _gameName: gameMap[f.game_id]?.name || '—',
+        });
+      }
+    });
+
+    let final = merged;
+    if (filterStatus !== 'all') final = final.filter(f => f.status === filterStatus);
+    setRows(final);
   };
 
-  const fetchStudents = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
-      .eq('institute_id', instituteId);
-    setStudents(data || []);
-  };
+  useEffect(() => { fetchAll(); }, [instituteId]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterGame, students, games, studentGames]);
 
-  const fetchBatches = async () => {
-    const { data: bData } = await supabase.from('batches').select('id, name').eq('institute_id', instituteId);
-    setBatches(bData || []);
-    const ids = (bData || []).map(b => b.id);
-    if (ids.length > 0) {
-      const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', ids);
-      setBatchStudents(bsData || []);
-    } else {
-      setBatchStudents([]);
-    }
-  };
-
-  const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const paidAmount = fees.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
+  const totalAmount = rows.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const paidAmount = rows.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
   const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterBatch, batchStudents]);
-
-  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
+  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(rows, {
     name: (f: any) => (f.students as any)?.profiles?.name || '',
     reg_no: (f: any) => (f.students as any)?.reg_no || '',
-    month: (f: any) => f.month || '',
+    game: (f: any) => f._gameName || '',
     amount: (f: any) => Number(f.amount) || 0,
     collected_amount: (f: any) => Number(f.collected_amount) || 0,
     status: (f: any) => f.status || '',
   });
-  useEffect(() => { fetchStudents(); fetchBatches(); }, [instituteId]);
 
   const openNew = () => {
     setEditFeeId(null);
     setEditStudentId('');
+    setEditGameId(filterGame !== 'all' ? filterGame : (games[0]?.id || ''));
     setEditMonth(filterMonth);
-    setEditStatus('unpaid');
-    setEditAmount('');
-    setEditCollected('');
-    setEditNotes('');
+    setEditAmount(''); setEditCollected(''); setEditMode(''); setEditNotes('');
     setEditOpen(true);
   };
 
   const openEdit = (f: any) => {
     setEditFeeId(f._placeholder ? null : f.id);
     setEditStudentId(f.student_id);
+    setEditGameId(f.game_id || '');
     setEditMonth(f.month);
-    setEditStatus((f.status === 'paid' || f.status === 'partial') ? f.status : 'unpaid');
     setEditAmount(f.amount != null ? String(f.amount) : '');
     setEditCollected(f.collected_amount != null ? String(f.collected_amount) : '');
+    setEditMode(f.payment_mode || '');
     setEditNotes(f.notes || '');
     setEditOpen(true);
   };
 
   const openHistory = async (f: any) => {
-    const { data } = await supabase
-      .from('fee_history')
-      .select('*')
-      .eq('student_id', f.student_id)
-      .eq('month', f.month)
-      .order('created_at', { ascending: false });
+    let q = supabase.from('fee_history').select('*').eq('student_id', f.student_id).eq('month', f.month);
+    if (f.game_id) q = q.eq('game_id', f.game_id);
+    const { data } = await q.order('created_at', { ascending: false });
     setHistoryRows(data || []);
     setHistoryOpen(true);
   };
 
   const handleSave = async () => {
-    if (!editStudentId || !editMonth) {
-      toast.error('Select a student and month');
-      return;
-    }
+    if (!editStudentId || !editMonth) { toast.error('Select a student and month'); return; }
     setSaving(true);
     const amt = editAmount === '' ? 0 : Number(editAmount);
     const col = editCollected === '' ? 0 : Number(editCollected);
+    const status = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
+    const excess = Math.max(0, col - amt);
     const payload: any = {
       student_id: editStudentId,
+      game_id: editGameId || null,
       month: editMonth,
-      status: editStatus,
+      status,
       amount: amt,
       collected_amount: col,
+      excess_amount: excess,
+      payment_mode: editMode || null,
       notes: editNotes || null,
       institute_id: instituteId,
       updated_by: user?.id ?? null,
@@ -1537,10 +1763,11 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     if (editFeeId) {
       ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
     } else {
-      const { data: existing } = await supabase
-        .from('fees').select('id')
-        .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth)
-        .maybeSingle();
+      // look for existing for (student, game, month)
+      let q = supabase.from('fees').select('id')
+        .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth);
+      q = editGameId ? q.eq('game_id', editGameId) : q.is('game_id', null);
+      const { data: existing } = await q.maybeSingle();
       if (existing) {
         savedId = existing.id;
         ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
@@ -1551,61 +1778,69 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       }
     }
     if (!error && savedId) {
+      // Also update student_games.monthly_fee so future months reuse this
+      if (editGameId) {
+        await supabase.from('student_games')
+          .update({ monthly_fee: amt })
+          .eq('student_id', editStudentId).eq('game_id', editGameId);
+      }
       await supabase.from('fee_history').insert({
         fee_id: savedId, student_id: editStudentId, institute_id: instituteId, month: editMonth,
-        amount: amt, collected_amount: col, status: editStatus, notes: editNotes || null,
+        amount: amt, collected_amount: col, excess_amount: excess, status,
+        payment_mode: editMode || null, notes: editNotes || null, game_id: editGameId || null,
         updated_by: user?.id ?? null, updated_by_role: 'admin',
       });
     }
     setSaving(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Fee record saved');
-      setEditOpen(false);
-      fetchFees();
-    }
+    if (error) { toast.error(error.message); }
+    else { toast.success('Fee record saved'); setEditOpen(false); fetchAll(); fetchFees(); }
   };
 
-  const quickToggle = async (f: any) => {
-    const next = f.status === 'paid' ? 'unpaid' : 'paid';
+  const quickMarkPaid = async (f: any) => {
     const amt = Number(f.amount) || 0;
-    const col = next === 'paid' ? Math.max(amt, Number(f.collected_amount) || 0) : (Number(f.collected_amount) || 0);
-    let savedId = f._placeholder ? undefined : f.id;
+    const col = Math.max(amt, Number(f.collected_amount) || 0);
+    const payload: any = {
+      status: 'paid', amount: amt, collected_amount: col,
+      excess_amount: Math.max(0, col - amt), game_id: f.game_id || null,
+      updated_by: user?.id ?? null,
+    };
+    let savedId: string | undefined = f._placeholder ? undefined : f.id;
     if (f._placeholder) {
       const { data: ins, error } = await supabase.from('fees').insert({
-        student_id: f.student_id, month: f.month, status: next,
-        amount: amt, collected_amount: col, institute_id: instituteId, updated_by: user?.id ?? null,
+        ...payload, student_id: f.student_id, month: f.month, institute_id: instituteId,
       }).select('id').single();
       if (error) { toast.error(error.message); return; }
       savedId = ins?.id;
     } else {
-      const { error } = await supabase.from('fees')
-        .update({ status: next, collected_amount: col, updated_by: user?.id ?? null })
-        .eq('id', f.id);
+      const { error } = await supabase.from('fees').update(payload).eq('id', f.id);
       if (error) { toast.error(error.message); return; }
     }
     await supabase.from('fee_history').insert({
       fee_id: savedId, student_id: f.student_id, institute_id: instituteId, month: f.month,
-      amount: amt, collected_amount: col, status: next, notes: f.notes || null,
+      amount: amt, collected_amount: col, excess_amount: Math.max(0, col - amt), status: 'paid',
+      payment_mode: f.payment_mode || null, notes: f.notes || null, game_id: f.game_id || null,
       updated_by: user?.id ?? null, updated_by_role: 'admin',
     });
-    toast.success(`Marked ${next}`);
+    toast.success('Marked paid');
     fetchFees();
   };
+
+  const showGameFilter = games.length > 1;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
         <div className="flex flex-wrap gap-2">
-          <Select value={filterBatch} onValueChange={setFilterBatch}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Batches</SelectItem>
-              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {showGameFilter && (
+            <Select value={filterGame} onValueChange={setFilterGame}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="Filter by game" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Games</SelectItem>
+                {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -1633,11 +1868,12 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Student</SortableTH>
               <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
-              <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
-              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee (₹)</SortableTH>
-              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Paid (₹)</SortableTH>
-              <th className="text-left p-3 font-medium">Due (₹)</th>
+              <SortableTH sortKey="game" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Game</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Monthly Fee (₹)</SortableTH>
+              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+              <th className="text-left p-3 font-medium">Balance (₹)</th>
               <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
+              <th className="text-left p-3 font-medium">Mode</th>
               <th className="text-left p-3 font-medium">Note</th>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
@@ -1647,6 +1883,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               const amt = Number(f.amount) || 0;
               const col = Number(f.collected_amount) || 0;
               const due = Math.max(0, amt - col);
+              const excess = Math.max(0, col - amt);
               const cls = f.status === 'paid' ? 'bg-accent/10 text-accent'
                 : f.status === 'partial' ? 'bg-yellow-500/10 text-yellow-600'
                 : 'bg-destructive/10 text-destructive';
@@ -1655,19 +1892,23 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                   <td className="p-3">{index + 1}</td>
                   <td className="p-3">{(f.students as any)?.profiles?.name}</td>
                   <td className="p-3">{(f.students as any)?.reg_no}</td>
-                  <td className="p-3">{f.month}</td>
+                  <td className="p-3">{f._gameName}</td>
                   <td className="p-3">₹{amt.toLocaleString()}</td>
-                  <td className="p-3">₹{col.toLocaleString()}</td>
+                  <td className="p-3">
+                    ₹{col.toLocaleString()}
+                    {excess > 0 && <span className="text-xs text-accent ml-1">(+₹{excess})</span>}
+                  </td>
                   <td className="p-3">₹{due.toLocaleString()}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{f.status}</span>
                   </td>
+                  <td className="p-3 capitalize text-xs">{f.payment_mode || '—'}</td>
                   <td className="p-3 text-xs text-muted-foreground max-w-[160px] truncate" title={f.notes || ''}>{f.notes || '—'}</td>
                   <td className="p-3">
                     <div className="flex gap-1 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => quickToggle(f)}>
-                        Mark {f.status === 'paid' ? 'Unpaid' : 'Paid'}
-                      </Button>
+                      {f.status !== 'paid' && (
+                        <Button size="sm" variant="outline" onClick={() => quickMarkPaid(f)}>Mark Paid</Button>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -1681,8 +1922,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 </tr>
               );
             })}
-            {fees.length === 0 && (
-              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+            {rows.length === 0 && (
+              <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">No fee records for this month</td></tr>
             )}
           </tbody>
         </table>
@@ -1708,34 +1949,45 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </Select>
             </div>
             <div>
+              <Label>Game</Label>
+              <Select value={editGameId} onValueChange={setEditGameId}>
+                <SelectTrigger><SelectValue placeholder="Select game" /></SelectTrigger>
+                <SelectContent>
+                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Month</Label>
               <Input type="month" value={editMonth} onChange={e => setEditMonth(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Fee Amount (₹)</Label>
+                <Label>Monthly Fee (₹)</Label>
                 <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="e.g. 1500" />
+                <p className="text-xs text-muted-foreground mt-1">Updates default for future months.</p>
               </div>
               <div>
-                <Label>Paid (₹)</Label>
+                <Label>Collected (₹)</Label>
                 <Input type="number" min="0" step="0.01" value={editCollected} onChange={e => setEditCollected(e.target.value)} placeholder="e.g. 1000" />
               </div>
             </div>
             <div>
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>Payment Mode</Label>
+              <Select value={editMode || 'none'} onValueChange={(v) => setEditMode(v === 'none' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="none">—</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Payment Note</Label>
-              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Optional note (e.g. cash, partial paid by parent)" />
+              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Optional note" />
             </div>
+            <p className="text-xs text-muted-foreground">Status auto-calculated: Unpaid (₹0) · Partial · Paid (Collected ≥ Fee).</p>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
@@ -1753,9 +2005,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             ) : (
               <table className="w-full text-xs">
                 <thead className="bg-muted"><tr>
-                  <th className="text-left p-2">Date</th><th className="text-left p-2">Amount</th>
-                  <th className="text-left p-2">Paid</th><th className="text-left p-2">Status</th>
-                  <th className="text-left p-2">By</th><th className="text-left p-2">Note</th>
+                  <th className="text-left p-2">Date</th><th className="text-left p-2">Fee</th>
+                  <th className="text-left p-2">Collected</th><th className="text-left p-2">Status</th>
+                  <th className="text-left p-2">Mode</th><th className="text-left p-2">By</th><th className="text-left p-2">Note</th>
                 </tr></thead>
                 <tbody>
                   {historyRows.map(h => (
@@ -1764,6 +2016,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                       <td className="p-2">₹{Number(h.amount).toLocaleString()}</td>
                       <td className="p-2">₹{Number(h.collected_amount).toLocaleString()}</td>
                       <td className="p-2">{h.status}</td>
+                      <td className="p-2 capitalize">{h.payment_mode || '—'}</td>
                       <td className="p-2 capitalize">{h.updated_by_role || '—'}</td>
                       <td className="p-2">{h.notes || '—'}</td>
                     </tr>

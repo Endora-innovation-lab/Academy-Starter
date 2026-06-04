@@ -182,11 +182,14 @@ export type Database = {
           amount: number | null
           collected_amount: number | null
           created_at: string
+          excess_amount: number | null
           fee_id: string | null
+          game_id: string | null
           id: string
           institute_id: string
           month: string
           notes: string | null
+          payment_mode: string | null
           status: string
           student_id: string
           updated_by: string | null
@@ -196,11 +199,14 @@ export type Database = {
           amount?: number | null
           collected_amount?: number | null
           created_at?: string
+          excess_amount?: number | null
           fee_id?: string | null
+          game_id?: string | null
           id?: string
           institute_id: string
           month: string
           notes?: string | null
+          payment_mode?: string | null
           status: string
           student_id: string
           updated_by?: string | null
@@ -210,11 +216,14 @@ export type Database = {
           amount?: number | null
           collected_amount?: number | null
           created_at?: string
+          excess_amount?: number | null
           fee_id?: string | null
+          game_id?: string | null
           id?: string
           institute_id?: string
           month?: string
           notes?: string | null
+          payment_mode?: string | null
           status?: string
           student_id?: string
           updated_by?: string | null
@@ -227,10 +236,13 @@ export type Database = {
           amount: number | null
           collected_amount: number | null
           created_at: string
+          excess_amount: number | null
+          game_id: string | null
           id: string
           institute_id: string
           month: string
           notes: string | null
+          payment_mode: string | null
           status: string
           student_id: string
           updated_by: string | null
@@ -239,10 +251,13 @@ export type Database = {
           amount?: number | null
           collected_amount?: number | null
           created_at?: string
+          excess_amount?: number | null
+          game_id?: string | null
           id?: string
           institute_id: string
           month: string
           notes?: string | null
+          payment_mode?: string | null
           status?: string
           student_id: string
           updated_by?: string | null
@@ -251,10 +266,13 @@ export type Database = {
           amount?: number | null
           collected_amount?: number | null
           created_at?: string
+          excess_amount?: number | null
+          game_id?: string | null
           id?: string
           institute_id?: string
           month?: string
           notes?: string | null
+          payment_mode?: string | null
           status?: string
           student_id?: string
           updated_by?: string | null
@@ -362,6 +380,39 @@ export type Database = {
           },
         ]
       }
+      student_games: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          institute_id: string
+          monthly_fee: number
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          institute_id: string
+          monthly_fee?: number
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          institute_id?: string
+          monthly_fee?: number
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           created_at: string
@@ -370,6 +421,7 @@ export type Database = {
           institute_id: string
           parent_phone: string | null
           reg_no: string
+          status: string
           user_id: string
         }
         Insert: {
@@ -379,6 +431,7 @@ export type Database = {
           institute_id: string
           parent_phone?: string | null
           reg_no: string
+          status?: string
           user_id: string
         }
         Update: {
@@ -388,6 +441,7 @@ export type Database = {
           institute_id?: string
           parent_phone?: string | null
           reg_no?: string
+          status?: string
           user_id?: string
         }
         Relationships: [
