@@ -312,34 +312,48 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [editStudent, setEditStudent] = useState<any>(null);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
   const [batches, setBatches] = useState<any[]>([]);
+  const [games, setGames] = useState<any[]>([]);
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [studentGames, setStudentGames] = useState<any[]>([]); // all rows for institute
   const [filterBatch, setFilterBatch] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+
+  // Add-student flow: choose game first, monthly fee, then optional batch (filtered by game)
+  const [addGameId, setAddGameId] = useState('');
+  const [addMonthlyFee, setAddMonthlyFee] = useState('');
+  const [addBatchId, setAddBatchId] = useState('');
+
+  // Manage Games dialog
+  const [showGames, setShowGames] = useState<any>(null); // student
+  const [newGameId, setNewGameId] = useState('');
+  const [newGameFee, setNewGameFee] = useState('');
 
   const fetchStudents = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('students')
-      .select('*, profiles!students_user_id_profiles_fkey(name)')
-      .eq('institute_id', instituteId);
-
-    const { data: batchData } = await supabase.from('batches').select('*').eq('institute_id', instituteId);
-    setBatches(batchData || []);
-
-    const batchIds = (batchData || []).map(b => b.id);
+    const [stuRes, batchRes, gameRes, sgRes] = await Promise.all([
+      supabase.from('students').select('*, profiles!students_user_id_profiles_fkey(name, email)').eq('institute_id', instituteId),
+      supabase.from('batches').select('*').eq('institute_id', instituteId),
+      supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
+      supabase.from('student_games').select('*').eq('institute_id', instituteId),
+    ]);
+    setStudents(stuRes.data || []);
+    setBatches(batchRes.data || []);
+    setGames(gameRes.data || []);
+    setStudentGames(sgRes.data || []);
+    const batchIds = (batchRes.data || []).map(b => b.id);
     if (batchIds.length > 0) {
       const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', batchIds);
       setBatchStudents(bsData || []);
     } else {
       setBatchStudents([]);
     }
-
-    setStudents(data || []);
     setLoading(false);
   };
 
@@ -363,20 +377,37 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     reg_no: (s: any) => s.reg_no || '',
     dob: (s: any) => s.dob || '',
     parent_phone: (s: any) => s.parent_phone || '',
+    status: (s: any) => s.status || '',
   });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addGameId) { toast.error('Select a game/course'); return; }
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'create_student', name, reg_no: regNo, dob, parent_phone: parentPhone },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      const studentId = data.student?.id;
+      // Enroll into game
+      if (studentId) {
+        await supabase.from('student_games').insert({
+          student_id: studentId,
+          game_id: addGameId,
+          institute_id: instituteId,
+          monthly_fee: Number(addMonthlyFee) || 0,
+          status: 'active',
+        });
+        if (addBatchId) {
+          await supabase.from('batch_students').insert({ batch_id: addBatchId, student_id: studentId });
+        }
+      }
       setCreatedCreds(data.credentials);
       toast.success('Student added!');
       setShowAdd(false);
       setName(''); setRegNo(''); setDob(''); setParentPhone('');
+      setAddGameId(''); setAddMonthlyFee(''); setAddBatchId('');
       fetchStudents();
     } catch (err: any) {
       toast.error(err.message);
@@ -384,7 +415,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   };
 
   const handleDelete = async (studentId: string) => {
-    if (!confirm('Delete this student?')) return;
+    if (!confirm('Delete this student? Attendance and fee history will be removed.')) return;
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'delete_student', student_id: studentId },
@@ -402,7 +433,15 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     e.preventDefault();
     try {
       await supabase.functions.invoke('admin-operations', {
-        body: { action: 'update_student', student_id: editStudent.id, name, dob, parent_phone: parentPhone },
+        body: {
+          action: 'update_student',
+          student_id: editStudent.id,
+          name, dob,
+          parent_phone: parentPhone,
+          email: email || undefined,
+          reg_no: regNo || undefined,
+          status,
+        },
       });
       toast.success('Student updated');
       setShowEdit(false);
@@ -412,6 +451,51 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       toast.error(err.message);
     }
   };
+
+  const toggleStatus = async (s: any) => {
+    const next = s.status === 'inactive' ? 'active' : 'inactive';
+    try {
+      await supabase.functions.invoke('admin-operations', {
+        body: { action: 'update_student', student_id: s.id, status: next },
+      });
+      toast.success(`Student marked ${next}`);
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const addGameToStudent = async () => {
+    if (!showGames || !newGameId) { toast.error('Pick a game'); return; }
+    const exists = studentGames.find(sg => sg.student_id === showGames.id && sg.game_id === newGameId);
+    if (exists) { toast.error('Student already enrolled in this game'); return; }
+    const { error } = await supabase.from('student_games').insert({
+      student_id: showGames.id, game_id: newGameId,
+      institute_id: instituteId, monthly_fee: Number(newGameFee) || 0,
+      status: 'active',
+    });
+    if (error) { toast.error(error.message); return; }
+    setNewGameId(''); setNewGameFee('');
+    toast.success('Game added');
+    fetchStudents();
+  };
+
+  const updateStudentGame = async (sgId: string, patch: any) => {
+    const { error } = await supabase.from('student_games').update(patch).eq('id', sgId);
+    if (error) { toast.error(error.message); return; }
+    fetchStudents();
+  };
+
+  const removeStudentGame = async (sgId: string) => {
+    if (!confirm('Remove this game enrollment? Fee history is preserved.')) return;
+    const { error } = await supabase.from('student_games').delete().eq('id', sgId);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Removed');
+    fetchStudents();
+  };
+
+  const batchesForGame = (gameId: string) => batches.filter(b => b.game_id === gameId);
+  const studentGamesFor = (sid: string) => studentGames.filter(sg => sg.student_id === sid);
 
   if (hasBatches === false) {
     return <NoBatchWarning />;
@@ -437,14 +521,40 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Student</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Add Student</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
                 <div><Label>Registration Number</Label><Input value={regNo} onChange={e => setRegNo(e.target.value)} required /></div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
                 <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
-                <Button type="submit" className="w-full">Add Student</Button>
+                <div>
+                  <Label>Game / Course *</Label>
+                  <Select value={addGameId} onValueChange={(v) => { setAddGameId(v); setAddBatchId(''); }}>
+                    <SelectTrigger><SelectValue placeholder="Select a game/course" /></SelectTrigger>
+                    <SelectContent>
+                      {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {games.length === 0 && <p className="text-xs text-destructive mt-1">Create a game/course first.</p>}
+                </div>
+                <div>
+                  <Label>Monthly Fee for this Game (₹)</Label>
+                  <Input type="number" min="0" value={addMonthlyFee} onChange={e => setAddMonthlyFee(e.target.value)} placeholder="e.g. 1500" />
+                </div>
+                {addGameId && (
+                  <div>
+                    <Label>Batch (optional, filtered by selected game)</Label>
+                    <Select value={addBatchId} onValueChange={setAddBatchId}>
+                      <SelectTrigger><SelectValue placeholder="Select a batch" /></SelectTrigger>
+                      <SelectContent>
+                        {batchesForGame(addGameId).map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {batchesForGame(addGameId).length === 0 && <p className="text-xs text-muted-foreground mt-1">No batches exist for this game yet.</p>}
+                  </div>
+                )}
+                <Button type="submit" className="w-full" disabled={!addGameId}>Add Student</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -471,33 +581,63 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
               <SortableTH sortKey="dob" currentKey={sortKey} dir={sortDir} onToggle={toggle}>DOB</SortableTH>
               <SortableTH sortKey="parent_phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Parent Phone</SortableTH>
+              <th className="text-left p-3 font-medium">Games</th>
+              <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {displayStudents.map((s, index) => (
-              <tr key={s.id} className="border-t">
-                <td className="p-3">{index + 1}</td>
-                <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
-                <td className="p-3">{s.reg_no}</td>
-                <td className="p-3">{s.dob}</td>
-                <td className="p-3">{s.parent_phone || '-'}</td>
-                <td className="p-3 flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    setEditStudent(s);
-                    setName((s.profiles as any)?.name || '');
-                    setDob(s.dob);
-                    setParentPhone(s.parent_phone || '');
-                    setShowEdit(true);
-                  }}><Pencil className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(s.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {displayStudents.map((s, index) => {
+              const sgs = studentGamesFor(s.id);
+              return (
+                <tr key={s.id} className={`border-t ${s.status === 'inactive' ? 'opacity-60' : ''}`}>
+                  <td className="p-3">{index + 1}</td>
+                  <td className="p-3">{(s.profiles as any)?.name || 'N/A'}</td>
+                  <td className="p-3">{s.reg_no}</td>
+                  <td className="p-3">{s.dob}</td>
+                  <td className="p-3">{s.parent_phone || '-'}</td>
+                  <td className="p-3 text-xs">
+                    {sgs.length === 0 ? <span className="text-muted-foreground">—</span> :
+                      sgs.map(sg => {
+                        const g = games.find(g => g.id === sg.game_id);
+                        return (
+                          <span key={sg.id} className={`inline-block mr-1 mb-1 px-2 py-0.5 rounded ${sg.status === 'active' ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'}`}>
+                            {g?.name || '?'}
+                          </span>
+                        );
+                      })}
+                  </td>
+                  <td className="p-3">
+                    <button
+                      onClick={() => toggleStatus(s)}
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${s.status === 'inactive' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent'}`}
+                    >
+                      {s.status === 'inactive' ? 'Inactive' : 'Active'}
+                    </button>
+                  </td>
+                  <td className="p-3 flex gap-1">
+                    <Button size="sm" variant="ghost" title="Manage games" onClick={() => { setShowGames(s); setNewGameId(''); setNewGameFee(''); }}>
+                      <BookOpen className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setEditStudent(s);
+                      setName((s.profiles as any)?.name || '');
+                      setEmail((s.profiles as any)?.email || '');
+                      setRegNo(s.reg_no || '');
+                      setDob(s.dob);
+                      setParentPhone(s.parent_phone || '');
+                      setStatus((s.status === 'inactive' ? 'inactive' : 'active') as any);
+                      setShowEdit(true);
+                    }}><Pencil className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(s.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
             {displayStudents.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No students found</td></tr>
             )}
           </tbody>
         </table>
@@ -508,10 +648,88 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <DialogHeader><DialogTitle>Edit Student</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="student@example.com" />
+              <p className="text-xs text-muted-foreground mt-1">Changing email keeps attendance, fees, and enrollments linked.</p>
+            </div>
+            <div>
+              <Label>Registration Number</Label>
+              <Input value={regNo} onChange={e => setRegNo(e.target.value)} required />
+            </div>
             <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required /></div>
             <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+            <div>
+              <Label>Overall Status</Label>
+              <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button type="submit" className="w-full">Update</Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!showGames} onOpenChange={(o) => { if (!o) setShowGames(null); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Enrolled Games</DialogTitle>
+            {showGames && <p className="text-sm text-muted-foreground">{(showGames.profiles as any)?.name} · {showGames.reg_no}</p>}
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {showGames && studentGamesFor(showGames.id).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">No games yet.</p>
+              )}
+              {showGames && studentGamesFor(showGames.id).map(sg => {
+                const g = games.find(g => g.id === sg.game_id);
+                return (
+                  <div key={sg.id} className="flex items-center gap-2 p-2 rounded border">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{g?.name || '?'}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Label className="text-xs">Monthly Fee ₹</Label>
+                        <Input
+                          type="number" min="0" className="w-24 h-7"
+                          defaultValue={sg.monthly_fee}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            if (v !== Number(sg.monthly_fee)) updateStudentGame(sg.id, { monthly_fee: v });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline"
+                      onClick={() => updateStudentGame(sg.id, { status: sg.status === 'active' ? 'inactive' : 'active' })}>
+                      {sg.status === 'active' ? 'Active' : 'Inactive'}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeStudentGame(sg.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t pt-3 space-y-2">
+              <p className="text-sm font-medium">Add a game</p>
+              <div className="flex gap-2">
+                <Select value={newGameId} onValueChange={setNewGameId}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="Pick a game" /></SelectTrigger>
+                  <SelectContent>
+                    {games
+                      .filter(g => showGames && !studentGamesFor(showGames.id).some(sg => sg.game_id === g.id))
+                      .map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input type="number" min="0" placeholder="Monthly ₹" className="w-32" value={newGameFee} onChange={e => setNewGameFee(e.target.value)} />
+                <Button onClick={addGameToStudent}>Add</Button>
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
