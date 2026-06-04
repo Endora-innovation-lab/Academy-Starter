@@ -620,84 +620,87 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
 };
 
 const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; instituteId: string; userId: string }) => {
-  const [batches, setBatches] = useState<any[]>([]);
-  const [selectedBatch, setSelectedBatch] = useState('');
+  const [games, setGames] = useState<any[]>([]);
+  const [selectedGame, setSelectedGame] = useState<string>('');
   const [month, setMonth] = useState('');
-  const [students, setStudents] = useState<any[]>([]);
-  const [feeIdMap, setFeeIdMap] = useState<Record<string, string>>({});
-  const [amountMap, setAmountMap] = useState<Record<string, number>>({});
-  const [collectedMap, setCollectedMap] = useState<Record<string, number>>({});
-  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
-  const [notesMap, setNotesMap] = useState<Record<string, string>>({});
+  const [rows, setRows] = useState<any[]>([]); // {student_id, name, reg_no, monthly_fee, fee_id, collected, mode, notes}
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Load games teacher has access to via their batches
   useEffect(() => {
     const fetch = async () => {
       const [{ data: btData }, { data: legacyData }] = await Promise.all([
         supabase.from('batch_teachers').select('batch_id').eq('teacher_id', teacherId),
         supabase.from('batches').select('id').eq('teacher_id', teacherId),
       ]);
-      const batchIds = new Set([
+      const batchIds = Array.from(new Set([
         ...(btData?.map(bt => bt.batch_id) || []),
         ...(legacyData?.map(b => b.id) || []),
-      ]);
-      if (batchIds.size > 0) {
-        const { data } = await supabase.from('batches').select('*').in('id', Array.from(batchIds));
-        setBatches(data || []);
-      }
+      ]));
+      if (batchIds.length === 0) return;
+      const { data: batches } = await supabase.from('batches').select('game_id').in('id', batchIds);
+      const gameIds = Array.from(new Set((batches || []).map((b: any) => b.game_id).filter(Boolean)));
+      if (gameIds.length === 0) return;
+      const { data: gs } = await supabase.from('games').select('id, name').in('id', gameIds).order('name');
+      setGames(gs || []);
+      if ((gs || []).length === 1) setSelectedGame(gs![0].id);
     };
     fetch();
   }, [teacherId]);
 
-  const loadStudents = async () => {
-    if (!selectedBatch || !month) return;
-    const { data } = await supabase
-      .from('batch_students')
-      .select('student_id, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))')
-      .eq('batch_id', selectedBatch);
+  const load = async () => {
+    if (!selectedGame || !month) return;
+    // Students enrolled in this game, active overall and active in this game
+    const { data: enrolls } = await supabase
+      .from('student_games')
+      .select('student_id, monthly_fee, status, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))')
+      .eq('game_id', selectedGame)
+      .eq('status', 'active');
 
-    const studs = data || [];
-    setStudents(studs);
+    const active = (enrolls || []).filter((e: any) => (e.students as any)?.status !== 'inactive');
+    const studentIds = active.map((e: any) => e.student_id);
 
-    const studentIds = studs.map(s => s.student_id);
-    const aMap: Record<string, number> = {};
-    const cMap: Record<string, number> = {};
-    const sMap: Record<string, string> = {};
-    const nMap: Record<string, string> = {};
-    const idMap: Record<string, string> = {};
-
+    const feeMap: Record<string, any> = {};
     if (studentIds.length > 0) {
       const { data: fees } = await supabase
         .from('fees')
-        .select('id, student_id, status, amount, collected_amount, notes')
+        .select('*')
         .in('student_id', studentIds)
+        .eq('game_id', selectedGame)
         .eq('month', month);
-
-      fees?.forEach((f: any) => {
-        aMap[f.student_id] = Number(f.amount) || 0;
-        cMap[f.student_id] = Number(f.collected_amount) || 0;
-        sMap[f.student_id] = f.status || 'unpaid';
-        nMap[f.student_id] = f.notes || '';
-        idMap[f.student_id] = f.id;
-      });
+      (fees || []).forEach((f: any) => { feeMap[f.student_id] = f; });
     }
 
-    studentIds.forEach(id => { if (!sMap[id]) sMap[id] = 'unpaid'; });
-    setAmountMap(aMap);
-    setCollectedMap(cMap);
-    setStatusMap(sMap);
-    setNotesMap(nMap);
-    setFeeIdMap(idMap);
+    const built = active.map((e: any) => {
+      const stu = e.students as any;
+      const fee = feeMap[e.student_id];
+      return {
+        student_id: e.student_id,
+        name: stu?.profiles?.name || '—',
+        reg_no: stu?.reg_no || '',
+        monthly_fee: Number(fee?.amount ?? e.monthly_fee) || 0,
+        fee_id: fee?.id || null,
+        collected: Number(fee?.collected_amount) || 0,
+        mode: fee?.payment_mode || '',
+        notes: fee?.notes || '',
+      };
+    });
+    setRows(built);
     setDirty({});
     setHasLoaded(true);
   };
 
-  useEffect(() => { setHasLoaded(false); loadStudents(); }, [selectedBatch, month]);
+  useEffect(() => { setHasLoaded(false); load(); }, [selectedGame, month]);
 
   const markDirty = (sid: string) => setDirty(prev => ({ ...prev, [sid]: true }));
+
+  const updateRow = (sid: string, patch: Partial<any>) => {
+    setRows(prev => prev.map(r => r.student_id === sid ? { ...r, ...patch } : r));
+    markDirty(sid);
+  };
 
   const saveFees = async () => {
     const changedIds = Object.keys(dirty).filter(id => dirty[id]);
@@ -705,15 +708,25 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     setSaving(true);
     try {
       for (const sid of changedIds) {
-        const feeId = feeIdMap[sid];
-        const amt = Number(amountMap[sid]) || 0;
-        const col = Number(collectedMap[sid]) || 0;
-        const status = statusMap[sid] || (amt > 0 && col >= amt ? 'paid' : col > 0 ? 'partial' : 'unpaid');
-        const note = notesMap[sid] || null;
-        const payload: any = { amount: amt, collected_amount: col, status, notes: note, updated_by: userId };
-        let savedId = feeId;
-        if (feeId) {
-          const { error } = await supabase.from('fees').update(payload).eq('id', feeId);
+        const r = rows.find(x => x.student_id === sid);
+        if (!r) continue;
+        const amt = Number(r.monthly_fee) || 0;
+        const col = Number(r.collected) || 0;
+        const status = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
+        const excess = Math.max(0, col - amt);
+        const payload: any = {
+          amount: amt,
+          collected_amount: col,
+          excess_amount: excess,
+          status,
+          payment_mode: r.mode || null,
+          notes: r.notes || null,
+          updated_by: userId,
+          game_id: selectedGame,
+        };
+        let savedId = r.fee_id;
+        if (r.fee_id) {
+          const { error } = await supabase.from('fees').update(payload).eq('id', r.fee_id);
           if (error) throw error;
         } else {
           const { data: ins, error } = await supabase.from('fees').insert({
@@ -724,12 +737,13 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         }
         await supabase.from('fee_history').insert({
           fee_id: savedId, student_id: sid, institute_id: instituteId, month,
-          amount: amt, collected_amount: col, status, notes: note,
+          amount: amt, collected_amount: col, excess_amount: excess, status,
+          payment_mode: r.mode || null, notes: r.notes || null, game_id: selectedGame,
           updated_by: userId, updated_by_role: 'teacher',
         });
       }
       toast.success(`${changedIds.length} fee record(s) saved`);
-      await loadStudents();
+      await load();
     } catch (err: any) {
       toast.error(err.message || 'Save failed');
     } finally {
@@ -737,19 +751,15 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     }
   };
 
-  const filteredStudents = searchTerm
-    ? students.filter(s => {
-        const name = (s.students as any)?.profiles?.name?.toLowerCase() || '';
-        return name.includes(searchTerm.toLowerCase());
-      })
-    : students;
+  const filtered = searchTerm
+    ? rows.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : rows;
 
-  const { sorted: displayStudents, sortKey, sortDir, toggle } = useSort(filteredStudents, {
-    name: (s: any) => (s.students as any)?.profiles?.name || '',
-    reg_no: (s: any) => (s.students as any)?.reg_no || '',
-    amount: (s: any) => Number(amountMap[s.student_id]) || 0,
-    collected: (s: any) => Number(collectedMap[s.student_id]) || 0,
-    status: (s: any) => statusMap[s.student_id] || 'unpaid',
+  const { sorted: displayRows, sortKey, sortDir, toggle } = useSort(filtered, {
+    name: (r: any) => r.name || '',
+    reg_no: (r: any) => r.reg_no || '',
+    fee: (r: any) => Number(r.monthly_fee) || 0,
+    collected: (r: any) => Number(r.collected) || 0,
   });
 
   const statusClass = (s: string) => s === 'paid' ? 'bg-accent/10 text-accent'
@@ -761,16 +771,18 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Update Fees</h2>
-      <p className="text-sm text-muted-foreground">Set the fee, record collection, mark status, and add notes. Changes save only when you click <b>Save Fees</b>.</p>
+      <p className="text-sm text-muted-foreground">Enter Collected Amount and Payment Mode. Monthly Fee is set by the institute. Status is calculated automatically. Click <b>Save Fees</b> to apply.</p>
       <div className="flex flex-wrap gap-3">
-        <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Select batch" /></SelectTrigger>
-          <SelectContent>
-            {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {games.length > 1 && (
+          <Select value={selectedGame} onValueChange={setSelectedGame}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Select game" /></SelectTrigger>
+            <SelectContent>
+              {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" />
-        {students.length > 0 && (
+        {rows.length > 0 && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-48" placeholder="Search student..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -778,7 +790,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         )}
       </div>
 
-      {hasLoaded && displayStudents.length > 0 && month && (
+      {hasLoaded && selectedGame && month && displayRows.length > 0 && (
         <>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
@@ -787,53 +799,51 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
                   <th className="text-left p-3 font-medium">S.No</th>
                   <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
                   <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
-                  <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee (₹)</SortableTH>
-                  <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Paid (₹)</SortableTH>
-                  <th className="text-left p-3 font-medium">Due (₹)</th>
-                  <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
+                  <SortableTH sortKey="fee" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Monthly Fee (₹)</SortableTH>
+                  <SortableTH sortKey="collected" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+                  <th className="text-left p-3 font-medium">Balance (₹)</th>
+                  <th className="text-left p-3 font-medium">Status</th>
+                  <th className="text-left p-3 font-medium">Mode</th>
                   <th className="text-left p-3 font-medium">Note</th>
                 </tr>
               </thead>
               <tbody>
-                {displayStudents.map((s, index) => {
-                  const student = s.students as any;
-                  const sid = s.student_id;
-                  const amt = Number(amountMap[sid]) || 0;
-                  const col = Number(collectedMap[sid]) || 0;
+                {displayRows.map((r, index) => {
+                  const amt = Number(r.monthly_fee) || 0;
+                  const col = Number(r.collected) || 0;
                   const due = Math.max(0, amt - col);
-                  const st = statusMap[sid] || 'unpaid';
+                  const excess = Math.max(0, col - amt);
+                  const st = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
                   return (
-                    <tr key={sid} className={`border-t ${dirty[sid] ? 'bg-yellow-50/40' : ''}`}>
+                    <tr key={r.student_id} className={`border-t ${dirty[r.student_id] ? 'bg-yellow-50/40' : ''}`}>
                       <td className="p-3">{index + 1}</td>
-                      <td className="p-3">{student?.profiles?.name}</td>
-                      <td className="p-3">{student?.reg_no}</td>
+                      <td className="p-3">{r.name}</td>
+                      <td className="p-3">{r.reg_no}</td>
+                      <td className="p-3 font-medium">₹{amt.toLocaleString()}</td>
                       <td className="p-3">
-                        <Input type="number" min="0" className="w-24" value={amountMap[sid] ?? ''}
-                          onChange={e => { setAmountMap(p => ({ ...p, [sid]: Number(e.target.value) || 0 })); markDirty(sid); }}
+                        <Input type="number" min="0" className="w-24" value={r.collected}
+                          onChange={e => updateRow(r.student_id, { collected: Number(e.target.value) || 0 })}
                           placeholder="0" />
-                      </td>
-                      <td className="p-3">
-                        <Input type="number" min="0" className="w-24" value={collectedMap[sid] ?? ''}
-                          onChange={e => { setCollectedMap(p => ({ ...p, [sid]: Number(e.target.value) || 0 })); markDirty(sid); }}
-                          placeholder="0" />
+                        {excess > 0 && <p className="text-xs text-accent mt-1">+₹{excess} excess</p>}
                       </td>
                       <td className="p-3 font-medium">₹{due.toLocaleString()}</td>
                       <td className="p-3">
-                        <Select value={st}
-                          onValueChange={v => { setStatusMap(p => ({ ...p, [sid]: v })); markDirty(sid); }}>
-                          <SelectTrigger className={`w-28 h-7 px-2 ${statusClass(st)}`}>
-                            <SelectValue />
-                          </SelectTrigger>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusClass(st)}`}>{st}</span>
+                      </td>
+                      <td className="p-3">
+                        <Select value={r.mode || 'none'}
+                          onValueChange={v => updateRow(r.student_id, { mode: v === 'none' ? '' : v })}>
+                          <SelectTrigger className="w-28 h-8"><SelectValue placeholder="—" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="paid">Paid</SelectItem>
-                            <SelectItem value="partial">Partial</SelectItem>
-                            <SelectItem value="unpaid">Unpaid</SelectItem>
+                            <SelectItem value="none">—</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="online">Online</SelectItem>
                           </SelectContent>
                         </Select>
                       </td>
                       <td className="p-3">
-                        <Input className="w-40" value={notesMap[sid] || ''}
-                          onChange={e => { setNotesMap(p => ({ ...p, [sid]: e.target.value })); markDirty(sid); }}
+                        <Input className="w-40" value={r.notes || ''}
+                          onChange={e => updateRow(r.student_id, { notes: e.target.value })}
                           placeholder="Optional note" />
                       </td>
                     </tr>
@@ -849,6 +859,9 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
             {dirtyCount > 0 && <span className="text-xs text-muted-foreground">Unsaved changes — click Save to apply.</span>}
           </div>
         </>
+      )}
+      {hasLoaded && selectedGame && month && displayRows.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">No active students enrolled in this game.</p>
       )}
     </div>
   );
