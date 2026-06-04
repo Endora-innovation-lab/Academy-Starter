@@ -15,6 +15,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const InstituteDashboard = lazy(() => import("./pages/InstituteDashboard"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
+const Inactive = lazy(() => import("./pages/Inactive"));
 
 const queryClient = new QueryClient();
 
