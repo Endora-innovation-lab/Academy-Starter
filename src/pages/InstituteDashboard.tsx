@@ -1592,160 +1592,166 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
 // ============= FEES TAB =============
 const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const { user } = useAuth();
-  const [fees, setFees] = useState<any[]>([]);
+  const [rows, setRows] = useState<any[]>([]); // merged enrollment+fee
   const [students, setStudents] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [batchStudents, setBatchStudents] = useState<any[]>([]);
-  const [filterBatch, setFilterBatch] = useState('all');
+  const [games, setGames] = useState<any[]>([]);
+  const [studentGames, setStudentGames] = useState<any[]>([]);
+  const [filterGame, setFilterGame] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Edit dialog state
   const [editOpen, setEditOpen] = useState(false);
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
   const [editStudentId, setEditStudentId] = useState('');
+  const [editGameId, setEditGameId] = useState('');
   const [editMonth, setEditMonth] = useState(filterMonth);
-  const [editStatus, setEditStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
   const [editAmount, setEditAmount] = useState('');
   const [editCollected, setEditCollected] = useState('');
+  const [editMode, setEditMode] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
 
+  const fetchAll = async () => {
+    const [gRes, sgRes, stuRes] = await Promise.all([
+      supabase.from('games').select('*').eq('institute_id', instituteId).order('name'),
+      supabase.from('student_games').select('*').eq('institute_id', instituteId),
+      supabase.from('students').select('id, reg_no, status, profiles!students_user_id_profiles_fkey(name)').eq('institute_id', instituteId),
+    ]);
+    setGames(gRes.data || []);
+    setStudentGames(sgRes.data || []);
+    setStudents(stuRes.data || []);
+  };
+
   const fetchFees = async () => {
-    let query = supabase
-      .from('fees')
-      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
-      .eq('institute_id', instituteId)
-      .order('month', { ascending: false });
-    if (filterMonth) query = query.eq('month', filterMonth);
-    const { data: feeRows } = await query;
-    const feeData = feeRows || [];
+    if (!filterMonth) return;
+    const studentMap = Object.fromEntries(students.map((s: any) => [s.id, s]));
+    const gameMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
-    // Restrict to batch's students if filter set
-    let allowedStudentIds: string[] | null = null;
-    if (filterBatch !== 'all') {
-      allowedStudentIds = batchStudents.filter(bs => bs.batch_id === filterBatch).map(bs => bs.student_id);
-    }
+    // Load existing fee rows for the month (any game)
+    let feeQ = supabase.from('fees').select('*').eq('institute_id', instituteId).eq('month', filterMonth);
+    if (filterGame !== 'all') feeQ = feeQ.eq('game_id', filterGame);
+    const { data: fees } = await feeQ;
+    const feeRows = fees || [];
 
-    // Build a default unpaid placeholder for any student missing a record this month
-    let merged: any[] = feeData;
-    if (filterMonth) {
-      const { data: stuRows } = await supabase
-        .from('students')
-        .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
-        .eq('institute_id', instituteId);
-      const studentList = stuRows || [];
-      const covered = new Set(feeData.map((f: any) => f.student_id));
-      const placeholders = studentList
-        .filter(s => !covered.has(s.id))
-        .map(s => ({
-          id: `placeholder-${s.id}-${filterMonth}`,
-          _placeholder: true,
-          student_id: s.id,
-          month: filterMonth,
-          status: 'unpaid',
-          amount: 0,
-          collected_amount: 0,
-          students: s,
-        }));
-      merged = [...feeData, ...placeholders];
+    // Build keyed map by student_id+game_id
+    const feeKey = (sid: string, gid: string | null) => `${sid}__${gid || 'none'}`;
+    const feeByKey: Record<string, any> = {};
+    feeRows.forEach((f: any) => { feeByKey[feeKey(f.student_id, f.game_id)] = f; });
+
+    // Generate placeholders from active student_games matching filterGame
+    const activeEnrolls = studentGames.filter(sg =>
+      sg.status === 'active' &&
+      (filterGame === 'all' || sg.game_id === filterGame) &&
+      studentMap[sg.student_id]?.status !== 'inactive'
+    );
+
+    const merged: any[] = [];
+    // Add enrollment-driven rows
+    for (const sg of activeEnrolls) {
+      const stu = studentMap[sg.student_id];
+      if (!stu) continue;
+      const existing = feeByKey[feeKey(sg.student_id, sg.game_id)];
+      merged.push({
+        id: existing?.id || `placeholder-${sg.student_id}-${sg.game_id}-${filterMonth}`,
+        _placeholder: !existing,
+        _enrollment: sg,
+        student_id: sg.student_id,
+        game_id: sg.game_id,
+        month: filterMonth,
+        amount: existing?.amount ?? sg.monthly_fee ?? 0,
+        collected_amount: existing?.collected_amount ?? 0,
+        excess_amount: existing?.excess_amount ?? 0,
+        status: existing?.status ?? 'unpaid',
+        payment_mode: existing?.payment_mode ?? null,
+        notes: existing?.notes ?? null,
+        students: stu,
+        _gameName: gameMap[sg.game_id]?.name || '—',
+      });
     }
-    if (allowedStudentIds !== null) {
-      const allowed = new Set(allowedStudentIds);
-      merged = merged.filter(f => allowed.has(f.student_id));
-    }
-    if (filterStatus !== 'all') merged = merged.filter(f => f.status === filterStatus);
-    setFees(merged);
+    // Add orphan legacy fees (no matching enrollment) so old data stays visible
+    feeRows.forEach((f: any) => {
+      if (!merged.find(m => m.student_id === f.student_id && m.game_id === f.game_id && !m._placeholder ? m.id === f.id : false)) {
+        const hasEnrollment = activeEnrolls.find(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
+        if (hasEnrollment) return;
+        merged.push({
+          ...f,
+          students: studentMap[f.student_id],
+          _gameName: gameMap[f.game_id]?.name || '—',
+        });
+      }
+    });
+
+    let final = merged;
+    if (filterStatus !== 'all') final = final.filter(f => f.status === filterStatus);
+    setRows(final);
   };
 
-  const fetchStudents = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
-      .eq('institute_id', instituteId);
-    setStudents(data || []);
-  };
+  useEffect(() => { fetchAll(); }, [instituteId]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterGame, students, games, studentGames]);
 
-  const fetchBatches = async () => {
-    const { data: bData } = await supabase.from('batches').select('id, name').eq('institute_id', instituteId);
-    setBatches(bData || []);
-    const ids = (bData || []).map(b => b.id);
-    if (ids.length > 0) {
-      const { data: bsData } = await supabase.from('batch_students').select('batch_id, student_id').in('batch_id', ids);
-      setBatchStudents(bsData || []);
-    } else {
-      setBatchStudents([]);
-    }
-  };
-
-  const totalAmount = fees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-  const paidAmount = fees.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
+  const totalAmount = rows.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const paidAmount = rows.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
   const unpaidAmount = Math.max(0, totalAmount - paidAmount);
 
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterBatch, batchStudents]);
-
-  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(fees, {
+  const { sorted: sortedFees, sortKey, sortDir, toggle } = useSort(rows, {
     name: (f: any) => (f.students as any)?.profiles?.name || '',
     reg_no: (f: any) => (f.students as any)?.reg_no || '',
-    month: (f: any) => f.month || '',
+    game: (f: any) => f._gameName || '',
     amount: (f: any) => Number(f.amount) || 0,
     collected_amount: (f: any) => Number(f.collected_amount) || 0,
     status: (f: any) => f.status || '',
   });
-  useEffect(() => { fetchStudents(); fetchBatches(); }, [instituteId]);
 
   const openNew = () => {
     setEditFeeId(null);
     setEditStudentId('');
+    setEditGameId(filterGame !== 'all' ? filterGame : (games[0]?.id || ''));
     setEditMonth(filterMonth);
-    setEditStatus('unpaid');
-    setEditAmount('');
-    setEditCollected('');
-    setEditNotes('');
+    setEditAmount(''); setEditCollected(''); setEditMode(''); setEditNotes('');
     setEditOpen(true);
   };
 
   const openEdit = (f: any) => {
     setEditFeeId(f._placeholder ? null : f.id);
     setEditStudentId(f.student_id);
+    setEditGameId(f.game_id || '');
     setEditMonth(f.month);
-    setEditStatus((f.status === 'paid' || f.status === 'partial') ? f.status : 'unpaid');
     setEditAmount(f.amount != null ? String(f.amount) : '');
     setEditCollected(f.collected_amount != null ? String(f.collected_amount) : '');
+    setEditMode(f.payment_mode || '');
     setEditNotes(f.notes || '');
     setEditOpen(true);
   };
 
   const openHistory = async (f: any) => {
-    const { data } = await supabase
-      .from('fee_history')
-      .select('*')
-      .eq('student_id', f.student_id)
-      .eq('month', f.month)
-      .order('created_at', { ascending: false });
+    let q = supabase.from('fee_history').select('*').eq('student_id', f.student_id).eq('month', f.month);
+    if (f.game_id) q = q.eq('game_id', f.game_id);
+    const { data } = await q.order('created_at', { ascending: false });
     setHistoryRows(data || []);
     setHistoryOpen(true);
   };
 
   const handleSave = async () => {
-    if (!editStudentId || !editMonth) {
-      toast.error('Select a student and month');
-      return;
-    }
+    if (!editStudentId || !editMonth) { toast.error('Select a student and month'); return; }
     setSaving(true);
     const amt = editAmount === '' ? 0 : Number(editAmount);
     const col = editCollected === '' ? 0 : Number(editCollected);
+    const status = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
+    const excess = Math.max(0, col - amt);
     const payload: any = {
       student_id: editStudentId,
+      game_id: editGameId || null,
       month: editMonth,
-      status: editStatus,
+      status,
       amount: amt,
       collected_amount: col,
+      excess_amount: excess,
+      payment_mode: editMode || null,
       notes: editNotes || null,
       institute_id: instituteId,
       updated_by: user?.id ?? null,
@@ -1755,10 +1761,11 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     if (editFeeId) {
       ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
     } else {
-      const { data: existing } = await supabase
-        .from('fees').select('id')
-        .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth)
-        .maybeSingle();
+      // look for existing for (student, game, month)
+      let q = supabase.from('fees').select('id')
+        .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth);
+      q = editGameId ? q.eq('game_id', editGameId) : q.is('game_id', null);
+      const { data: existing } = await q.maybeSingle();
       if (existing) {
         savedId = existing.id;
         ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
@@ -1769,61 +1776,69 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       }
     }
     if (!error && savedId) {
+      // Also update student_games.monthly_fee so future months reuse this
+      if (editGameId) {
+        await supabase.from('student_games')
+          .update({ monthly_fee: amt })
+          .eq('student_id', editStudentId).eq('game_id', editGameId);
+      }
       await supabase.from('fee_history').insert({
         fee_id: savedId, student_id: editStudentId, institute_id: instituteId, month: editMonth,
-        amount: amt, collected_amount: col, status: editStatus, notes: editNotes || null,
+        amount: amt, collected_amount: col, excess_amount: excess, status,
+        payment_mode: editMode || null, notes: editNotes || null, game_id: editGameId || null,
         updated_by: user?.id ?? null, updated_by_role: 'admin',
       });
     }
     setSaving(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Fee record saved');
-      setEditOpen(false);
-      fetchFees();
-    }
+    if (error) { toast.error(error.message); }
+    else { toast.success('Fee record saved'); setEditOpen(false); fetchAll(); fetchFees(); }
   };
 
-  const quickToggle = async (f: any) => {
-    const next = f.status === 'paid' ? 'unpaid' : 'paid';
+  const quickMarkPaid = async (f: any) => {
     const amt = Number(f.amount) || 0;
-    const col = next === 'paid' ? Math.max(amt, Number(f.collected_amount) || 0) : (Number(f.collected_amount) || 0);
-    let savedId = f._placeholder ? undefined : f.id;
+    const col = Math.max(amt, Number(f.collected_amount) || 0);
+    const payload: any = {
+      status: 'paid', amount: amt, collected_amount: col,
+      excess_amount: Math.max(0, col - amt), game_id: f.game_id || null,
+      updated_by: user?.id ?? null,
+    };
+    let savedId: string | undefined = f._placeholder ? undefined : f.id;
     if (f._placeholder) {
       const { data: ins, error } = await supabase.from('fees').insert({
-        student_id: f.student_id, month: f.month, status: next,
-        amount: amt, collected_amount: col, institute_id: instituteId, updated_by: user?.id ?? null,
+        ...payload, student_id: f.student_id, month: f.month, institute_id: instituteId,
       }).select('id').single();
       if (error) { toast.error(error.message); return; }
       savedId = ins?.id;
     } else {
-      const { error } = await supabase.from('fees')
-        .update({ status: next, collected_amount: col, updated_by: user?.id ?? null })
-        .eq('id', f.id);
+      const { error } = await supabase.from('fees').update(payload).eq('id', f.id);
       if (error) { toast.error(error.message); return; }
     }
     await supabase.from('fee_history').insert({
       fee_id: savedId, student_id: f.student_id, institute_id: instituteId, month: f.month,
-      amount: amt, collected_amount: col, status: next, notes: f.notes || null,
+      amount: amt, collected_amount: col, excess_amount: Math.max(0, col - amt), status: 'paid',
+      payment_mode: f.payment_mode || null, notes: f.notes || null, game_id: f.game_id || null,
       updated_by: user?.id ?? null, updated_by_role: 'admin',
     });
-    toast.success(`Marked ${next}`);
+    toast.success('Marked paid');
     fetchFees();
   };
+
+  const showGameFilter = games.length > 1;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
         <div className="flex flex-wrap gap-2">
-          <Select value={filterBatch} onValueChange={setFilterBatch}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Batches</SelectItem>
-              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {showGameFilter && (
+            <Select value={filterGame} onValueChange={setFilterGame}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="Filter by game" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Games</SelectItem>
+                {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -1851,11 +1866,12 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Student</SortableTH>
               <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
-              <SortableTH sortKey="month" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Month</SortableTH>
-              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Fee (₹)</SortableTH>
-              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Paid (₹)</SortableTH>
-              <th className="text-left p-3 font-medium">Due (₹)</th>
+              <SortableTH sortKey="game" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Game</SortableTH>
+              <SortableTH sortKey="amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Monthly Fee (₹)</SortableTH>
+              <SortableTH sortKey="collected_amount" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Collected (₹)</SortableTH>
+              <th className="text-left p-3 font-medium">Balance (₹)</th>
               <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
+              <th className="text-left p-3 font-medium">Mode</th>
               <th className="text-left p-3 font-medium">Note</th>
               <th className="text-left p-3 font-medium">Actions</th>
             </tr>
@@ -1865,6 +1881,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               const amt = Number(f.amount) || 0;
               const col = Number(f.collected_amount) || 0;
               const due = Math.max(0, amt - col);
+              const excess = Math.max(0, col - amt);
               const cls = f.status === 'paid' ? 'bg-accent/10 text-accent'
                 : f.status === 'partial' ? 'bg-yellow-500/10 text-yellow-600'
                 : 'bg-destructive/10 text-destructive';
@@ -1873,19 +1890,23 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                   <td className="p-3">{index + 1}</td>
                   <td className="p-3">{(f.students as any)?.profiles?.name}</td>
                   <td className="p-3">{(f.students as any)?.reg_no}</td>
-                  <td className="p-3">{f.month}</td>
+                  <td className="p-3">{f._gameName}</td>
                   <td className="p-3">₹{amt.toLocaleString()}</td>
-                  <td className="p-3">₹{col.toLocaleString()}</td>
+                  <td className="p-3">
+                    ₹{col.toLocaleString()}
+                    {excess > 0 && <span className="text-xs text-accent ml-1">(+₹{excess})</span>}
+                  </td>
                   <td className="p-3">₹{due.toLocaleString()}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{f.status}</span>
                   </td>
+                  <td className="p-3 capitalize text-xs">{f.payment_mode || '—'}</td>
                   <td className="p-3 text-xs text-muted-foreground max-w-[160px] truncate" title={f.notes || ''}>{f.notes || '—'}</td>
                   <td className="p-3">
                     <div className="flex gap-1 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => quickToggle(f)}>
-                        Mark {f.status === 'paid' ? 'Unpaid' : 'Paid'}
-                      </Button>
+                      {f.status !== 'paid' && (
+                        <Button size="sm" variant="outline" onClick={() => quickMarkPaid(f)}>Mark Paid</Button>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -1899,8 +1920,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                 </tr>
               );
             })}
-            {fees.length === 0 && (
-              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+            {rows.length === 0 && (
+              <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">No fee records for this month</td></tr>
             )}
           </tbody>
         </table>
@@ -1926,34 +1947,45 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </Select>
             </div>
             <div>
+              <Label>Game</Label>
+              <Select value={editGameId} onValueChange={setEditGameId}>
+                <SelectTrigger><SelectValue placeholder="Select game" /></SelectTrigger>
+                <SelectContent>
+                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Month</Label>
               <Input type="month" value={editMonth} onChange={e => setEditMonth(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Fee Amount (₹)</Label>
+                <Label>Monthly Fee (₹)</Label>
                 <Input type="number" min="0" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="e.g. 1500" />
+                <p className="text-xs text-muted-foreground mt-1">Updates default for future months.</p>
               </div>
               <div>
-                <Label>Paid (₹)</Label>
+                <Label>Collected (₹)</Label>
                 <Input type="number" min="0" step="0.01" value={editCollected} onChange={e => setEditCollected(e.target.value)} placeholder="e.g. 1000" />
               </div>
             </div>
             <div>
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>Payment Mode</Label>
+              <Select value={editMode || 'none'} onValueChange={(v) => setEditMode(v === 'none' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="none">—</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Payment Note</Label>
-              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Optional note (e.g. cash, partial paid by parent)" />
+              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Optional note" />
             </div>
+            <p className="text-xs text-muted-foreground">Status auto-calculated: Unpaid (₹0) · Partial · Paid (Collected ≥ Fee).</p>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
@@ -1971,9 +2003,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             ) : (
               <table className="w-full text-xs">
                 <thead className="bg-muted"><tr>
-                  <th className="text-left p-2">Date</th><th className="text-left p-2">Amount</th>
-                  <th className="text-left p-2">Paid</th><th className="text-left p-2">Status</th>
-                  <th className="text-left p-2">By</th><th className="text-left p-2">Note</th>
+                  <th className="text-left p-2">Date</th><th className="text-left p-2">Fee</th>
+                  <th className="text-left p-2">Collected</th><th className="text-left p-2">Status</th>
+                  <th className="text-left p-2">Mode</th><th className="text-left p-2">By</th><th className="text-left p-2">Note</th>
                 </tr></thead>
                 <tbody>
                   {historyRows.map(h => (
@@ -1982,6 +2014,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                       <td className="p-2">₹{Number(h.amount).toLocaleString()}</td>
                       <td className="p-2">₹{Number(h.collected_amount).toLocaleString()}</td>
                       <td className="p-2">{h.status}</td>
+                      <td className="p-2 capitalize">{h.payment_mode || '—'}</td>
                       <td className="p-2 capitalize">{h.updated_by_role || '—'}</td>
                       <td className="p-2">{h.notes || '—'}</td>
                     </tr>
