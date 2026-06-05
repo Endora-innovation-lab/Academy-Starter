@@ -735,7 +735,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           payment_mode: r.mode || null,
           notes: r.notes || null,
           updated_by: userId,
-          game_id: selectedGame,
+          game_id: gameId,
         };
         let savedId = r.fee_id;
         if (r.fee_id) {
