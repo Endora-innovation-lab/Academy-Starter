@@ -751,7 +751,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         await supabase.from('fee_history').insert({
           fee_id: savedId, student_id: sid, institute_id: instituteId, month,
           amount: amt, collected_amount: col, excess_amount: excess, status,
-          payment_mode: r.mode || null, notes: r.notes || null, game_id: selectedGame,
+          payment_mode: r.mode || null, notes: r.notes || null, game_id: gameId,
           updated_by: userId, updated_by_role: 'teacher',
         });
       }
