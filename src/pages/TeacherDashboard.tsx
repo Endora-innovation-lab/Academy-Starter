@@ -873,8 +873,8 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           </div>
         </>
       )}
-      {hasLoaded && selectedGame && month && displayRows.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-8">No active students enrolled in this game.</p>
+      {hasLoaded && selectedBatch && month && displayRows.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">No active students in this batch enrolled for the linked game.</p>
       )}
     </div>
   );
