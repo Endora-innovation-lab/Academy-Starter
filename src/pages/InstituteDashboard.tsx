@@ -319,7 +319,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
