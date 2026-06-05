@@ -438,12 +438,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           student_id: editStudent.id,
           name, dob,
           parent_phone: parentPhone,
-          email: email || undefined,
           reg_no: regNo || undefined,
           status,
         },
       });
-      toast.success('Student updated');
+      toast.success('Student updated. Login credentials synced.');
       setShowEdit(false);
       setEditStudent(null);
       fetchStudents();
