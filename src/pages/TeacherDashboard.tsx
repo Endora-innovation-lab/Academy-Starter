@@ -786,11 +786,11 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
       <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Update Fees</h2>
       <p className="text-sm text-muted-foreground">Enter Collected Amount and Payment Mode. Monthly Fee is set by the institute. Status is calculated automatically. Click <b>Save Fees</b> to apply.</p>
       <div className="flex flex-wrap gap-3">
-        {games.length > 1 && (
-          <Select value={selectedGame} onValueChange={setSelectedGame}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Select game" /></SelectTrigger>
+        {batches.length > 1 && (
+          <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Select batch" /></SelectTrigger>
             <SelectContent>
-              {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
