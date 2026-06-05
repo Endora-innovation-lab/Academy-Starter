@@ -885,6 +885,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                   <Button size="sm" variant="ghost" onClick={() => {
                     setEditTeacher(t);
                     setName((t.profiles as any)?.name || '');
+                    setEmail((t.profiles as any)?.email || '');
                     setPhone(t.phone);
                     setBirthYear(t.birth_year);
                     setShowEdit(true);
