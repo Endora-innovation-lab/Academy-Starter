@@ -908,6 +908,11 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+              <p className="text-xs text-muted-foreground mt-1">Used as login email. Changing it updates the teacher's login immediately; all batches, attendance, and assignments are preserved.</p>
+            </div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
             <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required /></div>
             <Button type="submit" className="w-full">Update</Button>
