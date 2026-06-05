@@ -319,7 +319,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [searchTerm, setSearchTerm] = useState('');
 
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
@@ -438,12 +437,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           student_id: editStudent.id,
           name, dob,
           parent_phone: parentPhone,
-          email: email || undefined,
           reg_no: regNo || undefined,
           status,
         },
       });
-      toast.success('Student updated');
+      toast.success('Student updated. Login credentials synced.');
       setShowEdit(false);
       setEditStudent(null);
       fetchStudents();
@@ -622,7 +620,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     <Button size="sm" variant="ghost" onClick={() => {
                       setEditStudent(s);
                       setName((s.profiles as any)?.name || '');
-                      setEmail((s.profiles as any)?.email || '');
                       setRegNo(s.reg_no || '');
                       setDob(s.dob);
                       setParentPhone(s.parent_phone || '');
@@ -649,15 +646,15 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
             <div>
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="student@example.com" />
-              <p className="text-xs text-muted-foreground mt-1">Changing email keeps attendance, fees, and enrollments linked.</p>
-            </div>
-            <div>
               <Label>Registration Number</Label>
               <Input value={regNo} onChange={e => setRegNo(e.target.value)} required />
+              <p className="text-xs text-muted-foreground mt-1">Used as login username. Changing it updates the student's login automatically.</p>
             </div>
-            <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required /></div>
+            <div>
+              <Label>DOB (dd-mm-yyyy)</Label>
+              <Input value={dob} onChange={e => setDob(e.target.value)} required />
+              <p className="text-xs text-muted-foreground mt-1">Used as login password. Changing it updates the student's password automatically.</p>
+            </div>
             <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
             <div>
               <Label>Overall Status</Label>
@@ -809,10 +806,12 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await supabase.functions.invoke('admin-operations', {
-        body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear },
+      const { data, error } = await supabase.functions.invoke('admin-operations', {
+        body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear, email: email || undefined },
       });
-      toast.success('Teacher updated');
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Teacher updated. Login email synced.');
       setShowEdit(false);
       fetchTeachers();
     } catch (err: any) {
@@ -886,6 +885,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                   <Button size="sm" variant="ghost" onClick={() => {
                     setEditTeacher(t);
                     setName((t.profiles as any)?.name || '');
+                    setEmail((t.profiles as any)?.email || '');
                     setPhone(t.phone);
                     setBirthYear(t.birth_year);
                     setShowEdit(true);
@@ -908,6 +908,11 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+              <p className="text-xs text-muted-foreground mt-1">Used as login email. Changing it updates the teacher's login immediately; all batches, attendance, and assignments are preserved.</p>
+            </div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
             <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required /></div>
             <Button type="submit" className="w-full">Update</Button>

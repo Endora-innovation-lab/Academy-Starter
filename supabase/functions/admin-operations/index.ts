@@ -260,8 +260,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update_student') {
-      const { student_id, name, dob, parent_phone, email, reg_no, status } = body
-      const { data: student } = await supabaseAdmin.from('students').select('user_id').eq('id', student_id).single()
+      const { student_id, name, dob, parent_phone, reg_no, status } = body
+      const { data: student } = await supabaseAdmin.from('students').select('user_id, reg_no, dob').eq('id', student_id).single()
       if (student) {
         const stuPatch: any = {}
         if (dob !== undefined) stuPatch.dob = dob
@@ -273,12 +273,29 @@ Deno.serve(async (req) => {
         }
         const profPatch: any = {}
         if (name !== undefined) profPatch.name = name
-        if (email !== undefined) profPatch.email = email
+
+        // Sync login credentials when reg_no or dob change.
+        // Login email = `<reg_no normalized>@student.academy.local`, password = dob.
+        const authPatch: any = {}
+        if (reg_no !== undefined && reg_no !== student.reg_no) {
+          const newEmail = `${String(reg_no).toLowerCase().replace(/[^a-z0-9]/g, '')}@student.academy.local`
+          authPatch.email = newEmail
+          authPatch.email_confirm = true
+          profPatch.email = newEmail
+        }
+        if (dob !== undefined && dob !== student.dob) {
+          authPatch.password = dob
+        }
         if (Object.keys(profPatch).length > 0) {
           await supabaseAdmin.from('profiles').update(profPatch).eq('user_id', student.user_id)
         }
-        if (email !== undefined) {
-          await supabaseAdmin.auth.admin.updateUserById(student.user_id, { email })
+        if (Object.keys(authPatch).length > 0) {
+          const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(student.user_id, authPatch)
+          if (authErr) {
+            return new Response(JSON.stringify({ error: authErr.message }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
         }
       }
       return new Response(JSON.stringify({ success: true }), {
@@ -287,11 +304,24 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update_teacher') {
-      const { teacher_id, name, phone, birth_year } = body
+      const { teacher_id, name, phone, birth_year, email } = body
       const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id').eq('id', teacher_id).single()
       if (teacher) {
         await supabaseAdmin.from('teachers').update({ phone, birth_year }).eq('id', teacher_id)
-        await supabaseAdmin.from('profiles').update({ name }).eq('user_id', teacher.user_id)
+        const profPatch: any = {}
+        if (name !== undefined) profPatch.name = name
+        if (email !== undefined) profPatch.email = email
+        if (Object.keys(profPatch).length > 0) {
+          await supabaseAdmin.from('profiles').update(profPatch).eq('user_id', teacher.user_id)
+        }
+        if (email !== undefined) {
+          const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(teacher.user_id, { email, email_confirm: true })
+          if (authErr) {
+            return new Response(JSON.stringify({ error: authErr.message }), {
+              status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+        }
       }
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

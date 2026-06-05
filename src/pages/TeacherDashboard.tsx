@@ -620,16 +620,16 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
 };
 
 const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; instituteId: string; userId: string }) => {
-  const [games, setGames] = useState<any[]>([]);
-  const [selectedGame, setSelectedGame] = useState<string>('');
+  const [batches, setBatches] = useState<any[]>([]); // {id, name, game_id}
+  const [selectedBatch, setSelectedBatch] = useState<string>('');
   const [month, setMonth] = useState('');
-  const [rows, setRows] = useState<any[]>([]); // {student_id, name, reg_no, monthly_fee, fee_id, collected, mode, notes}
+  const [rows, setRows] = useState<any[]>([]);
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load games teacher has access to via their batches
+  // Load batches assigned to this teacher (both via batch_teachers and legacy batches.teacher_id)
   useEffect(() => {
     const fetch = async () => {
       const [{ data: btData }, { data: legacyData }] = await Promise.all([
@@ -640,48 +640,61 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         ...(btData?.map(bt => bt.batch_id) || []),
         ...(legacyData?.map(b => b.id) || []),
       ]));
-      if (batchIds.length === 0) return;
-      const { data: batches } = await supabase.from('batches').select('game_id').in('id', batchIds);
-      const gameIds = Array.from(new Set((batches || []).map((b: any) => b.game_id).filter(Boolean)));
-      if (gameIds.length === 0) return;
-      const { data: gs } = await supabase.from('games').select('id, name').in('id', gameIds).order('name');
-      setGames(gs || []);
-      if ((gs || []).length === 1) setSelectedGame(gs![0].id);
+      if (batchIds.length === 0) { setBatches([]); return; }
+      const { data: bs } = await supabase.from('batches').select('id, name, game_id').in('id', batchIds).order('name');
+      setBatches(bs || []);
+      if ((bs || []).length === 1) setSelectedBatch(bs![0].id);
     };
     fetch();
   }, [teacherId]);
 
-  const load = async () => {
-    if (!selectedGame || !month) return;
-    // Students enrolled in this game, active overall and active in this game
-    const { data: enrolls } = await supabase
-      .from('student_games')
-      .select('student_id, monthly_fee, status, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))')
-      .eq('game_id', selectedGame)
-      .eq('status', 'active');
+  const currentBatch = batches.find(b => b.id === selectedBatch);
+  const gameId = currentBatch?.game_id || null;
 
-    const active = (enrolls || []).filter((e: any) => (e.students as any)?.status !== 'inactive');
-    const studentIds = active.map((e: any) => e.student_id);
+  const load = async () => {
+    if (!selectedBatch || !month) return;
+    // Students in this batch
+    const { data: bsRows } = await supabase
+      .from('batch_students')
+      .select('student_id, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))')
+      .eq('batch_id', selectedBatch);
+    const active = (bsRows || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
+    const studentIds = active.map((r: any) => r.student_id);
+
+    // Per-game enrollment status & monthly fee (filter out students not actively enrolled in this batch's game)
+    let sgMap: Record<string, any> = {};
+    if (gameId && studentIds.length > 0) {
+      const { data: sgRows } = await supabase
+        .from('student_games')
+        .select('student_id, monthly_fee, status')
+        .eq('game_id', gameId)
+        .in('student_id', studentIds);
+      (sgRows || []).forEach((s: any) => { sgMap[s.student_id] = s; });
+    }
+
+    const eligible = active.filter((r: any) => !gameId || (sgMap[r.student_id] && sgMap[r.student_id].status === 'active'));
+    const eligibleIds = eligible.map((r: any) => r.student_id);
 
     const feeMap: Record<string, any> = {};
-    if (studentIds.length > 0) {
+    if (eligibleIds.length > 0 && gameId) {
       const { data: fees } = await supabase
         .from('fees')
         .select('*')
-        .in('student_id', studentIds)
-        .eq('game_id', selectedGame)
+        .in('student_id', eligibleIds)
+        .eq('game_id', gameId)
         .eq('month', month);
       (fees || []).forEach((f: any) => { feeMap[f.student_id] = f; });
     }
 
-    const built = active.map((e: any) => {
-      const stu = e.students as any;
-      const fee = feeMap[e.student_id];
+    const built = eligible.map((r: any) => {
+      const stu = r.students as any;
+      const sg = sgMap[r.student_id];
+      const fee = feeMap[r.student_id];
       return {
-        student_id: e.student_id,
+        student_id: r.student_id,
         name: stu?.profiles?.name || '—',
         reg_no: stu?.reg_no || '',
-        monthly_fee: Number(fee?.amount ?? e.monthly_fee) || 0,
+        monthly_fee: Number(fee?.amount ?? sg?.monthly_fee ?? 0) || 0,
         fee_id: fee?.id || null,
         collected: Number(fee?.collected_amount) || 0,
         mode: fee?.payment_mode || '',
@@ -693,7 +706,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
     setHasLoaded(true);
   };
 
-  useEffect(() => { setHasLoaded(false); load(); }, [selectedGame, month]);
+  useEffect(() => { setHasLoaded(false); load(); }, [selectedBatch, month]);
 
   const markDirty = (sid: string) => setDirty(prev => ({ ...prev, [sid]: true }));
 
@@ -722,7 +735,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           payment_mode: r.mode || null,
           notes: r.notes || null,
           updated_by: userId,
-          game_id: selectedGame,
+          game_id: gameId,
         };
         let savedId = r.fee_id;
         if (r.fee_id) {
@@ -738,7 +751,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         await supabase.from('fee_history').insert({
           fee_id: savedId, student_id: sid, institute_id: instituteId, month,
           amount: amt, collected_amount: col, excess_amount: excess, status,
-          payment_mode: r.mode || null, notes: r.notes || null, game_id: selectedGame,
+          payment_mode: r.mode || null, notes: r.notes || null, game_id: gameId,
           updated_by: userId, updated_by_role: 'teacher',
         });
       }
@@ -773,11 +786,11 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
       <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Update Fees</h2>
       <p className="text-sm text-muted-foreground">Enter Collected Amount and Payment Mode. Monthly Fee is set by the institute. Status is calculated automatically. Click <b>Save Fees</b> to apply.</p>
       <div className="flex flex-wrap gap-3">
-        {games.length > 1 && (
-          <Select value={selectedGame} onValueChange={setSelectedGame}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Select game" /></SelectTrigger>
+        {batches.length > 1 && (
+          <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="Select batch" /></SelectTrigger>
             <SelectContent>
-              {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+              {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
@@ -790,7 +803,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         )}
       </div>
 
-      {hasLoaded && selectedGame && month && displayRows.length > 0 && (
+      {hasLoaded && selectedBatch && month && displayRows.length > 0 && (
         <>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
@@ -860,8 +873,8 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           </div>
         </>
       )}
-      {hasLoaded && selectedGame && month && displayRows.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-8">No active students enrolled in this game.</p>
+      {hasLoaded && selectedBatch && month && displayRows.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">No active students in this batch enrolled for the linked game.</p>
       )}
     </div>
   );
