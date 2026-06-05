@@ -806,10 +806,12 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await supabase.functions.invoke('admin-operations', {
-        body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear },
+      const { data, error } = await supabase.functions.invoke('admin-operations', {
+        body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear, email: email || undefined },
       });
-      toast.success('Teacher updated');
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Teacher updated. Login email synced.');
       setShowEdit(false);
       fetchTeachers();
     } catch (err: any) {
