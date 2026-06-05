@@ -647,15 +647,15 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
             <div>
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="student@example.com" />
-              <p className="text-xs text-muted-foreground mt-1">Changing email keeps attendance, fees, and enrollments linked.</p>
-            </div>
-            <div>
               <Label>Registration Number</Label>
               <Input value={regNo} onChange={e => setRegNo(e.target.value)} required />
+              <p className="text-xs text-muted-foreground mt-1">Used as login username. Changing it updates the student's login automatically.</p>
             </div>
-            <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required /></div>
+            <div>
+              <Label>DOB (dd-mm-yyyy)</Label>
+              <Input value={dob} onChange={e => setDob(e.target.value)} required />
+              <p className="text-xs text-muted-foreground mt-1">Used as login password. Changing it updates the student's password automatically.</p>
+            </div>
             <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
             <div>
               <Label>Overall Status</Label>
