@@ -72,7 +72,7 @@ const NoBatchWarning = ({ onGoToBatches }: { onGoToBatches?: () => void }) => (
 
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ instituteId }: { instituteId: string }) => {
-  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, teachers: 0, classes: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
+  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, activeStudents: 0, inactiveStudents: 0, teachers: 0, classes: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
@@ -142,12 +142,16 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           feeQuery = feeQuery.eq('student_id', '00000000-0000-0000-0000-000000000000');
         }
       } else {
-        const [stuRes, teaRes] = await Promise.all([
+        const [stuRes, teaRes, activeStuRes, inactiveStuRes] = await Promise.all([
           supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
           supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+          supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).eq('status', 'active'),
+          supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).eq('status', 'inactive'),
         ]);
         studentCount = stuRes.count || 0;
         teacherCount = teaRes.count || 0;
+        var activeStudents = activeStuRes.count || 0;
+        var inactiveStudents = inactiveStuRes.count || 0;
       }
 
       const [attRes, feeRes, teaAttRes, classesRes] = await Promise.all([
@@ -169,6 +173,8 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         paid: paidFees.length,
         unpaid: unpaidFees.length,
         students: studentCount,
+        activeStudents: activeStudents || 0,
+        inactiveStudents: inactiveStudents || 0,
         teachers: teacherCount,
         classes: classesSet.size,
         totalCollected: paidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
@@ -221,6 +227,18 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           <CardContent className="pt-5">
             <p className="text-sm text-muted-foreground">Total Students</p>
             <p className="text-3xl font-bold text-primary">{stats.students}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm text-muted-foreground">Active Students</p>
+            <p className="text-3xl font-bold text-accent">{stats.activeStudents}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm text-muted-foreground">Inactive Students</p>
+            <p className="text-3xl font-bold text-destructive">{stats.inactiveStudents}</p>
           </CardContent>
         </Card>
         <Card>
