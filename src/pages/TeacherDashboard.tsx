@@ -803,7 +803,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
         )}
       </div>
 
-      {hasLoaded && selectedGame && month && displayRows.length > 0 && (
+      {hasLoaded && selectedBatch && month && displayRows.length > 0 && (
         <>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
