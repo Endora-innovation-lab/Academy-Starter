@@ -621,7 +621,6 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     <Button size="sm" variant="ghost" onClick={() => {
                       setEditStudent(s);
                       setName((s.profiles as any)?.name || '');
-                      setEmail((s.profiles as any)?.email || '');
                       setRegNo(s.reg_no || '');
                       setDob(s.dob);
                       setParentPhone(s.parent_phone || '');
