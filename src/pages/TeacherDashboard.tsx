@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3 } from 'lucide-react';
+import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
