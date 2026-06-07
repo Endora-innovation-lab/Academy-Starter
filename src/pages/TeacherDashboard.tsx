@@ -63,6 +63,7 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [studentStats, setStudentStats] = useState({ total: 0, active: 0, inactive: 0 });
 
   useEffect(() => {
     const load = async () => {
@@ -93,6 +94,36 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
       const bArr = Object.entries(batchMap).map(([id, name], i) => ({ id, name, color: palette[i % palette.length] }));
       setBatches(bArr);
       setChartData(Object.values(dateMap).sort((a: any, b: any) => a.fullDate.localeCompare(b.fullDate)));
+
+      // Fetch student stats for teacher's batches
+      const [{ data: btData }, { data: legacyData }] = await Promise.all([
+        supabase.from('batch_teachers').select('batch_id').eq('teacher_id', teacherId),
+        supabase.from('batches').select('id').eq('teacher_id', teacherId),
+      ]);
+      const batchIds = [
+        ...(btData?.map(bt => bt.batch_id) || []),
+        ...(legacyData?.map(b => b.id) || []),
+      ];
+      if (batchIds.length > 0) {
+        const { data: bsData } = await supabase
+          .from('batch_students')
+          .select('student_id, students(status)')
+          .in('batch_id', batchIds);
+        const uniqueStudents = new Map<string, string>();
+        (bsData || []).forEach((r: any) => {
+          const sid = r.student_id;
+          const st = (r.students as any)?.status || 'active';
+          if (!uniqueStudents.has(sid)) uniqueStudents.set(sid, st);
+        });
+        let active = 0, inactive = 0;
+        uniqueStudents.forEach(st => {
+          if (st === 'inactive') inactive++;
+          else active++;
+        });
+        setStudentStats({ total: uniqueStudents.size, active, inactive });
+      } else {
+        setStudentStats({ total: 0, active: 0, inactive: 0 });
+      }
     };
     load();
   }, [teacherId, month]);
@@ -122,6 +153,30 @@ const OverviewTab = ({ teacherId, instituteId }: { teacherId: string; instituteI
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Absent</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold text-destructive">{counts.absent}</div></CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm text-muted-foreground">Total Students</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{studentStats.total}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm text-muted-foreground">Active Students</CardTitle>
+            <Users className="h-4 w-4 text-accent" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold text-accent">{studentStats.active}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm text-muted-foreground">Inactive Students</CardTitle>
+            <Users className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold text-destructive">{studentStats.inactive}</div></CardContent>
         </Card>
       </div>
 
