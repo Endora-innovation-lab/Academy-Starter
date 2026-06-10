@@ -1085,6 +1085,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
   const [batchGameId, setBatchGameId] = useState<string>('');
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [enrollRegNo, setEnrollRegNo] = useState('');
+  const [showAddStudent, setShowAddStudent] = useState(false);
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
   const [batchTeachers, setBatchTeachers] = useState<any[]>([]);
 
@@ -1379,13 +1380,13 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!showAssign} onOpenChange={() => setShowAssign(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+      <Dialog open={!!showAssign} onOpenChange={(o) => { if (!o) { setShowAssign(null); setShowAddStudent(false); } }}>
+        <DialogContent className="max-w-4xl h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
           {(() => {
             const cur = batches.find((b: any) => b.id === showAssign);
             const gameName = (cur?.games as any)?.name;
             return (
-              <DialogHeader className="px-6 pt-6 pb-4 border-b">
+              <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0 bg-background">
                 <DialogTitle className="text-2xl font-bold">{cur?.name || 'Batch'}</DialogTitle>
                 <p className="text-sm text-muted-foreground">
                   Batch Management{gameName && <> · 🎯 <strong className="text-foreground">{gameName}</strong></>}
@@ -1394,9 +1395,9 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
             );
           })()}
 
-          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 p-6 bg-muted/30">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 p-6 bg-muted/30 flex-1 min-h-0 overflow-hidden">
             {/* LEFT COLUMN */}
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto pr-1 min-h-0">
               {/* Assigned Teacher Card */}
               <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
                 <div className="bg-gradient-to-b from-primary/10 to-primary/5 p-5 flex flex-col items-center text-center">
@@ -1435,56 +1436,29 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                   )}
                 </div>
               </div>
-
-              {/* Enroll Student Card */}
-              <div className="bg-card rounded-xl border shadow-sm p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Users className="h-4 w-4 text-primary" />
-                  <h4 className="font-semibold text-sm">Enroll Student</h4>
-                </div>
-                <Input
-                  placeholder="Enter Reg Number"
-                  value={enrollRegNo}
-                  onChange={e => setEnrollRegNo(e.target.value)}
-                  className="mb-2"
-                />
-                {enrollRegNo.trim() && (() => {
-                  const match = students.find(s => s.reg_no.toLowerCase() === enrollRegNo.trim().toLowerCase());
-                  const already = match && batchStudents.some(bs => (bs as any).student_id === match.id);
-                  return (
-                    <div className={`text-xs mb-2 p-2 rounded border ${match ? (already ? 'border-amber-500 text-amber-700 bg-amber-50' : 'border-green-500 text-green-700 bg-green-50') : 'border-destructive text-destructive bg-destructive/10'}`}>
-                      {match ? (
-                        <>Preview: <strong>{(match.profiles as any)?.name}</strong> ({match.reg_no}){already && ' — already in batch'}</>
-                      ) : (
-                        <>No student found with this Reg No</>
-                      )}
-                    </div>
-                  );
-                })()}
-                <Button onClick={handleEnrollByRegNo} className="w-full">
-                  + Add Student to Batch
-                </Button>
-              </div>
             </div>
 
             {/* RIGHT COLUMN — Enrolled Students */}
-            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/40">
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-0">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/40 shrink-0">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
                   <h4 className="font-semibold text-sm">Enrolled Students</h4>
+                  <span className="bg-primary text-primary-foreground text-xs font-semibold px-2.5 py-0.5 rounded-md ml-1">
+                    {batchStudents.length}
+                  </span>
                 </div>
-                <span className="bg-primary text-primary-foreground text-xs font-semibold px-2.5 py-0.5 rounded-md">
-                  {batchStudents.length}
-                </span>
+                <Button size="sm" onClick={() => { setEnrollRegNo(''); setShowAddStudent(true); }}>
+                  + Add Student
+                </Button>
               </div>
 
-              {batchStudents.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-12">No students in this batch</div>
-              ) : (
-                <div className="overflow-x-auto">
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {batchStudents.length === 0 ? (
+                  <div className="text-sm text-muted-foreground text-center py-12">No students in this batch</div>
+                ) : (
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 bg-card z-10">
                       <tr className="text-left text-xs uppercase text-muted-foreground border-b">
                         <th className="px-5 py-2.5 font-medium">Student</th>
                         <th className="px-3 py-2.5 font-medium">Reg No</th>
@@ -1523,8 +1497,59 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                       })}
                     </tbody>
                   </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddStudent} onOpenChange={setShowAddStudent}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Student to Batch</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Search by Registration Number</Label>
+              <Input
+                placeholder="Enter Reg Number"
+                value={enrollRegNo}
+                onChange={e => setEnrollRegNo(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {enrollRegNo.trim() && (() => {
+              const q = enrollRegNo.trim().toLowerCase();
+              const matches = students.filter(s => s.reg_no.toLowerCase().includes(q)).slice(0, 8);
+              if (matches.length === 0) {
+                return <div className="text-xs p-2 rounded border border-destructive text-destructive bg-destructive/10">No student found</div>;
+              }
+              return (
+                <div className="border rounded-md divide-y max-h-60 overflow-y-auto">
+                  {matches.map(s => {
+                    const already = batchStudents.some(bs => (bs as any).student_id === s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={already}
+                        onClick={() => { setEnrollRegNo(s.reg_no); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between ${already ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <span><strong>{(s.profiles as any)?.name}</strong> <span className="text-muted-foreground">({s.reg_no})</span></span>
+                        {already && <span className="text-xs text-amber-600">in batch</span>}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              );
+            })()}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddStudent(false)}>Cancel</Button>
+              <Button onClick={async () => { await handleEnrollByRegNo(); setShowAddStudent(false); }}>
+                + Add to Batch
+              </Button>
             </div>
           </div>
         </DialogContent>
