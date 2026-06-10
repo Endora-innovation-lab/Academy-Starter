@@ -1380,74 +1380,151 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
       </Dialog>
 
       <Dialog open={!!showAssign} onOpenChange={() => setShowAssign(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Manage Batch</DialogTitle>
-            {(() => {
-              const cur = batches.find((b: any) => b.id === showAssign);
-              const gameName = (cur?.games as any)?.name;
-              return (
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          {(() => {
+            const cur = batches.find((b: any) => b.id === showAssign);
+            const gameName = (cur?.games as any)?.name;
+            return (
+              <DialogHeader className="px-6 pt-6 pb-4 border-b">
+                <DialogTitle className="text-2xl font-bold">{cur?.name || 'Batch'}</DialogTitle>
                 <p className="text-sm text-muted-foreground">
-                  {cur?.name}{gameName && <> · 🎯 Game/Course: <strong className="text-foreground">{gameName}</strong></>}
+                  Batch Management{gameName && <> · 🎯 <strong className="text-foreground">{gameName}</strong></>}
                 </p>
-              );
-            })()}
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Teachers</h4>
-              <div className="flex gap-2 mb-2">
-                <Select onValueChange={handleAddTeacherToBatch}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="Add teacher..." /></SelectTrigger>
-                  <SelectContent>
-                    {teachers.filter(t => !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
-                      <SelectItem key={t.id} value={t.id}>{(t.profiles as any)?.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                {batchTeachers.map(bt => (
-                  <div key={bt.id} className="flex items-center justify-between p-2 rounded bg-muted">
-                    <span className="text-sm">{(bt.teachers as any)?.profiles?.name}</span>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveTeacherFromBatch(bt.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+              </DialogHeader>
+            );
+          })()}
+
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 p-6 bg-muted/30">
+            {/* LEFT COLUMN */}
+            <div className="space-y-4">
+              {/* Assigned Teacher Card */}
+              <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                <div className="bg-gradient-to-b from-primary/10 to-primary/5 p-5 flex flex-col items-center text-center">
+                  <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center mb-3">
+                    <Users className="h-7 w-7 text-primary" />
                   </div>
-                ))}
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assigned Teacher</p>
+                  <p className="font-semibold text-base mt-1 break-words">
+                    {batchTeachers.length === 0
+                      ? 'Not assigned'
+                      : batchTeachers.map(bt => (bt.teachers as any)?.profiles?.name).filter(Boolean).join(', ')}
+                  </p>
+                </div>
+                <div className="p-3 space-y-2">
+                  <Select onValueChange={handleAddTeacherToBatch}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="+ Change / Add Teacher" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teachers.filter(t => !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
+                        <SelectItem key={t.id} value={t.id}>{(t.profiles as any)?.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {batchTeachers.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      {batchTeachers.map(bt => (
+                        <div key={bt.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/60 text-sm">
+                          <span className="truncate">{(bt.teachers as any)?.profiles?.name}</span>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10" onClick={() => handleRemoveTeacherFromBatch(bt.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Enroll Student Card */}
+              <div className="bg-card rounded-xl border shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold text-sm">Enroll Student</h4>
+                </div>
+                <Input
+                  placeholder="Enter Reg Number"
+                  value={enrollRegNo}
+                  onChange={e => setEnrollRegNo(e.target.value)}
+                  className="mb-2"
+                />
+                {enrollRegNo.trim() && (() => {
+                  const match = students.find(s => s.reg_no.toLowerCase() === enrollRegNo.trim().toLowerCase());
+                  const already = match && batchStudents.some(bs => (bs as any).student_id === match.id);
+                  return (
+                    <div className={`text-xs mb-2 p-2 rounded border ${match ? (already ? 'border-amber-500 text-amber-700 bg-amber-50' : 'border-green-500 text-green-700 bg-green-50') : 'border-destructive text-destructive bg-destructive/10'}`}>
+                      {match ? (
+                        <>Preview: <strong>{(match.profiles as any)?.name}</strong> ({match.reg_no}){already && ' — already in batch'}</>
+                      ) : (
+                        <>No student found with this Reg No</>
+                      )}
+                    </div>
+                  );
+                })()}
+                <Button onClick={handleEnrollByRegNo} className="w-full">
+                  + Add Student to Batch
+                </Button>
               </div>
             </div>
 
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Students</h4>
-              <div className="flex gap-2 mb-2">
-                <Input placeholder="Enter Reg Number" value={enrollRegNo} onChange={e => setEnrollRegNo(e.target.value)} className="flex-1" />
-                <Button onClick={handleEnrollByRegNo}>Add</Button>
+            {/* RIGHT COLUMN — Enrolled Students */}
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/40">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold text-sm">Enrolled Students</h4>
+                </div>
+                <span className="bg-primary text-primary-foreground text-xs font-semibold px-2.5 py-0.5 rounded-md">
+                  {batchStudents.length}
+                </span>
               </div>
-              {enrollRegNo.trim() && (() => {
-                const match = students.find(s => s.reg_no.toLowerCase() === enrollRegNo.trim().toLowerCase());
-                const already = match && batchStudents.some(bs => (bs as any).student_id === match.id);
-                return (
-                  <div className={`text-xs mb-2 p-2 rounded border ${match ? (already ? 'border-amber-500 text-amber-700 bg-amber-50' : 'border-green-500 text-green-700 bg-green-50') : 'border-destructive text-destructive bg-destructive/10'}`}>
-                    {match ? (
-                      <>Preview: <strong>{(match.profiles as any)?.name}</strong> ({match.reg_no}){already && ' — already in batch'}</>
-                    ) : (
-                      <>No student found with this Reg No</>
-                    )}
-                  </div>
-                );
-              })()}
-              <div className="space-y-1">
-                {batchStudents.map(bs => (
-                  <div key={bs.id} className="flex items-center justify-between p-2 rounded bg-muted">
-                    <span className="text-sm">{(bs.students as any)?.profiles?.name} ({(bs.students as any)?.reg_no})</span>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveFromBatch(bs.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-                {batchStudents.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No students in this batch</p>}
-              </div>
+
+              {batchStudents.length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-12">No students in this batch</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase text-muted-foreground border-b">
+                        <th className="px-5 py-2.5 font-medium">Student</th>
+                        <th className="px-3 py-2.5 font-medium">Reg No</th>
+                        <th className="px-3 py-2.5 font-medium text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchStudents.map((bs, idx) => {
+                        const name = (bs.students as any)?.profiles?.name || '—';
+                        const reg = (bs.students as any)?.reg_no || '';
+                        const initial = name.charAt(0).toUpperCase();
+                        return (
+                          <tr key={bs.id} className={idx % 2 ? 'bg-muted/30' : ''}>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                                  {initial}
+                                </div>
+                                <span className="font-medium">{name}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-muted-foreground">{reg}</td>
+                            <td className="px-3 py-3 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 p-0 border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                onClick={() => handleRemoveFromBatch(bs.id)}
+                                title="Remove from batch"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
