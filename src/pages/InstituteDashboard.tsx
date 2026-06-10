@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
@@ -352,6 +353,10 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [newGameId, setNewGameId] = useState('');
   const [newGameFee, setNewGameFee] = useState('');
 
+  // Delete confirmation dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteStudentId, setDeleteStudentId] = useState<string | null>(null);
+
   const fetchStudents = async () => {
     setLoading(true);
     const [stuRes, batchRes, gameRes, sgRes] = await Promise.all([
@@ -431,11 +436,16 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     }
   };
 
-  const handleDelete = async (studentId: string) => {
-    if (!confirm('Delete this student? Attendance and fee history will be removed.')) return;
+  const handleDelete = (studentId: string) => {
+    setDeleteStudentId(studentId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteStudentId) return;
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'delete_student', student_id: studentId },
+        body: { action: 'delete_student', student_id: deleteStudentId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -443,6 +453,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       fetchStudents();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete student');
+    } finally {
+      setShowDeleteDialog(false);
+      setDeleteStudentId(null);
     }
   };
 
@@ -747,6 +760,23 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this student?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Attendance and fee history will be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteStudentId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
