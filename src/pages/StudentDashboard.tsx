@@ -25,8 +25,9 @@ const StudentDashboard = () => {
   }, [user]);
 
   const tabs = [
-    { label: 'Attendance', value: 'attendance' },
-    { label: 'Fees', value: 'fees' },
+    { label: 'Attendance', value: 'attendance', icon: ClipboardList },
+    { label: 'Fees', value: 'fees', icon: DollarSign },
+    { label: 'Profile', value: 'profile', icon: User },
   ];
 
   if (loading || (user && !checked)) {
