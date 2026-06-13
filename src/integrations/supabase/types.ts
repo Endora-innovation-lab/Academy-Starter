@@ -69,6 +69,67 @@ export type Database = {
           },
         ]
       }
+      attendance_sessions: {
+        Row: {
+          batch_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          institute_id: string
+          session_date: string
+          started_at: string
+          triggered_by: string | null
+          triggered_by_teacher_id: string | null
+          window_minutes: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          institute_id: string
+          session_date?: string
+          started_at?: string
+          triggered_by?: string | null
+          triggered_by_teacher_id?: string | null
+          window_minutes?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          institute_id?: string
+          session_date?: string
+          started_at?: string
+          triggered_by?: string | null
+          triggered_by_teacher_id?: string | null
+          window_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_sessions_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_sessions_institute_id_fkey"
+            columns: ["institute_id"]
+            isOneToOne: false
+            referencedRelation: "institutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_sessions_triggered_by_teacher_id_fkey"
+            columns: ["triggered_by_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batch_students: {
         Row: {
           batch_id: string
@@ -320,28 +381,94 @@ export type Database = {
       }
       institutes: {
         Row: {
+          about: string | null
+          address: string | null
+          attendance_auto_absent: boolean
+          attendance_automation_enabled: boolean
+          attendance_window_minutes: number
+          branch_count: number | null
+          city: string | null
           code: string
+          contact_number: string | null
+          country: string | null
           created_at: string
           email: string
+          established_year: number | null
+          facebook: string | null
+          gst_number: string | null
           id: string
+          instagram: string | null
+          institute_type: string | null
+          logo_url: string | null
           name: string
+          owner_name: string | null
+          pin_code: string | null
+          registration_number: string | null
+          state: string | null
+          subscription_plan: string | null
           user_id: string
+          website: string | null
+          youtube: string | null
         }
         Insert: {
+          about?: string | null
+          address?: string | null
+          attendance_auto_absent?: boolean
+          attendance_automation_enabled?: boolean
+          attendance_window_minutes?: number
+          branch_count?: number | null
+          city?: string | null
           code: string
+          contact_number?: string | null
+          country?: string | null
           created_at?: string
           email: string
+          established_year?: number | null
+          facebook?: string | null
+          gst_number?: string | null
           id?: string
+          instagram?: string | null
+          institute_type?: string | null
+          logo_url?: string | null
           name: string
+          owner_name?: string | null
+          pin_code?: string | null
+          registration_number?: string | null
+          state?: string | null
+          subscription_plan?: string | null
           user_id: string
+          website?: string | null
+          youtube?: string | null
         }
         Update: {
+          about?: string | null
+          address?: string | null
+          attendance_auto_absent?: boolean
+          attendance_automation_enabled?: boolean
+          attendance_window_minutes?: number
+          branch_count?: number | null
+          city?: string | null
           code?: string
+          contact_number?: string | null
+          country?: string | null
           created_at?: string
           email?: string
+          established_year?: number | null
+          facebook?: string | null
+          gst_number?: string | null
           id?: string
+          instagram?: string | null
+          institute_type?: string | null
+          logo_url?: string | null
           name?: string
+          owner_name?: string | null
+          pin_code?: string | null
+          registration_number?: string | null
+          state?: string | null
+          subscription_plan?: string | null
           user_id?: string
+          website?: string | null
+          youtube?: string | null
         }
         Relationships: []
       }
@@ -417,6 +544,7 @@ export type Database = {
         Row: {
           created_at: string
           dob: string
+          emergency_contact: string | null
           id: string
           institute_id: string
           parent_phone: string | null
@@ -427,6 +555,7 @@ export type Database = {
         Insert: {
           created_at?: string
           dob: string
+          emergency_contact?: string | null
           id?: string
           institute_id: string
           parent_phone?: string | null
@@ -437,6 +566,7 @@ export type Database = {
         Update: {
           created_at?: string
           dob?: string
+          emergency_contact?: string | null
           id?: string
           institute_id?: string
           parent_phone?: string | null
@@ -512,7 +642,11 @@ export type Database = {
       teachers: {
         Row: {
           birth_year: string
+          blood_group: string | null
           created_at: string
+          date_of_birth: string | null
+          emergency_contact: string | null
+          gender: string | null
           id: string
           institute_id: string
           phone: string
@@ -520,7 +654,11 @@ export type Database = {
         }
         Insert: {
           birth_year: string
+          blood_group?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          emergency_contact?: string | null
+          gender?: string | null
           id?: string
           institute_id: string
           phone: string
@@ -528,7 +666,11 @@ export type Database = {
         }
         Update: {
           birth_year?: string
+          blood_group?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          emergency_contact?: string | null
+          gender?: string | null
           id?: string
           institute_id?: string
           phone?: string
