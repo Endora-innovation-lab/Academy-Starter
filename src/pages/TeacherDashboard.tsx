@@ -52,6 +52,7 @@ const TeacherDashboard = () => {
         </div>
       )}
       {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
+      {activeTab === 'profile' && teacherRecord && <TeacherProfile teacherId={teacherRecord.id} />}
     </DashboardLayout>
   );
 };
