@@ -30,13 +30,14 @@ const InstituteDashboard = () => {
   }, [instituteId, activeTab]);
 
   const tabs = [
-    { label: 'Overview', value: 'overview' },
-    { label: 'Games', value: 'games' },
-    { label: 'Batches', value: 'batches' },
-    { label: 'Students', value: 'students' },
-    { label: 'Teachers', value: 'teachers' },
-    { label: 'Attendance', value: 'attendance' },
-    { label: 'Fees', value: 'fees' },
+    { label: 'Overview', value: 'overview', icon: LayoutDashboard },
+    { label: 'Games', value: 'games', icon: BookOpen },
+    { label: 'Batches', value: 'batches', icon: Layers },
+    { label: 'Students', value: 'students', icon: GraduationCap },
+    { label: 'Teachers', value: 'teachers', icon: Users },
+    { label: 'Attendance', value: 'attendance', icon: ClipboardList },
+    { label: 'Fees', value: 'fees', icon: DollarSign },
+    { label: 'Profile', value: 'profile', icon: User },
   ];
 
   if (loading || (user && !instituteId)) {
