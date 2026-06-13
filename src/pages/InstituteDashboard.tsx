@@ -57,6 +57,7 @@ const InstituteDashboard = () => {
       {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} hasBatches={hasBatches} />}
       {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId} />}
       {activeTab === 'fees' && <FeesTab instituteId={instituteId} />}
+      {activeTab === 'profile' && <InstituteProfile instituteId={instituteId} />}
     </DashboardLayout>
   );
 };
