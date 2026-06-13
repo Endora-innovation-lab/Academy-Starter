@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3 } from 'lucide-react';
+import { ClipboardList, DollarSign, Layers, Search, UserCheck, BarChart3, LayoutDashboard, User } from 'lucide-react';
+import TeacherProfile from '@/components/profiles/TeacherProfile';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
@@ -27,9 +28,10 @@ const TeacherDashboard = () => {
   }, [user]);
 
   const tabs = [
-    { label: 'Overview', value: 'overview' },
-    { label: 'Mark Attendance', value: 'attendance' },
-    { label: 'Update Fees', value: 'fees' },
+    { label: 'Overview', value: 'overview', icon: LayoutDashboard },
+    { label: 'Mark Attendance', value: 'attendance', icon: ClipboardList },
+    { label: 'Update Fees', value: 'fees', icon: DollarSign },
+    { label: 'Profile', value: 'profile', icon: User },
   ];
 
   if (loading || (user && !instituteId)) {
@@ -50,6 +52,7 @@ const TeacherDashboard = () => {
         </div>
       )}
       {activeTab === 'fees' && teacherRecord && <UpdateFeesTab teacherId={teacherRecord.id} instituteId={instituteId} userId={user.id} />}
+      {activeTab === 'profile' && teacherRecord && <TeacherProfile teacherId={teacherRecord.id} />}
     </DashboardLayout>
   );
 };

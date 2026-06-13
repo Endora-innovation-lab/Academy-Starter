@@ -1,113 +1,168 @@
-## Overview
+# Plan: Sidebar + Profile + Attendance Upgrade
 
-Refactor the fee + student system from **batch-based** to **game-based**, add per-student/per-game enrollment with active/inactive status, an overall student status, and lock down teacher fee permissions.
+This is a large change. I'll keep all existing business logic, data, and APIs intact. Only **UI restructuring**, **3 new profile pages**, and **additive attendance features** with backward compatibility.
 
-## 1. Database changes (safe, additive migration)
+---
 
-- `**student_games**` (new) — links a student to a game with monthly fee and active flag.
-  - `student_id`, `game_id`, `institute_id`, `monthly_fee numeric default 0`, `status text default 'active'` (active/inactive)
-  - Unique (student_id, game_id)
-  - RLS: admins manage; teachers/students view in same institute / own record
-- `**students.status**` (new column) — text default `'active'`. Overall student status.
-- `**fees**` (alter) — add `game_id uuid` (nullable for backfill), `payment_mode text` (cash/online).
-- `**fee_history**` (alter) — add `game_id`, `payment_mode`.
-- **Backfill**: leave old fee rows with `game_id = null`; nothing destructive. Old batch/attendance/fee records untouched.
+## 1. Responsive Sidebar (all 3 dashboards)
 
-## 2. Institute Dashboard
+Refactor `src/components/DashboardLayout.tsx` to use shadcn `Sidebar` with:
 
-- **Students tab**:
-  - Add **Edit student** (email + roll no) — updates `profiles.email` and `students.reg_no` only; keeps same `student_id` so attendance/fees stay linked.
-  - Add **Status** toggle (Active/Inactive) on student.
-  - Add **Enrolled Games** panel inside student row: list games with monthly fee + per-game Active/Inactive + Remove. Add-game form (pick game + monthly fee).
-- **Add Student flow**: replace batch picker with **game picker + monthly fee input**. Creates `student_games` row. Still allows assigning to batch separately (batches stay for attendance grouping).
-- **Fees tab**:
-  - Replace **Batch filter** with **Game filter**. Hide filter if only 1 game.
-  - Monthly fee defaults from `student_games.monthly_fee` when row is created.
-  - Admin can override monthly fee per month and per game; updating `student_games.monthly_fee` propagates to future months.
-  - Show columns: Student | Game | Monthly Fee | Collected | Balance | Status (auto) | Mode | Date | Updated by | History.
-  - Auto-rollover: when loading a month, for each active `student_games` create a fee row if missing using `student_games.monthly_fee`.
+- Desktop:
+  - Sidebar should be visible by default.
+  - User can manually collapse/expand it.
+  Mobile:
+  - Sidebar hidden by default.
+  - Open using hamburger menu.
+  - Close when clicking outside or selecting a menu.
+- **Hamburger (☰) in top header** — always visible, toggles sidebar
+- Mobile: tap outside or select an item → closes (built-in Sheet behavior)
+- Smooth slide-in animation (shadcn default)
+- Sidebar items reordered to include **Profile** before **Logout**:
+  - Institute: Overview · Students · Teachers · Batches · Attendance · Fees · **Profile** · Logout
+  - Teacher: Overview · Batches · Attendance · **Profile** · Logout
+  - Student: Overview · Attendance · Fees · **Profile** · Logout
+- Keep current brand header (Academy + Institute code) at top, user info + logout pinned at bottom (matches reference image 3 structure).
 
-## 3. Teacher Dashboard
+## 2. Profile Pages (3 new)
 
-- Remove ability to edit Monthly Fee and to pick status manually.
-- Teacher inputs only **Collected Amount** and **Payment Mode** (Cash/Online), then **Save**.
-- Status auto: collected=0 → Unpaid; 0<collected<fee → Partial; collected≥fee → Paid.
-- Replace Batch filter with **Game filter** (hidden if 1 game). Teacher only sees students in batches they teach AND in games linked via `student_games`.
+New tab/section inside each dashboard (no new route — handled via existing tab state to avoid breaking auth/routing).
 
-## 4. Student Dashboard
+### Institute Profile (editable, except Institute ID)
 
-- Show only games the student is enrolled in.
-- If `students.status = 'inactive'` → show full-screen "You are currently inactive. Please contact your institute." with **Back to Home** button. Block dashboard.
-- Fee table shows Game | Monthly Fee | Collected | Balance | Status | Mode | Date.
+Cards layout (reference image 2 style — left section list, right content panel):
 
-## 5. Attendance
+- **Basic Information**: Logo, Name, ID (read-only), Type, Owner, Contact, Email
+- **Address**: Address, City, State, Country, PIN
+- **Business Information**: Established Year, Website, Facebook, Instagram, YouTube, Registration No., GST No., Branch Count
+- **Subscription Plan**: shows badge + opens popup *"You're in beta version"*
+- **Attendance Settings** section (see §4):
+  - Attendance Window Duration (hours, default 3)
+  - Auto-Absent Timing
+  - Enable/Disable Automation toggle
 
-- All attendance loaders filter out students where `students.status = 'inactive'` (Institute, Teacher).
-- Inactive-per-game does NOT hide from attendance (attendance is batch-level), only overall inactive hides.
+Saves to `institutes` table (extend with new nullable columns via migration — all optional, backward compatible).
 
-## 6. Auth gate
+### Teacher Profile (read-only)
 
-- On login, if `students.status = 'inactive'` redirect to `/inactive` page with message + Back to Home.
+Name, Teacher ID, Institute ID, Mobile, Email, Gender, DOB, Emergency Contact, Blood Group, Active/Inactive, Assigned Games, Assigned Batches.
 
-## Technical notes
+Teacher dashboard is read-only.
 
-- New migration: `student_games` table + grants + RLS + `students.status` + `fees.game_id` + `fees.payment_mode` + same on `fee_history`.
-- All edits in `src/pages/InstituteDashboard.tsx`, `src/pages/TeacherDashboard.tsx`, `src/pages/StudentDashboard.tsx`, plus new `src/pages/Inactive.tsx` route in `App.tsx`.
-- Edit student uses `admin-operations` edge function to update auth email (existing function path).
-- No deletes anywhere; data preserved.
+Institute can edit teacher details.
+
+Teacher cannot edit profile.
+
+### Student Profile (read-only)
+
+Name, Reg No, Institute ID, Parent name, Parent mobile, DOB, Gender, Address, Emergency Contact, Active/Inactive, Enrolled Games, Fee Summary, Attendance Summary.
+
+Institute can edit student details.
+
+Student dashboard remains read-only.
+
+Student cannot edit profile.
+
+## 3. Attendance Upgrade (additive, backward compatible)
+
+**No existing record changes.** New columns/table are additive and nullable.
+
+### Schema additions (migration)
+
+- `attendance` + `teacher_attendance`: add nullable `status` enum extension to allow `'pending'` (alongside existing `'present' | 'absent' | 'late'`). Existing rows untouched.
+- New table `attendance_sessions`:
+  - `id`, `institute_id`, `batch_id`, `game_id` (nullable), `session_date`, `started_at`, `expires_at`, `triggered_by_teacher_id`, `window_minutes`, `created_at`
+  - Unique on `(batch_id, session_date)` so one rolling session per batch per day
+- `institutes`: add `attendance_window_minutes` (default 180), `attendance_auto_absent` (bool, default true), `attendance_automation_enabled` (bool, default true)
+- All new tables/cols get proper GRANTs + RLS scoped by `get_user_institute_id`
+
+### Behavior (UI + minimal logic)
+
+- **Session start**: when the first teacher in a batch clicks PRESENT → insert `attendance_sessions` row + mark that teacher present. Other teachers/students remain "pending" (not written until marked, OR written with `status='pending'`).
+- **Within window**: anyone can be marked present/late.
+- **On window expiry / next session load**: a client-side reconciliation (and a SQL helper) flips remaining `pending` → `absent`. No cron required; runs lazily when attendance UI opens for that batch+date.
+
+### Default-Absent UI behavior (§7)
+
+- Teacher attendance UI defaults each row to **ABSENT**.
+- User must click PRESENT or LATE; nothing persists until **Save** is clicked.
+- Same pattern carried into student attendance UI.
+
+## 4. Attendance Settings
+
+Inside Institute Profile → "Attendance Settings" card (writes the new `institutes` columns above).
+
+## 5. "Made with…" / Beta popup
+
+Subscription Plan card click → simple dialog: **"You're in beta version"**.
+
+---
 
 ## Files touched
 
-- `supabase/migrations/<new>.sql` — additive
-- `src/App.tsx` — add `/inactive` route
-- `src/pages/Inactive.tsx` — new
-- `src/pages/InstituteDashboard.tsx`
-- `src/pages/TeacherDashboard.tsx`
-- `src/pages/StudentDashboard.tsx`
-- `supabase/functions/admin-operations/index.ts` — add `update_student` action (email + reg_no)  
+- `src/components/DashboardLayout.tsx` — new responsive sidebar shell with hamburger
+- `src/components/AppSidebar.tsx` — **new**, shadcn sidebar driven by role
+- `src/pages/InstituteDashboard.tsx` — add Profile tab + Attendance Settings + default-absent teacher UI
+- `src/pages/TeacherDashboard.tsx` — add Profile tab (read-only) + default-absent attendance UI
+- `src/pages/StudentDashboard.tsx` — add Profile tab (read-only)
+- New migration: attendance_sessions table + institutes settings columns + pending status support
+
+## What I will NOT touch
+
+- Existing fee logic, fee history, attendance history rows
+- Auth, routing, RLS for existing tables (only add to new ones)
+- Database deletions of any kind
+- Field renames  
   
-## Additional Clarifications
-  1. GAME ENROLLMENT VS ATTENDANCE
-  If a student's game enrollment status becomes Inactive:
-  - Hide the student from attendance related to that game only.
-  - Hide the student from batches related to that game only.
-  - Keep attendance history unchanged.
-  - Keep fee history unchanged.
-  - Do not delete any records.
-  Example:
-  Silambam = Inactive
-  Yoga = Active
-  Result:
-  - Student should NOT appear in Silambam attendance.
-  - Student should NOT appear in Silambam batch lists.
-  - Student SHOULD continue appearing in Yoga attendance and Yoga batches.
-  2. ADD STUDENT FLOW
-  Game must be selected first.
-  After selecting a game:
-  - Show only batches belonging to the selected game.
-  - Do not show batches from other games.
-  Example:
-  Selected Game = Silambam
-  Show:
-  - Silambam Morning Batch
-  - Silambam Evening Batch
-  Do NOT show:
-  - Yoga batches
-  - Gymnastics batches
-  3. EXCESS PAYMENT HANDLING
-  If collected amount exceeds monthly fee:
-  Example:
-  Monthly Fee = ₹1000
-  Collected = ₹1200
-  Then:
-  - Status = Paid
-  - Excess Amount = ₹200
-  Store excess amount separately.
-  Do not lose payment history.
-  4. DATA SAFETY
-  Do not delete:
+Temporary Attendance Session Lifecycle
+  Attendance Session is a temporary runtime object.
+  It is NOT permanent business data.
+  Purpose:
+  - Start attendance window
+  - Track session start time
+  - Track session end time
+  - Track who triggered the session
+  - Control automatic attendance behavior
+  After the attendance window expires and all automatic processing is completed:
+  - Session Status → Completed
+  - Perform all pending-to-absent processing
+  - Finalize required attendance operations
+  - Automatically delete the temporary attendance session record from the database
+  IMPORTANT:
+  Only the temporary attendance session record should be deleted.
+  Never delete:
+  - Teacher attendance records
+  - Student attendance records
   - Attendance history
-  - Fee history
-  - Student enrollments
-  - Teacher assignments
-  All historical records must remain linked and accessible.
+  - Attendance reports
+  - Audit history
+  Deleting the temporary session must NEVER affect historical attendance data.
+  ---
+  ## Student Attendance Editing
+  Student attendance should remain flexible.
+  Institution Admin and authorized Teachers should be able to:
+  - Mark Present
+  - Mark Late
+  - Mark Absent
+  - Edit attendance later
+  - Correct mistakes
+  - Update attendance after class if necessary
+  There should be NO 1-hour restriction for student attendance.
+  Student attendance corrections should always be allowed according to institute permissions.
+  ---
+  ## Teacher Attendance Restriction
+  Teacher attendance should be stricter.
+  When Attendance Session starts:
+  First 1 Hour:
+  - Present
+  - Late
+  After 1 Hour:
+  - Hide Present option
+  - Only Late should be available
+  After Attendance Window expires:
+  - Remaining unmarked teachers become Absent automatically.
+  This restriction applies ONLY to teachers and never to students.
+
+---
+
+**Confirm and I'll execute.** If you want me to skip/defer any section (e.g. start with just sidebar + profile, then attendance), say so — this is large enough that splitting it into 2 turns will give cleaner results.

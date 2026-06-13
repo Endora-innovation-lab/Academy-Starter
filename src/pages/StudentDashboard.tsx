@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardList, DollarSign } from 'lucide-react';
+import { ClipboardList, DollarSign, User } from 'lucide-react';
+import StudentProfile from '@/components/profiles/StudentProfile';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
 const StudentDashboard = () => {
@@ -24,8 +25,9 @@ const StudentDashboard = () => {
   }, [user]);
 
   const tabs = [
-    { label: 'Attendance', value: 'attendance' },
-    { label: 'Fees', value: 'fees' },
+    { label: 'Attendance', value: 'attendance', icon: ClipboardList },
+    { label: 'Fees', value: 'fees', icon: DollarSign },
+    { label: 'Profile', value: 'profile', icon: User },
   ];
 
   if (loading || (user && !checked)) {
@@ -44,9 +46,11 @@ const StudentDashboard = () => {
     <DashboardLayout title="Student Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'attendance' && studentRecord && <StudentAttendanceTab studentId={studentRecord.id} />}
       {activeTab === 'fees' && studentRecord && <StudentFeesTab studentId={studentRecord.id} />}
+      {activeTab === 'profile' && studentRecord && <StudentProfile studentId={studentRecord.id} />}
     </DashboardLayout>
   );
 };
+
 
 const getMonthOptions = () => {
   const options: { value: string; label: string }[] = [];

@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, BookOpen, ClipboardList, DollarSign, Layers, Search, BarChart3, AlertTriangle, LayoutDashboard, GraduationCap, User } from 'lucide-react';
+import InstituteProfile from '@/components/profiles/InstituteProfile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,13 +30,14 @@ const InstituteDashboard = () => {
   }, [instituteId, activeTab]);
 
   const tabs = [
-    { label: 'Overview', value: 'overview' },
-    { label: 'Games', value: 'games' },
-    { label: 'Batches', value: 'batches' },
-    { label: 'Students', value: 'students' },
-    { label: 'Teachers', value: 'teachers' },
-    { label: 'Attendance', value: 'attendance' },
-    { label: 'Fees', value: 'fees' },
+    { label: 'Overview', value: 'overview', icon: LayoutDashboard },
+    { label: 'Games', value: 'games', icon: BookOpen },
+    { label: 'Batches', value: 'batches', icon: Layers },
+    { label: 'Students', value: 'students', icon: GraduationCap },
+    { label: 'Teachers', value: 'teachers', icon: Users },
+    { label: 'Attendance', value: 'attendance', icon: ClipboardList },
+    { label: 'Fees', value: 'fees', icon: DollarSign },
+    { label: 'Profile', value: 'profile', icon: User },
   ];
 
   if (loading || (user && !instituteId)) {
@@ -55,6 +57,7 @@ const InstituteDashboard = () => {
       {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} hasBatches={hasBatches} />}
       {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId} />}
       {activeTab === 'fees' && <FeesTab instituteId={instituteId} />}
+      {activeTab === 'profile' && <InstituteProfile instituteId={instituteId} />}
     </DashboardLayout>
   );
 };
