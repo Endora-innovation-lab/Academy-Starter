@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardList, DollarSign } from 'lucide-react';
+import { ClipboardList, DollarSign, User } from 'lucide-react';
+import StudentProfile from '@/components/profiles/StudentProfile';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
 const StudentDashboard = () => {
