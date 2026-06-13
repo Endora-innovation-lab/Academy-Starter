@@ -46,9 +46,11 @@ const StudentDashboard = () => {
     <DashboardLayout title="Student Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'attendance' && studentRecord && <StudentAttendanceTab studentId={studentRecord.id} />}
       {activeTab === 'fees' && studentRecord && <StudentFeesTab studentId={studentRecord.id} />}
+      {activeTab === 'profile' && studentRecord && <StudentProfile studentId={studentRecord.id} />}
     </DashboardLayout>
   );
 };
+
 
 const getMonthOptions = () => {
   const options: { value: string; label: string }[] = [];
