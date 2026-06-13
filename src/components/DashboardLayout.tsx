@@ -2,26 +2,43 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, MessageSquare } from 'lucide-react';
-import dashboardLogo from '@/assets/logo-transparent.png';
+import { MessageSquare, LucideIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+} from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/AppSidebar';
+
+export interface DashboardTab {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
-  tabs: { label: string; value: string }[];
+  tabs: DashboardTab[];
   activeTab: string;
   onTabChange: (tab: string) => void;
+  userLabel?: string;
+  userRoleLabel?: string;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, tabs, activeTab, onTabChange }) => {
-  const { signOut, instituteCode } = useAuth();
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({
+  children,
+  title,
+  tabs,
+  activeTab,
+  onTabChange,
+  userLabel,
+  userRoleLabel,
+}) => {
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const [showLogoutPopup, setShowLogoutPopup] = useState(false);
-
-  const handleLogoutClick = () => {
-    setShowLogoutPopup(true);
-  };
 
   const handleYes = async () => {
     setShowLogoutPopup(false);
@@ -34,66 +51,58 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, tabs
     window.open('https://forms.gle/3PsfR181KFEMnXkB7', '_blank');
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={dashboardLogo} alt="Academy Starter" className="h-8 w-8" />
-            <div>
-              <h1 className="font-bold text-lg">{title}</h1>
-              {instituteCode && (
-                <p className="text-xs text-muted-foreground">Institute ID: {instituteCode}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
-                <MessageSquare className="h-4 w-4 mr-1" /> Feedback
-              </a>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogoutClick}>
-              <LogOut className="h-4 w-4 mr-1" /> Logout
-            </Button>
-          </div>
-        </div>
-      </header>
-      <div className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => onTabChange(tab.value)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.value
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+  const currentLabel = tabs.find((t) => t.value === activeTab)?.label ?? title;
 
-      <Dialog open={showLogoutPopup} onOpenChange={setShowLogoutPopup}>
-        <DialogContent className="max-w-sm text-center">
-          <DialogHeader>
-            <DialogTitle className="text-center">Did everything work fine today?</DialogTitle>
-          </DialogHeader>
-          <div className="flex justify-center gap-4 pt-4">
-            <Button size="lg" onClick={handleYes} className="min-w-24">
-              👍 Yes
-            </Button>
-            <Button size="lg" variant="outline" onClick={handleNo} className="min-w-24">
-              👎 No
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+  return (
+    <SidebarProvider defaultOpen={false}>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar
+          title={title}
+          items={tabs}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          userLabel={userLabel}
+          userRoleLabel={userRoleLabel}
+          onLogout={() => setShowLogoutPopup(true)}
+        />
+
+        <SidebarInset className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur">
+            <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <SidebarTrigger className="h-9 w-9" />
+                <div className="min-w-0">
+                  <h1 className="font-semibold text-base sm:text-lg truncate">{currentLabel}</h1>
+                  <p className="text-xs text-muted-foreground truncate hidden sm:block">{title}</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
+                  <MessageSquare className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Feedback</span>
+                </a>
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 px-3 sm:px-6 py-4 sm:py-6 max-w-7xl w-full mx-auto">
+            {children}
+          </main>
+        </SidebarInset>
+
+        <Dialog open={showLogoutPopup} onOpenChange={setShowLogoutPopup}>
+          <DialogContent className="max-w-sm text-center">
+            <DialogHeader>
+              <DialogTitle className="text-center">Did everything work fine today?</DialogTitle>
+            </DialogHeader>
+            <div className="flex justify-center gap-4 pt-4">
+              <Button size="lg" onClick={handleYes} className="min-w-24">👍 Yes</Button>
+              <Button size="lg" variant="outline" onClick={handleNo} className="min-w-24">👎 No</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </SidebarProvider>
   );
 };
 
