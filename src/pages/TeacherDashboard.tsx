@@ -28,9 +28,10 @@ const TeacherDashboard = () => {
   }, [user]);
 
   const tabs = [
-    { label: 'Overview', value: 'overview' },
-    { label: 'Mark Attendance', value: 'attendance' },
-    { label: 'Update Fees', value: 'fees' },
+    { label: 'Overview', value: 'overview', icon: LayoutDashboard },
+    { label: 'Mark Attendance', value: 'attendance', icon: ClipboardList },
+    { label: 'Update Fees', value: 'fees', icon: DollarSign },
+    { label: 'Profile', value: 'profile', icon: User },
   ];
 
   if (loading || (user && !instituteId)) {
