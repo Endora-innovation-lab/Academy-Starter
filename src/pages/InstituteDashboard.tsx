@@ -803,6 +803,9 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthYear, setBirthYear] = useState('');
+  const [role, setRole] = useState<'teacher' | 'principal'>('teacher');
+  const [teacherIdInput, setTeacherIdInput] = useState('');
+  const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchTeachers = async () => {
     const { data } = await supabase
@@ -812,7 +815,20 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     setTeachers(data || []);
   };
 
-  useEffect(() => { fetchTeachers(); }, [instituteId]);
+  useEffect(() => {
+    fetchTeachers();
+    fetchInstituteIdSettings(instituteId).then(setSettings);
+  }, [instituteId]);
+
+  // Prefill auto Teacher ID when opening add dialog
+  useEffect(() => {
+    if (!showAdd || !settings) return;
+    if (settings.auto_teacher_id) {
+      nextTeacherId(instituteId).then(setTeacherIdInput);
+    } else {
+      setTeacherIdInput('');
+    }
+  }, [showAdd, settings, instituteId]);
 
   const filteredTeachers = searchTerm
     ? teachers.filter(t => {
