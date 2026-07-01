@@ -386,6 +386,10 @@ export type Database = {
           attendance_auto_absent: boolean
           attendance_automation_enabled: boolean
           attendance_window_minutes: number
+          auto_batch_id: boolean
+          auto_game_id: boolean
+          auto_student_id: boolean
+          auto_teacher_id: boolean
           branch_count: number | null
           city: string | null
           code: string
@@ -404,6 +408,8 @@ export type Database = {
           owner_name: string | null
           pin_code: string | null
           registration_number: string | null
+          show_batch_id: boolean
+          show_game_id: boolean
           state: string | null
           subscription_plan: string | null
           user_id: string
@@ -416,6 +422,10 @@ export type Database = {
           attendance_auto_absent?: boolean
           attendance_automation_enabled?: boolean
           attendance_window_minutes?: number
+          auto_batch_id?: boolean
+          auto_game_id?: boolean
+          auto_student_id?: boolean
+          auto_teacher_id?: boolean
           branch_count?: number | null
           city?: string | null
           code: string
@@ -434,6 +444,8 @@ export type Database = {
           owner_name?: string | null
           pin_code?: string | null
           registration_number?: string | null
+          show_batch_id?: boolean
+          show_game_id?: boolean
           state?: string | null
           subscription_plan?: string | null
           user_id: string
@@ -446,6 +458,10 @@ export type Database = {
           attendance_auto_absent?: boolean
           attendance_automation_enabled?: boolean
           attendance_window_minutes?: number
+          auto_batch_id?: boolean
+          auto_game_id?: boolean
+          auto_student_id?: boolean
+          auto_teacher_id?: boolean
           branch_count?: number | null
           city?: string | null
           code?: string
@@ -464,6 +480,8 @@ export type Database = {
           owner_name?: string | null
           pin_code?: string | null
           registration_number?: string | null
+          show_batch_id?: boolean
+          show_game_id?: boolean
           state?: string | null
           subscription_plan?: string | null
           user_id?: string
@@ -650,6 +668,7 @@ export type Database = {
           id: string
           institute_id: string
           phone: string
+          role: string
           user_id: string
         }
         Insert: {
@@ -662,6 +681,7 @@ export type Database = {
           id?: string
           institute_id: string
           phone: string
+          role?: string
           user_id: string
         }
         Update: {
@@ -674,6 +694,7 @@ export type Database = {
           id?: string
           institute_id?: string
           phone?: string
+          role?: string
           user_id?: string
         }
         Relationships: [
