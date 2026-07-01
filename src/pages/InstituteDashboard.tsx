@@ -848,16 +848,39 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (role === 'teacher' && !hasBatches) {
+      // Non-blocking hint: teacher role requires batch assignment. Batches are assigned after creation.
+      toast.info('Remember to assign at least one batch to this teacher.');
+    }
     try {
+      // Resolve Teacher ID (auto or manual) with per-institute uniqueness
+      let finalTeacherId: string | null = null;
+      if (settings?.auto_teacher_id) {
+        finalTeacherId = await nextTeacherId(instituteId);
+      } else if (teacherIdInput.trim()) {
+        const taken = await isTeacherIdTaken(instituteId, teacherIdInput.trim());
+        if (taken) { toast.error('Teacher ID already exists in this institute'); return; }
+        finalTeacherId = teacherIdInput.trim();
+      }
+
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'create_teacher', name, email, phone, birth_year: birthYear },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Patch the created teacher row with role + teacher_id
+      if (data?.teacher?.id) {
+        const patch: any = { role };
+        if (finalTeacherId) patch.teacher_id = finalTeacherId;
+        await supabase.from('teachers').update(patch).eq('id', data.teacher.id);
+      }
+
       setCreatedCreds(data.credentials);
       toast.success('Teacher added!');
       setShowAdd(false);
       setName(''); setEmail(''); setPhone(''); setBirthYear('');
+      setRole('teacher'); setTeacherIdInput('');
       fetchTeachers();
     } catch (err: any) {
       toast.error(err.message);
@@ -880,11 +903,23 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Update Teacher ID (only when manual; auto IDs stay read-only)
+      if (settings && !settings.auto_teacher_id && teacherIdInput.trim() !== (editTeacher.teacher_id || '')) {
+        if (teacherIdInput.trim()) {
+          const taken = await isTeacherIdTaken(instituteId, teacherIdInput.trim(), editTeacher.id);
+          if (taken) { toast.error('Teacher ID already exists in this institute'); return; }
+        }
+      }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear, email: email || undefined },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      const patch: any = { role };
+      if (settings && !settings.auto_teacher_id) patch.teacher_id = teacherIdInput.trim() || null;
+      await supabase.from('teachers').update(patch).eq('id', editTeacher.id);
+
       toast.success('Teacher updated. Login email synced.');
       setShowEdit(false);
       fetchTeachers();
