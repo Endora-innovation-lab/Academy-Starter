@@ -261,3 +261,15 @@ function Field({ label, v, on, type = 'text', placeholder }: { label: string; v:
     </div>
   );
 }
+
+function IdToggle({ title, desc, checked, onChange }: { title: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border p-3 gap-4">
+      <div className="min-w-0">
+        <div className="font-medium">{title}</div>
+        <div className="text-xs text-muted-foreground">{desc}</div>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
