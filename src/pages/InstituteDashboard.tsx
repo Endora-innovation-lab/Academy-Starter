@@ -1178,14 +1178,26 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="h-5 w-5" /> Games / Courses</h2>
-        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); } }}>
+        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput(''); } }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
+            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); setGameIdInput(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{showEdit ? 'Edit' : 'Add'} Game / Course</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Chess, Cricket" /></div>
+              {settings?.show_game_id && (
+                <div>
+                  <Label>Game ID {settings.auto_game_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                  <Input
+                    value={gameIdInput}
+                    onChange={e => setGameIdInput(e.target.value)}
+                    readOnly={settings.auto_game_id}
+                    className={settings.auto_game_id ? 'bg-muted' : ''}
+                    placeholder={settings.auto_game_id ? '' : 'e.g. GAM0001'}
+                  />
+                </div>
+              )}
               <div><Label>Description (optional)</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
               <Button type="submit" className="w-full">{showEdit ? 'Update' : 'Create'}</Button>
             </form>
@@ -1199,6 +1211,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
             <tr>
               <th className="px-3 py-2 text-left">S.No</th>
               <th className="px-3 py-2 text-left">Name</th>
+              {settings?.show_game_id && <th className="px-3 py-2 text-left">Game ID</th>}
               <th className="px-3 py-2 text-left">Description</th>
               <th className="px-3 py-2 text-left">Batches</th>
               <th className="px-3 py-2 text-right">Actions</th>
@@ -1209,10 +1222,11 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
               <tr key={g.id} className="border-t">
                 <td className="px-3 py-2">{i + 1}</td>
                 <td className="px-3 py-2 font-medium">{g.name}</td>
+                {settings?.show_game_id && <td className="px-3 py-2 font-mono text-xs">{g.game_id || '—'}</td>}
                 <td className="px-3 py-2 text-muted-foreground">{g.description || '—'}</td>
                 <td className="px-3 py-2">{batchCounts[g.id] || 0}</td>
                 <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); }}>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); setGameIdInput(g.game_id || ''); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(g)}>
@@ -1222,7 +1236,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {games.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No games/courses yet. Add one to start creating batches.</td></tr>
+              <tr><td colSpan={settings?.show_game_id ? 6 : 5} className="text-center py-8 text-muted-foreground">No games/courses yet. Add one to start creating batches.</td></tr>
             )}
           </tbody>
         </table>
