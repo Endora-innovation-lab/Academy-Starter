@@ -1001,6 +1001,8 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+              <th className="text-left p-3 font-medium">Teacher ID</th>
+              <th className="text-left p-3 font-medium">Role</th>
               <SortableTH sortKey="email" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Email</SortableTH>
               <SortableTH sortKey="phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Phone</SortableTH>
               <SortableTH sortKey="birth_year" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Birth Year</SortableTH>
@@ -1012,6 +1014,8 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <tr key={t.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(t.profiles as any)?.name || 'N/A'}</td>
+                <td className="p-3 font-mono text-xs">{t.teacher_id || '—'}</td>
+                <td className="p-3 capitalize">{t.role || 'teacher'}</td>
                 <td className="p-3">{(t.profiles as any)?.email || '-'}</td>
                 <td className="p-3">{t.phone}</td>
                 <td className="p-3">{t.birth_year}</td>
@@ -1022,6 +1026,8 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     setEmail((t.profiles as any)?.email || '');
                     setPhone(t.phone);
                     setBirthYear(t.birth_year);
+                    setRole((t.role === 'principal' ? 'principal' : 'teacher'));
+                    setTeacherIdInput(t.teacher_id || '');
                     setShowEdit(true);
                   }}><Pencil className="h-3 w-3" /></Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(t.id)}>
@@ -1031,7 +1037,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               </tr>
             ))}
             {displayTeachers.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
             )}
           </tbody>
         </table>
