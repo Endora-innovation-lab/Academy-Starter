@@ -582,7 +582,17 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <DialogHeader><DialogTitle>Add Student</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
-                <div><Label>Registration Number</Label><Input value={regNo} onChange={e => setRegNo(e.target.value)} required /></div>
+                <div>
+                  <Label>Registration Number {settings?.auto_student_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                  <Input
+                    value={regNo}
+                    onChange={e => setRegNo(e.target.value)}
+                    required
+                    readOnly={settings?.auto_student_id}
+                    className={settings?.auto_student_id ? 'bg-muted' : ''}
+                    placeholder={settings?.auto_student_id ? '' : 'e.g. STU0001'}
+                  />
+                </div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
                 <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
                 <div>
