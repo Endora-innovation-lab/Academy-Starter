@@ -198,6 +198,7 @@ export type Database = {
       }
       batches: {
         Row: {
+          batch_id: string | null
           created_at: string
           game_id: string | null
           id: string
@@ -206,6 +207,7 @@ export type Database = {
           teacher_id: string | null
         }
         Insert: {
+          batch_id?: string | null
           created_at?: string
           game_id?: string | null
           id?: string
@@ -214,6 +216,7 @@ export type Database = {
           teacher_id?: string | null
         }
         Update: {
+          batch_id?: string | null
           created_at?: string
           game_id?: string | null
           id?: string
@@ -359,6 +362,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          game_id: string | null
           id: string
           institute_id: string
           name: string
@@ -366,6 +370,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          game_id?: string | null
           id?: string
           institute_id: string
           name: string
@@ -373,6 +378,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          game_id?: string | null
           id?: string
           institute_id?: string
           name?: string
@@ -669,6 +675,7 @@ export type Database = {
           institute_id: string
           phone: string
           role: string
+          teacher_id: string | null
           user_id: string
         }
         Insert: {
@@ -682,6 +689,7 @@ export type Database = {
           institute_id: string
           phone: string
           role?: string
+          teacher_id?: string | null
           user_id: string
         }
         Update: {
@@ -695,6 +703,7 @@ export type Database = {
           institute_id?: string
           phone?: string
           role?: string
+          teacher_id?: string | null
           user_id?: string
         }
         Relationships: [
