@@ -1049,6 +1049,26 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
             <div>
+              <Label>Teacher ID {settings?.auto_teacher_id && <span className="text-xs text-muted-foreground">(auto-generated, read-only)</span>}</Label>
+              <Input
+                value={teacherIdInput}
+                onChange={e => setTeacherIdInput(e.target.value)}
+                readOnly={settings?.auto_teacher_id}
+                className={settings?.auto_teacher_id ? 'bg-muted' : ''}
+                placeholder={settings?.auto_teacher_id ? '' : 'e.g. TCH0001'}
+              />
+            </div>
+            <div>
+              <Label>Role</Label>
+              <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                  <SelectItem value="principal">Principal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Email</Label>
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
               <p className="text-xs text-muted-foreground mt-1">Used as login email. Changing it updates the teacher's login immediately; all batches, attendance, and assignments are preserved.</p>
