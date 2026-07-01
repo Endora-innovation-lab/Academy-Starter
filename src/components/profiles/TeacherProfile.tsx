@@ -49,7 +49,7 @@ export default function TeacherProfile({ teacherId }: Props) {
             <div className="min-w-0 flex-1">
               <CardTitle className="truncate">{teacher.name}</CardTitle>
               <CardDescription className="flex items-center gap-2 flex-wrap">
-                <span>Teacher ID: {teacher.teacher_id || teacher.id.slice(0, 8)}</span>
+                <span>ID: {teacher.teacher_id || teacher.id.slice(0, 8)}</span>
                 <Badge variant={teacher.status === 'active' ? 'default' : 'secondary'}>
                   {teacher.status || 'active'}
                 </Badge>
@@ -59,7 +59,7 @@ export default function TeacherProfile({ teacherId }: Props) {
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground italic mb-3">
-            This profile is read-only. Contact your institute admin to update details.
+            This profile is read-only. To update these details, use the Add/Edit Teacher option in the institute dashboard.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <Info label="Institute ID" value={instituteCode} />
