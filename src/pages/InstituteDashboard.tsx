@@ -14,6 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTH, useSort } from '@/components/SortableTable';
+import {
+  fetchInstituteIdSettings, InstituteIdSettings,
+  nextTeacherId, isTeacherIdTaken,
+  nextStudentRegNo, isStudentRegNoTaken,
+  nextBatchId, isBatchIdTaken,
+  nextGameId, isGameIdTaken,
+} from '@/lib/idGenerator';
 
 const InstituteDashboard = () => {
   const { user, instituteId, loading } = useAuth();
