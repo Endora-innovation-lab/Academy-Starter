@@ -949,6 +949,31 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <DialogHeader><DialogTitle>Add Teacher</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                <div>
+                  <Label>Teacher ID {settings?.auto_teacher_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                  <Input
+                    value={teacherIdInput}
+                    onChange={e => setTeacherIdInput(e.target.value)}
+                    readOnly={settings?.auto_teacher_id}
+                    className={settings?.auto_teacher_id ? 'bg-muted' : ''}
+                    placeholder={settings?.auto_teacher_id ? '' : 'e.g. TCH0001'}
+                  />
+                </div>
+                <div>
+                  <Label>Role</Label>
+                  <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="principal">Principal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {role === 'principal'
+                      ? 'Principals see all batches and can mark attendance; they cannot change settings, games, batches, or fee amounts.'
+                      : 'Teachers must be assigned to at least one batch after creation.'}
+                  </p>
+                </div>
                 <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
                 <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
                 <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required placeholder="e.g. 1990" /></div>
