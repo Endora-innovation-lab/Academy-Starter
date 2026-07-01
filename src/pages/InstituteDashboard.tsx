@@ -428,6 +428,12 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     e.preventDefault();
     if (!addGameId) { toast.error('Select a game/course'); return; }
     try {
+      // Manual mode: validate uniqueness before creating the student
+      if (settings && !settings.auto_student_id) {
+        if (!regNo.trim()) { toast.error('Registration Number is required'); return; }
+        const taken = await isStudentRegNoTaken(instituteId, regNo.trim());
+        if (taken) { toast.error('Registration Number already exists in this institute'); return; }
+      }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'create_student', name, reg_no: regNo, dob, parent_phone: parentPhone },
       });
