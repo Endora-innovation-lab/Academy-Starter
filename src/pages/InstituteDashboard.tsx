@@ -352,6 +352,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   // Add-student flow: choose game first, monthly fee, then optional batch (filtered by game)
   const [addGameId, setAddGameId] = useState('');
