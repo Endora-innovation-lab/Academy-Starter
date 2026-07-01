@@ -14,6 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTH, useSort } from '@/components/SortableTable';
+import {
+  fetchInstituteIdSettings, InstituteIdSettings,
+  nextTeacherId, isTeacherIdTaken,
+  nextStudentRegNo, isStudentRegNoTaken,
+  nextBatchId, isBatchIdTaken,
+  nextGameId, isGameIdTaken,
+} from '@/lib/idGenerator';
 
 const InstituteDashboard = () => {
   const { user, instituteId, loading } = useAuth();
@@ -345,6 +352,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   // Add-student flow: choose game first, monthly fee, then optional batch (filtered by game)
   const [addGameId, setAddGameId] = useState('');
@@ -383,6 +391,17 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   };
 
   useEffect(() => { fetchStudents(); }, [instituteId]);
+  useEffect(() => { fetchInstituteIdSettings(instituteId).then(setSettings); }, [instituteId]);
+
+  // Auto-fill Reg No when opening add dialog
+  useEffect(() => {
+    if (!showAdd || !settings) return;
+    if (settings.auto_student_id) {
+      nextStudentRegNo(instituteId).then(setRegNo);
+    } else {
+      setRegNo('');
+    }
+  }, [showAdd, settings, instituteId]);
 
   const filteredByBatch = filterBatch === 'all'
     ? students
@@ -409,6 +428,12 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     e.preventDefault();
     if (!addGameId) { toast.error('Select a game/course'); return; }
     try {
+      // Manual mode: validate uniqueness before creating the student
+      if (settings && !settings.auto_student_id) {
+        if (!regNo.trim()) { toast.error('Registration Number is required'); return; }
+        const taken = await isStudentRegNoTaken(instituteId, regNo.trim());
+        if (taken) { toast.error('Registration Number already exists in this institute'); return; }
+      }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'create_student', name, reg_no: regNo, dob, parent_phone: parentPhone },
       });
@@ -557,7 +582,17 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <DialogHeader><DialogTitle>Add Student</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
-                <div><Label>Registration Number</Label><Input value={regNo} onChange={e => setRegNo(e.target.value)} required /></div>
+                <div>
+                  <Label>Registration Number {settings?.auto_student_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                  <Input
+                    value={regNo}
+                    onChange={e => setRegNo(e.target.value)}
+                    required
+                    readOnly={settings?.auto_student_id}
+                    className={settings?.auto_student_id ? 'bg-muted' : ''}
+                    placeholder={settings?.auto_student_id ? '' : 'e.g. STU0001'}
+                  />
+                </div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
                 <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
                 <div>
@@ -796,6 +831,9 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthYear, setBirthYear] = useState('');
+  const [role, setRole] = useState<'teacher' | 'principal'>('teacher');
+  const [teacherIdInput, setTeacherIdInput] = useState('');
+  const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchTeachers = async () => {
     const { data } = await supabase
@@ -805,7 +843,20 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     setTeachers(data || []);
   };
 
-  useEffect(() => { fetchTeachers(); }, [instituteId]);
+  useEffect(() => {
+    fetchTeachers();
+    fetchInstituteIdSettings(instituteId).then(setSettings);
+  }, [instituteId]);
+
+  // Prefill auto Teacher ID when opening add dialog
+  useEffect(() => {
+    if (!showAdd || !settings) return;
+    if (settings.auto_teacher_id) {
+      nextTeacherId(instituteId).then(setTeacherIdInput);
+    } else {
+      setTeacherIdInput('');
+    }
+  }, [showAdd, settings, instituteId]);
 
   const filteredTeachers = searchTerm
     ? teachers.filter(t => {
@@ -825,16 +876,39 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (role === 'teacher' && !hasBatches) {
+      // Non-blocking hint: teacher role requires batch assignment. Batches are assigned after creation.
+      toast.info('Remember to assign at least one batch to this teacher.');
+    }
     try {
+      // Resolve Teacher ID (auto or manual) with per-institute uniqueness
+      let finalTeacherId: string | null = null;
+      if (settings?.auto_teacher_id) {
+        finalTeacherId = await nextTeacherId(instituteId);
+      } else if (teacherIdInput.trim()) {
+        const taken = await isTeacherIdTaken(instituteId, teacherIdInput.trim());
+        if (taken) { toast.error('Teacher ID already exists in this institute'); return; }
+        finalTeacherId = teacherIdInput.trim();
+      }
+
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'create_teacher', name, email, phone, birth_year: birthYear },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Patch the created teacher row with role + teacher_id
+      if (data?.teacher?.id) {
+        const patch: any = { role };
+        if (finalTeacherId) patch.teacher_id = finalTeacherId;
+        await supabase.from('teachers').update(patch).eq('id', data.teacher.id);
+      }
+
       setCreatedCreds(data.credentials);
       toast.success('Teacher added!');
       setShowAdd(false);
       setName(''); setEmail(''); setPhone(''); setBirthYear('');
+      setRole('teacher'); setTeacherIdInput('');
       fetchTeachers();
     } catch (err: any) {
       toast.error(err.message);
@@ -857,11 +931,23 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Update Teacher ID (only when manual; auto IDs stay read-only)
+      if (settings && !settings.auto_teacher_id && teacherIdInput.trim() !== (editTeacher.teacher_id || '')) {
+        if (teacherIdInput.trim()) {
+          const taken = await isTeacherIdTaken(instituteId, teacherIdInput.trim(), editTeacher.id);
+          if (taken) { toast.error('Teacher ID already exists in this institute'); return; }
+        }
+      }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear, email: email || undefined },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      const patch: any = { role };
+      if (settings && !settings.auto_teacher_id) patch.teacher_id = teacherIdInput.trim() || null;
+      await supabase.from('teachers').update(patch).eq('id', editTeacher.id);
+
       toast.success('Teacher updated. Login email synced.');
       setShowEdit(false);
       fetchTeachers();
@@ -891,6 +977,31 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <DialogHeader><DialogTitle>Add Teacher</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                <div>
+                  <Label>Teacher ID {settings?.auto_teacher_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                  <Input
+                    value={teacherIdInput}
+                    onChange={e => setTeacherIdInput(e.target.value)}
+                    readOnly={settings?.auto_teacher_id}
+                    className={settings?.auto_teacher_id ? 'bg-muted' : ''}
+                    placeholder={settings?.auto_teacher_id ? '' : 'e.g. TCH0001'}
+                  />
+                </div>
+                <div>
+                  <Label>Role</Label>
+                  <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="principal">Principal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {role === 'principal'
+                      ? 'Principals see all batches and can mark attendance; they cannot change settings, games, batches, or fee amounts.'
+                      : 'Teachers must be assigned to at least one batch after creation.'}
+                  </p>
+                </div>
                 <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
                 <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
                 <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required placeholder="e.g. 1990" /></div>
@@ -918,6 +1029,8 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+              <th className="text-left p-3 font-medium">Teacher ID</th>
+              <th className="text-left p-3 font-medium">Role</th>
               <SortableTH sortKey="email" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Email</SortableTH>
               <SortableTH sortKey="phone" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Phone</SortableTH>
               <SortableTH sortKey="birth_year" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Birth Year</SortableTH>
@@ -929,6 +1042,8 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <tr key={t.id} className="border-t">
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">{(t.profiles as any)?.name || 'N/A'}</td>
+                <td className="p-3 font-mono text-xs">{t.teacher_id || '—'}</td>
+                <td className="p-3 capitalize">{t.role || 'teacher'}</td>
                 <td className="p-3">{(t.profiles as any)?.email || '-'}</td>
                 <td className="p-3">{t.phone}</td>
                 <td className="p-3">{t.birth_year}</td>
@@ -939,6 +1054,8 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     setEmail((t.profiles as any)?.email || '');
                     setPhone(t.phone);
                     setBirthYear(t.birth_year);
+                    setRole((t.role === 'principal' ? 'principal' : 'teacher'));
+                    setTeacherIdInput(t.teacher_id || '');
                     setShowEdit(true);
                   }}><Pencil className="h-3 w-3" /></Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(t.id)}>
@@ -948,7 +1065,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               </tr>
             ))}
             {displayTeachers.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
             )}
           </tbody>
         </table>
@@ -959,6 +1076,26 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <div>
+              <Label>Teacher ID {settings?.auto_teacher_id && <span className="text-xs text-muted-foreground">(auto-generated, read-only)</span>}</Label>
+              <Input
+                value={teacherIdInput}
+                onChange={e => setTeacherIdInput(e.target.value)}
+                readOnly={settings?.auto_teacher_id}
+                className={settings?.auto_teacher_id ? 'bg-muted' : ''}
+                placeholder={settings?.auto_teacher_id ? '' : 'e.g. TCH0001'}
+              />
+            </div>
+            <div>
+              <Label>Role</Label>
+              <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                  <SelectItem value="principal">Principal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label>Email</Label>
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
@@ -982,6 +1119,8 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
   const [showEdit, setShowEdit] = useState<any>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [gameIdInput, setGameIdInput] = useState('');
+  const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchGames = async () => {
     const { data } = await supabase.from('games').select('*').eq('institute_id', instituteId).order('name');
@@ -993,18 +1132,35 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   useEffect(() => { fetchGames(); }, [instituteId]);
+  useEffect(() => { fetchInstituteIdSettings(instituteId).then(setSettings); }, [instituteId]);
+
+  useEffect(() => {
+    if (!showAdd || showEdit || !settings) return;
+    if (settings.auto_game_id) nextGameId(instituteId).then(setGameIdInput);
+    else setGameIdInput('');
+  }, [showAdd, showEdit, settings, instituteId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Resolve Game ID
+      let finalGameId: string | null = null;
+      if (settings?.auto_game_id) {
+        finalGameId = showEdit ? (showEdit.game_id || await nextGameId(instituteId)) : await nextGameId(instituteId);
+      } else if (gameIdInput.trim()) {
+        const taken = await isGameIdTaken(instituteId, gameIdInput.trim(), showEdit?.id);
+        if (taken) { toast.error('Game ID already exists in this institute'); return; }
+        finalGameId = gameIdInput.trim();
+      }
+
       if (showEdit) {
-        await supabase.from('games').update({ name, description }).eq('id', showEdit.id);
+        await supabase.from('games').update({ name, description, game_id: finalGameId }).eq('id', showEdit.id);
         toast.success('Game updated');
       } else {
-        await supabase.from('games').insert({ name, description, institute_id: instituteId });
+        await supabase.from('games').insert({ name, description, institute_id: instituteId, game_id: finalGameId });
         toast.success('Game created');
       }
-      setShowAdd(false); setShowEdit(null); setName(''); setDescription('');
+      setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput('');
       fetchGames();
     } catch (err: any) { toast.error(err.message); }
   };
@@ -1022,14 +1178,26 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="h-5 w-5" /> Games / Courses</h2>
-        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); } }}>
+        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput(''); } }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
+            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); setGameIdInput(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{showEdit ? 'Edit' : 'Add'} Game / Course</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Chess, Cricket" /></div>
+              {settings?.show_game_id && (
+                <div>
+                  <Label>Game ID {settings.auto_game_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
+                  <Input
+                    value={gameIdInput}
+                    onChange={e => setGameIdInput(e.target.value)}
+                    readOnly={settings.auto_game_id}
+                    className={settings.auto_game_id ? 'bg-muted' : ''}
+                    placeholder={settings.auto_game_id ? '' : 'e.g. GAM0001'}
+                  />
+                </div>
+              )}
               <div><Label>Description (optional)</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
               <Button type="submit" className="w-full">{showEdit ? 'Update' : 'Create'}</Button>
             </form>
@@ -1043,6 +1211,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
             <tr>
               <th className="px-3 py-2 text-left">S.No</th>
               <th className="px-3 py-2 text-left">Name</th>
+              {settings?.show_game_id && <th className="px-3 py-2 text-left">Game ID</th>}
               <th className="px-3 py-2 text-left">Description</th>
               <th className="px-3 py-2 text-left">Batches</th>
               <th className="px-3 py-2 text-right">Actions</th>
@@ -1053,10 +1222,11 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
               <tr key={g.id} className="border-t">
                 <td className="px-3 py-2">{i + 1}</td>
                 <td className="px-3 py-2 font-medium">{g.name}</td>
+                {settings?.show_game_id && <td className="px-3 py-2 font-mono text-xs">{g.game_id || '—'}</td>}
                 <td className="px-3 py-2 text-muted-foreground">{g.description || '—'}</td>
                 <td className="px-3 py-2">{batchCounts[g.id] || 0}</td>
                 <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); }}>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); setGameIdInput(g.game_id || ''); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(g)}>
@@ -1066,7 +1236,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {games.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No games/courses yet. Add one to start creating batches.</td></tr>
+              <tr><td colSpan={settings?.show_game_id ? 6 : 5} className="text-center py-8 text-muted-foreground">No games/courses yet. Add one to start creating batches.</td></tr>
             )}
           </tbody>
         </table>

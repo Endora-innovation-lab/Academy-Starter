@@ -198,6 +198,7 @@ export type Database = {
       }
       batches: {
         Row: {
+          batch_id: string | null
           created_at: string
           game_id: string | null
           id: string
@@ -206,6 +207,7 @@ export type Database = {
           teacher_id: string | null
         }
         Insert: {
+          batch_id?: string | null
           created_at?: string
           game_id?: string | null
           id?: string
@@ -214,6 +216,7 @@ export type Database = {
           teacher_id?: string | null
         }
         Update: {
+          batch_id?: string | null
           created_at?: string
           game_id?: string | null
           id?: string
@@ -359,6 +362,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          game_id: string | null
           id: string
           institute_id: string
           name: string
@@ -366,6 +370,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          game_id?: string | null
           id?: string
           institute_id: string
           name: string
@@ -373,6 +378,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          game_id?: string | null
           id?: string
           institute_id?: string
           name?: string
@@ -386,6 +392,10 @@ export type Database = {
           attendance_auto_absent: boolean
           attendance_automation_enabled: boolean
           attendance_window_minutes: number
+          auto_batch_id: boolean
+          auto_game_id: boolean
+          auto_student_id: boolean
+          auto_teacher_id: boolean
           branch_count: number | null
           city: string | null
           code: string
@@ -404,6 +414,8 @@ export type Database = {
           owner_name: string | null
           pin_code: string | null
           registration_number: string | null
+          show_batch_id: boolean
+          show_game_id: boolean
           state: string | null
           subscription_plan: string | null
           user_id: string
@@ -416,6 +428,10 @@ export type Database = {
           attendance_auto_absent?: boolean
           attendance_automation_enabled?: boolean
           attendance_window_minutes?: number
+          auto_batch_id?: boolean
+          auto_game_id?: boolean
+          auto_student_id?: boolean
+          auto_teacher_id?: boolean
           branch_count?: number | null
           city?: string | null
           code: string
@@ -434,6 +450,8 @@ export type Database = {
           owner_name?: string | null
           pin_code?: string | null
           registration_number?: string | null
+          show_batch_id?: boolean
+          show_game_id?: boolean
           state?: string | null
           subscription_plan?: string | null
           user_id: string
@@ -446,6 +464,10 @@ export type Database = {
           attendance_auto_absent?: boolean
           attendance_automation_enabled?: boolean
           attendance_window_minutes?: number
+          auto_batch_id?: boolean
+          auto_game_id?: boolean
+          auto_student_id?: boolean
+          auto_teacher_id?: boolean
           branch_count?: number | null
           city?: string | null
           code?: string
@@ -464,6 +486,8 @@ export type Database = {
           owner_name?: string | null
           pin_code?: string | null
           registration_number?: string | null
+          show_batch_id?: boolean
+          show_game_id?: boolean
           state?: string | null
           subscription_plan?: string | null
           user_id?: string
@@ -650,6 +674,8 @@ export type Database = {
           id: string
           institute_id: string
           phone: string
+          role: string
+          teacher_id: string | null
           user_id: string
         }
         Insert: {
@@ -662,6 +688,8 @@ export type Database = {
           id?: string
           institute_id: string
           phone: string
+          role?: string
+          teacher_id?: string | null
           user_id: string
         }
         Update: {
@@ -674,6 +702,8 @@ export type Database = {
           id?: string
           institute_id?: string
           phone?: string
+          role?: string
+          teacher_id?: string | null
           user_id?: string
         }
         Relationships: [

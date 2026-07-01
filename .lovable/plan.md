@@ -1,168 +1,100 @@
-# Plan: Sidebar + Profile + Attendance Upgrade
+## Scope
 
-This is a large change. I'll keep all existing business logic, data, and APIs intact. Only **UI restructuring**, **3 new profile pages**, and **additive attendance features** with backward compatibility.
-
----
-
-## 1. Responsive Sidebar (all 3 dashboards)
-
-Refactor `src/components/DashboardLayout.tsx` to use shadcn `Sidebar` with:
-
-- Desktop:
-  - Sidebar should be visible by default.
-  - User can manually collapse/expand it.
-  Mobile:
-  - Sidebar hidden by default.
-  - Open using hamburger menu.
-  - Close when clicking outside or selecting a menu.
-- **Hamburger (☰) in top header** — always visible, toggles sidebar
-- Mobile: tap outside or select an item → closes (built-in Sheet behavior)
-- Smooth slide-in animation (shadcn default)
-- Sidebar items reordered to include **Profile** before **Logout**:
-  - Institute: Overview · Students · Teachers · Batches · Attendance · Fees · **Profile** · Logout
-  - Teacher: Overview · Batches · Attendance · **Profile** · Logout
-  - Student: Overview · Attendance · Fees · **Profile** · Logout
-- Keep current brand header (Academy + Institute code) at top, user info + logout pinned at bottom (matches reference image 3 structure).
-
-## 2. Profile Pages (3 new)
-
-New tab/section inside each dashboard (no new route — handled via existing tab state to avoid breaking auth/routing).
-
-### Institute Profile (editable, except Institute ID)
-
-Cards layout (reference image 2 style — left section list, right content panel):
-
-- **Basic Information**: Logo, Name, ID (read-only), Type, Owner, Contact, Email
-- **Address**: Address, City, State, Country, PIN
-- **Business Information**: Established Year, Website, Facebook, Instagram, YouTube, Registration No., GST No., Branch Count
-- **Subscription Plan**: shows badge + opens popup *"You're in beta version"*
-- **Attendance Settings** section (see §4):
-  - Attendance Window Duration (hours, default 3)
-  - Auto-Absent Timing
-  - Enable/Disable Automation toggle
-
-Saves to `institutes` table (extend with new nullable columns via migration — all optional, backward compatible).
-
-### Teacher Profile (read-only)
-
-Name, Teacher ID, Institute ID, Mobile, Email, Gender, DOB, Emergency Contact, Blood Group, Active/Inactive, Assigned Games, Assigned Batches.
-
-Teacher dashboard is read-only.
-
-Institute can edit teacher details.
-
-Teacher cannot edit profile.
-
-### Student Profile (read-only)
-
-Name, Reg No, Institute ID, Parent name, Parent mobile, DOB, Gender, Address, Emergency Contact, Active/Inactive, Enrolled Games, Fee Summary, Attendance Summary.
-
-Institute can edit student details.
-
-Student dashboard remains read-only.
-
-Student cannot edit profile.
-
-## 3. Attendance Upgrade (additive, backward compatible)
-
-**No existing record changes.** New columns/table are additive and nullable.
-
-### Schema additions (migration)
-
-- `attendance` + `teacher_attendance`: add nullable `status` enum extension to allow `'pending'` (alongside existing `'present' | 'absent' | 'late'`). Existing rows untouched.
-- New table `attendance_sessions`:
-  - `id`, `institute_id`, `batch_id`, `game_id` (nullable), `session_date`, `started_at`, `expires_at`, `triggered_by_teacher_id`, `window_minutes`, `created_at`
-  - Unique on `(batch_id, session_date)` so one rolling session per batch per day
-- `institutes`: add `attendance_window_minutes` (default 180), `attendance_auto_absent` (bool, default true), `attendance_automation_enabled` (bool, default true)
-- All new tables/cols get proper GRANTs + RLS scoped by `get_user_institute_id`
-
-### Behavior (UI + minimal logic)
-
-- **Session start**: when the first teacher in a batch clicks PRESENT → insert `attendance_sessions` row + mark that teacher present. Other teachers/students remain "pending" (not written until marked, OR written with `status='pending'`).
-- **Within window**: anyone can be marked present/late.
-- **On window expiry / next session load**: a client-side reconciliation (and a SQL helper) flips remaining `pending` → `absent`. No cron required; runs lazily when attendance UI opens for that batch+date.
-
-### Default-Absent UI behavior (§7)
-
-- Teacher attendance UI defaults each row to **ABSENT**.
-- User must click PRESENT or LATE; nothing persists until **Save** is clicked.
-- Same pattern carried into student attendance UI.
-
-## 4. Attendance Settings
-
-Inside Institute Profile → "Attendance Settings" card (writes the new `institutes` columns above).
-
-## 5. "Made with…" / Beta popup
-
-Subscription Plan card click → simple dialog: **"You're in beta version"**.
+Big multi-part change. I'll split into 3 groups. All backward compatible — no data loss, no breaking changes.
 
 ---
 
-## Files touched
+### 1. Profile UI tweaks (quick)
 
-- `src/components/DashboardLayout.tsx` — new responsive sidebar shell with hamburger
-- `src/components/AppSidebar.tsx` — **new**, shadcn sidebar driven by role
-- `src/pages/InstituteDashboard.tsx` — add Profile tab + Attendance Settings + default-absent teacher UI
-- `src/pages/TeacherDashboard.tsx` — add Profile tab (read-only) + default-absent attendance UI
-- `src/pages/StudentDashboard.tsx` — add Profile tab (read-only)
-- New migration: attendance_sessions table + institutes settings columns + pending status support
+**Teacher Profile** (`src/components/profiles/TeacherProfile.tsx`)
 
-## What I will NOT touch
+- Header shows **Name** as the big title, **Teacher ID** as subtitle below.
+- Add a note: *"To update these details, use the Add/Edit Teacher option in the institute dashboard."*
+- Keep fields read-only.
 
-- Existing fee logic, fee history, attendance history rows
-- Auth, routing, RLS for existing tables (only add to new ones)
-- Database deletions of any kind
-- Field renames  
+**Student Profile** (`src/components/profiles/StudentProfile.tsx`)
+
+- Header shows **Name** as big title, **Reg No** as subtitle below.
+- Remove the **Address** field.
+- Replace **Parent / Guardian** field with **Reg No** (already in subtitle — so show Reg No in the info grid instead of Parent/Guardian; keep Parent Mobile).
+
+---
+
+### 2. Institute Settings → ID Generation & Auto Roll Number
+
+New card in **Institute Profile** (`src/components/profiles/InstituteProfile.tsx`) titled **ID Generation Settings** with toggles:
+
+- Auto Teacher ID (default ON) → generates `TCH0001`, `TCH0002` …
+- Auto Student Reg No (default ON) → generates `STU0001`, `STU0002` …
+- Auto Batch ID (default ON) → `BAT0001`…
+- Show Batch ID in UI (default ON)
+- Auto Game ID (default ON) → `GAM0001`…
+- Show Game ID in UI (default OFF)
+
+Persist on `institutes` table via migration (new nullable boolean columns, all defaulted).
+
+**Add/Edit forms** (`InstituteDashboard.tsx` teacher/student/batch/game dialogs):
+
+- When auto is ON → hide the ID input, auto-fill next available padded number scoped to the institute (`MAX(numeric suffix) + 1` scan of existing IDs for that institute).
+- When auto is OFF → show the ID input, validate uniqueness per institute (`institute_id + id` check before insert).
+- Batch/Game ID visibility toggles hide the ID column in tables and hide the ID field in cards when OFF.
+
+Uniqueness rules: scoped per institute (same TCH0001 allowed across different institutes) — enforced client-side via `select().eq('institute_id',…).eq('teacher_id',…)` pre-check + surfaced error.
+
+---
+
+### 3. Teacher Role: Teacher | Principal
+
+**Migration**: add `role text default 'teacher'` to `teachers` (nullable, backfill existing rows to `'teacher'`).
+
+**Add/Edit Teacher dialog** (`InstituteDashboard.tsx`):
+
+- New **Role** select: Teacher (default) / Principal.
+- If role = Teacher → require ≥ 1 batch assignment (existing validation kept; block save if none).
+- If role = Principal → batch + game assignment optional (skip validation, allow save with none).
+
+**Teacher Dashboard** (`TeacherDashboard.tsx`) — same page, gated by role:
+
+- Principal sees: Overview, all Students, all Teachers, all Attendance (mark/edit), Fees (view only: paid/unpaid/partial).
+- Principal cannot: change institute settings, add/edit/delete games/batches, change fee amount.
+- Teacher (existing behavior) unchanged — sees only assigned batches.
+- Implement by loading `teachers.role` on dashboard mount and switching queries: Principal fetches all institute rows; Teacher fetches assigned-batch rows (current logic).
+
+**Default absent display**: teacher/student attendance UI defaults unmarked rows to "Absent" visually (already partly done — reinforce in mark UI).
+
+---
+
+### Files touched
+
+- `supabase/migrations/…` (new) — add ID-gen setting columns to `institutes`, add `role` to `teachers`.
+- `src/components/profiles/TeacherProfile.tsx`
+- `src/components/profiles/StudentProfile.tsx`
+- `src/components/profiles/InstituteProfile.tsx` — new ID Generation card.
+- `src/pages/InstituteDashboard.tsx` — teacher/student/batch/game create+edit dialogs, role field, auto-ID logic, uniqueness checks, hide ID columns based on settings.
+- `src/pages/TeacherDashboard.tsx` — Principal branch (views full institute data, hides edit controls for games/batches/fees).
+
+### Not touched
+
+- Existing IDs, attendance history, fee history, RLS on existing tables, auth flow.
+
+---
+
+### Execution order (2 turns to keep quality high)
+
+**Turn A (this turn):** migration + profile UI tweaks + InstituteProfile ID Generation card (settings persist). 
+**Turn B (next):** wire the settings into add/edit dialogs (auto-fill, uniqueness, hide columns) + Principal role in Teacher Dashboard.
+
+Confirm and I'll start with Turn A & B  
   
-Temporary Attendance Session Lifecycle
-  Attendance Session is a temporary runtime object.
-  It is NOT permanent business data.
-  Purpose:
-  - Start attendance window
-  - Track session start time
-  - Track session end time
-  - Track who triggered the session
-  - Control automatic attendance behavior
-  After the attendance window expires and all automatic processing is completed:
-  - Session Status → Completed
-  - Perform all pending-to-absent processing
-  - Finalize required attendance operations
-  - Automatically delete the temporary attendance session record from the database
-  IMPORTANT:
-  Only the temporary attendance session record should be deleted.
-  Never delete:
-  - Teacher attendance records
-  - Student attendance records
-  - Attendance history
-  - Attendance reports
-  - Audit history
-  Deleting the temporary session must NEVER affect historical attendance data.
-  ---
-  ## Student Attendance Editing
-  Student attendance should remain flexible.
-  Institution Admin and authorized Teachers should be able to:
-  - Mark Present
-  - Mark Late
-  - Mark Absent
-  - Edit attendance later
-  - Correct mistakes
-  - Update attendance after class if necessary
-  There should be NO 1-hour restriction for student attendance.
-  Student attendance corrections should always be allowed according to institute permissions.
-  ---
-  ## Teacher Attendance Restriction
-  Teacher attendance should be stricter.
-  When Attendance Session starts:
-  First 1 Hour:
-  - Present
-  - Late
-  After 1 Hour:
-  - Hide Present option
-  - Only Late should be available
-  After Attendance Window expires:
-  - Remaining unmarked teachers become Absent automatically.
-  This restriction applies ONLY to teachers and never to students.
+  
+Additional Clarifications:
 
----
+1. Student Profile should continue displaying Parent/Guardian Name and Parent Mobile. Do not replace Parent/Guardian Name with Registration Number since Registration Number is already displayed below the student's name.
 
-**Confirm and I'll execute.** If you want me to skip/defer any section (e.g. start with just sidebar + profile, then attendance), say so — this is large enough that splitting it into 2 turns will give cleaner results.
+2. Automatically generated IDs must never be reused, even if a teacher, student, batch, or game is deleted or becomes inactive. Always generate the next highest available ID.
+
+3. Principal permissions apply only within their own institute. They must never be able to view or access data from other institutes.
+
+4. Default "Absent" should be a visual default only. Attendance must not be saved automatically until the user clicks the Save button.
+
+5. Automatically generated Teacher IDs should remain read-only. They can only be edited when automatic ID generation is disabled by the institute.

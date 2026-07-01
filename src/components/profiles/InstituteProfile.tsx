@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Building2, MapPin, Briefcase, Sparkles, ClockIcon, Loader2 } from 'lucide-react';
+import { Building2, MapPin, Briefcase, Sparkles, ClockIcon, Loader2, Hash } from 'lucide-react';
 
 interface Props { instituteId: string }
 
@@ -18,6 +18,7 @@ const sections = [
   { id: 'address', label: 'Address', icon: MapPin },
   { id: 'business', label: 'Business', icon: Briefcase },
   { id: 'attendance', label: 'Attendance Settings', icon: ClockIcon },
+  { id: 'ids', label: 'ID Generation', icon: Hash },
   { id: 'subscription', label: 'Subscription', icon: Sparkles },
 ];
 
@@ -166,6 +167,55 @@ export default function InstituteProfile({ instituteId }: Props) {
           </Card>
         )}
 
+        {active === 'ids' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>ID Generation Settings</CardTitle>
+              <CardDescription>
+                Control how Teacher, Student, Batch and Game IDs are created and displayed. Auto-generated IDs are never reused and remain unique within your institute.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <IdToggle
+                title="Automatic Teacher ID"
+                desc="Auto-generate IDs like TCH0001, TCH0002. When OFF, staff can enter a custom Teacher ID (unique per institute)."
+                checked={data.auto_teacher_id !== false}
+                onChange={(v) => set('auto_teacher_id', v)}
+              />
+              <IdToggle
+                title="Automatic Student Registration Number"
+                desc="Auto-generate IDs like STU0001, STU0002. When OFF, staff can enter a custom Reg No (unique per institute)."
+                checked={data.auto_student_id !== false}
+                onChange={(v) => set('auto_student_id', v)}
+              />
+              <IdToggle
+                title="Automatic Batch ID"
+                desc="Auto-generate IDs like BAT0001, BAT0002."
+                checked={data.auto_batch_id !== false}
+                onChange={(v) => set('auto_batch_id', v)}
+              />
+              <IdToggle
+                title="Show Batch ID in UI"
+                desc="When OFF, Batch IDs stay in the database but are hidden from lists and forms."
+                checked={data.show_batch_id !== false}
+                onChange={(v) => set('show_batch_id', v)}
+              />
+              <IdToggle
+                title="Automatic Game ID"
+                desc="Auto-generate IDs like GAM0001, GAM0002."
+                checked={data.auto_game_id !== false}
+                onChange={(v) => set('auto_game_id', v)}
+              />
+              <IdToggle
+                title="Show Game ID in UI"
+                desc="When OFF, Game IDs stay in the database but are hidden from lists and forms."
+                checked={!!data.show_game_id}
+                onChange={(v) => set('show_game_id', v)}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {active === 'subscription' && (
           <Card>
             <CardHeader><CardTitle>Subscription Plan</CardTitle></CardHeader>
@@ -208,6 +258,18 @@ function Field({ label, v, on, type = 'text', placeholder }: { label: string; v:
     <div>
       <Label>{label}</Label>
       <Input type={type} value={v ?? ''} onChange={(e) => on(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function IdToggle({ title, desc, checked, onChange }: { title: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border p-3 gap-4">
+      <div className="min-w-0">
+        <div className="font-medium">{title}</div>
+        <div className="text-xs text-muted-foreground">{desc}</div>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
