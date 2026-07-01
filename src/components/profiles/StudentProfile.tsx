@@ -85,7 +85,6 @@ export default function StudentProfile({ studentId }: Props) {
             <Info label="Date of Birth" value={student.dob} />
             <Info label="Gender" value={student.gender} />
             <Info label="Emergency Contact" value={student.emergency_contact} />
-            <div className="sm:col-span-2"><Info label="Address" value={student.address} /></div>
           </div>
         </CardContent>
       </Card>
