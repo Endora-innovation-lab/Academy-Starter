@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Building2, MapPin, Briefcase, Sparkles, ClockIcon, Loader2 } from 'lucide-react';
+import { Building2, MapPin, Briefcase, Sparkles, ClockIcon, Loader2, Hash } from 'lucide-react';
 
 interface Props { instituteId: string }
 
@@ -18,6 +18,7 @@ const sections = [
   { id: 'address', label: 'Address', icon: MapPin },
   { id: 'business', label: 'Business', icon: Briefcase },
   { id: 'attendance', label: 'Attendance Settings', icon: ClockIcon },
+  { id: 'ids', label: 'ID Generation', icon: Hash },
   { id: 'subscription', label: 'Subscription', icon: Sparkles },
 ];
 
