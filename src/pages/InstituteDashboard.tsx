@@ -1119,6 +1119,8 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
   const [showEdit, setShowEdit] = useState<any>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [gameIdInput, setGameIdInput] = useState('');
+  const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchGames = async () => {
     const { data } = await supabase.from('games').select('*').eq('institute_id', instituteId).order('name');
@@ -1130,18 +1132,35 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   useEffect(() => { fetchGames(); }, [instituteId]);
+  useEffect(() => { fetchInstituteIdSettings(instituteId).then(setSettings); }, [instituteId]);
+
+  useEffect(() => {
+    if (!showAdd || showEdit || !settings) return;
+    if (settings.auto_game_id) nextGameId(instituteId).then(setGameIdInput);
+    else setGameIdInput('');
+  }, [showAdd, showEdit, settings, instituteId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Resolve Game ID
+      let finalGameId: string | null = null;
+      if (settings?.auto_game_id) {
+        finalGameId = showEdit ? (showEdit.game_id || await nextGameId(instituteId)) : await nextGameId(instituteId);
+      } else if (gameIdInput.trim()) {
+        const taken = await isGameIdTaken(instituteId, gameIdInput.trim(), showEdit?.id);
+        if (taken) { toast.error('Game ID already exists in this institute'); return; }
+        finalGameId = gameIdInput.trim();
+      }
+
       if (showEdit) {
-        await supabase.from('games').update({ name, description }).eq('id', showEdit.id);
+        await supabase.from('games').update({ name, description, game_id: finalGameId }).eq('id', showEdit.id);
         toast.success('Game updated');
       } else {
-        await supabase.from('games').insert({ name, description, institute_id: instituteId });
+        await supabase.from('games').insert({ name, description, institute_id: instituteId, game_id: finalGameId });
         toast.success('Game created');
       }
-      setShowAdd(false); setShowEdit(null); setName(''); setDescription('');
+      setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput('');
       fetchGames();
     } catch (err: any) { toast.error(err.message); }
   };
