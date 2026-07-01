@@ -391,6 +391,17 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   };
 
   useEffect(() => { fetchStudents(); }, [instituteId]);
+  useEffect(() => { fetchInstituteIdSettings(instituteId).then(setSettings); }, [instituteId]);
+
+  // Auto-fill Reg No when opening add dialog
+  useEffect(() => {
+    if (!showAdd || !settings) return;
+    if (settings.auto_student_id) {
+      nextStudentRegNo(instituteId).then(setRegNo);
+    } else {
+      setRegNo('');
+    }
+  }, [showAdd, settings, instituteId]);
 
   const filteredByBatch = filterBatch === 'all'
     ? students
