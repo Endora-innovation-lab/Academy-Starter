@@ -314,10 +314,15 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update_teacher') {
-      const { teacher_id, name, phone, birth_year, email } = body
+      const { teacher_id, name, phone, birth_year, email, gender, date_of_birth, blood_group, emergency_contact } = body
       const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id').eq('id', teacher_id).single()
       if (teacher) {
-        await supabaseAdmin.from('teachers').update({ phone, birth_year }).eq('id', teacher_id)
+        const tPatch: any = { phone, birth_year }
+        if (gender !== undefined) tPatch.gender = gender
+        if (date_of_birth !== undefined) tPatch.date_of_birth = date_of_birth || null
+        if (blood_group !== undefined) tPatch.blood_group = blood_group
+        if (emergency_contact !== undefined) tPatch.emergency_contact = emergency_contact
+        await supabaseAdmin.from('teachers').update(tPatch).eq('id', teacher_id)
         const profPatch: any = {}
         if (name !== undefined) profPatch.name = name
         if (email !== undefined) profPatch.email = email
