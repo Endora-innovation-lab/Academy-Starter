@@ -351,6 +351,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [parentName, setParentName] = useState('');
+  const [gender, setGender] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
