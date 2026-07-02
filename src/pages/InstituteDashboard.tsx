@@ -605,7 +605,20 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                   />
                 </div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
-                <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+                <div><Label>Parent / Guardian Name</Label><Input value={parentName} onChange={e => setParentName(e.target.value)} placeholder="Full name" /></div>
+                <div><Label>Parent Mobile Number</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+                <div><Label>Emergency Contact Number</Label><Input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} /></div>
+                <div>
+                  <Label>Gender</Label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Game / Course *</Label>
                   <Select value={addGameId} onValueChange={(v) => { setAddGameId(v); setAddBatchId(''); }}>
