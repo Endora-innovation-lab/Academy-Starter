@@ -122,7 +122,10 @@ Deno.serve(async (req) => {
         institute_id: roleData.institute_id,
         reg_no,
         dob,
-        parent_phone
+        parent_phone,
+        parent_name: parent_name || null,
+        gender: gender || null,
+        emergency_contact: emergency_contact || null,
       }).select().single()
 
       if (studentError) {
