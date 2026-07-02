@@ -492,7 +492,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     if (!selectedBatch) return;
     const { data } = await supabase
       .from('batch_students')
-      .select('student_id, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))')
+      .select('student_id, students(id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
 
     const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive');
@@ -500,6 +500,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
 
     const studentIds = studs.map(s => s.student_id);
     const map: Record<string, string> = {};
+    const existing: Record<string, boolean> = {};
 
     if (studentIds.length > 0) {
       const { data: att } = await supabase
@@ -509,11 +510,15 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
         .eq('batch_id', selectedBatch)
         .eq('date', date);
 
-      att?.forEach(a => { map[a.student_id] = a.status; });
+      att?.forEach(a => { map[a.student_id] = a.status; existing[a.student_id] = true; });
     }
 
+    // UI default: show ABSENT for every student. Do NOT save automatically —
+    // only records the teacher explicitly touched (or that already exist) are saved.
     studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
     setAttendanceMap(map);
+    setExistingIds(existing);
+    setTouched({});
     setHasLoaded(true);
   };
 
@@ -522,14 +527,15 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const toggleAttendance = (studentId: string) => {
     setAttendanceMap(prev => ({
       ...prev,
-      [studentId]: cycleStatus(prev[studentId] || 'unmarked'),
+      [studentId]: cycleStatus(prev[studentId] || 'absent'),
     }));
+    setTouched(prev => ({ ...prev, [studentId]: true }));
   };
 
   const saveAttendance = async () => {
     try {
       const records = Object.entries(attendanceMap)
-        .filter(([, status]) => status !== 'unmarked')
+        .filter(([sid, status]) => status !== 'unmarked' && (touched[sid] || existingIds[sid]))
         .map(([student_id, status]) => ({
           student_id,
           batch_id: selectedBatch,
@@ -539,7 +545,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
           institute_id: instituteId,
         }));
       if (records.length === 0) {
-        toast.error('No attendance marked yet.');
+        toast.error('No attendance changes to save.');
         return;
       }
       const { error } = await supabase.from('attendance').upsert(records, {
@@ -547,10 +553,12 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       });
       if (error) throw error;
       toast.success('Attendance saved!');
+      setTouched({});
     } catch (err: any) {
       toast.error(err.message);
     }
   };
+
 
   const filteredStudents = searchTerm
     ? students.filter(s => {
