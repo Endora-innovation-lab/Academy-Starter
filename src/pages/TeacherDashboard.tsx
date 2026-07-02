@@ -232,7 +232,7 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
     setSelectedBatch(batchId);
     const { data } = await supabase
       .from('batch_students')
-      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
+      .select('*, students(reg_no, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', batchId);
     setStudents(data || []);
   };
