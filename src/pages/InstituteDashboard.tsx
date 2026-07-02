@@ -1139,6 +1139,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     setBirthYear(t.birth_year);
                     setRole((t.role === 'principal' ? 'principal' : 'teacher'));
                     setTeacherIdInput(t.teacher_id || '');
+                    setTGender(t.gender || '');
+                    setTDob(t.date_of_birth || '');
+                    setTBloodGroup(t.blood_group || '');
+                    setTEmergency(t.emergency_contact || '');
                     setShowEdit(true);
                   }}><Pencil className="h-3 w-3" /></Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(t.id)}>
