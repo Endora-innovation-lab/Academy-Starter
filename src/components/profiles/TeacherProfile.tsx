@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, BookOpen, Layers } from 'lucide-react';
+import { Loader2, BookOpen, Layers, User } from 'lucide-react';
 
 interface Props { teacherId: string }
+
+const NotSet = () => <span className="text-muted-foreground italic">not set</span>;
 
 export default function TeacherProfile({ teacherId }: Props) {
   const [loading, setLoading] = useState(true);
   const [teacher, setTeacher] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [instituteCode, setInstituteCode] = useState<string>('');
   const [games, setGames] = useState<string[]>([]);
   const [batches, setBatches] = useState<{ id: string; name: string }[]>([]);
@@ -18,6 +21,14 @@ export default function TeacherProfile({ teacherId }: Props) {
       setLoading(true);
       const { data: t } = await supabase.from('teachers').select('*').eq('id', teacherId).maybeSingle();
       setTeacher(t);
+      if (t?.user_id) {
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('user_id', t.user_id)
+          .maybeSingle();
+        setProfile(p);
+      }
       if (t?.institute_id) {
         const { data: ins } = await supabase.from('institutes').select('code').eq('id', t.institute_id).maybeSingle();
         setInstituteCode(ins?.code || '');
@@ -38,20 +49,24 @@ export default function TeacherProfile({ teacherId }: Props) {
   if (loading) return <div className="py-12 text-center text-muted-foreground"><Loader2 className="h-5 w-5 inline animate-spin mr-2" />Loading…</div>;
   if (!teacher) return <div className="py-12 text-center text-muted-foreground">Profile not found</div>;
 
+  const name = profile?.name || '';
+  const role = teacher.role === 'principal' ? 'Principal' : 'Teacher';
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center text-xl font-bold">
-              {(teacher.name || '?').slice(0, 1).toUpperCase()}
+              {(name || '?').slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <CardTitle className="truncate">{teacher.name}</CardTitle>
-              <CardDescription className="flex items-center gap-2 flex-wrap">
+              <CardTitle className="truncate text-xl">{name || <NotSet />}</CardTitle>
+              <CardDescription className="flex items-center gap-2 flex-wrap mt-1">
                 <span>ID: {teacher.teacher_id || teacher.id.slice(0, 8)}</span>
-                <Badge variant={teacher.status === 'active' ? 'default' : 'secondary'}>
-                  {teacher.status || 'active'}
+                <Badge variant="outline">{role}</Badge>
+                <Badge variant={teacher.status === 'inactive' ? 'secondary' : 'default'}>
+                  {teacher.status === 'inactive' ? 'Inactive' : 'Active'}
                 </Badge>
               </CardDescription>
             </div>
@@ -63,12 +78,13 @@ export default function TeacherProfile({ teacherId }: Props) {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <Info label="Institute ID" value={instituteCode} />
-            <Info label="Mobile Number" value={teacher.mobile} />
-            <Info label="Email" value={teacher.email} />
+            <Info label="Mobile Number" value={teacher.phone} />
+            <Info label="Email" value={profile?.email} />
             <Info label="Gender" value={teacher.gender} />
             <Info label="Date of Birth" value={teacher.date_of_birth} />
             <Info label="Blood Group" value={teacher.blood_group} />
             <Info label="Emergency Contact" value={teacher.emergency_contact} />
+            <Info label="Role" value={role} />
           </div>
         </CardContent>
       </Card>
@@ -99,7 +115,7 @@ function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-medium">{value || <span className="text-muted-foreground italic">Not set</span>}</div>
+      <div className="font-medium">{value || <NotSet />}</div>
     </div>
   );
 }

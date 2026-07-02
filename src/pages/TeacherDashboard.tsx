@@ -232,7 +232,7 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
     setSelectedBatch(batchId);
     const { data } = await supabase
       .from('batch_students')
-      .select('*, students(reg_no, profiles!students_user_id_profiles_fkey(name))')
+      .select('*, students(reg_no, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', batchId);
     setStudents(data || []);
   };
@@ -277,16 +277,22 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
                   <th className="text-left p-3 font-medium">S.No</th>
                   <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
                   <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <th className="text-left p-3 font-medium">Contact</th>
                 </tr>
               </thead>
               <tbody>
-                {displayStudents.map((s, index) => (
-                  <tr key={s.id} className="border-t">
-                    <td className="p-3">{index + 1}</td>
-                    <td className="p-3">{(s.students as any)?.profiles?.name}</td>
-                    <td className="p-3">{(s.students as any)?.reg_no}</td>
-                  </tr>
-                ))}
+                {displayStudents.map((s, index) => {
+                  const stu = s.students as any;
+                  const phone = stu?.parent_phone;
+                  return (
+                    <tr key={s.id} className="border-t">
+                      <td className="p-3">{index + 1}</td>
+                      <td className="p-3">{stu?.profiles?.name}</td>
+                      <td className="p-3">{stu?.reg_no}</td>
+                      <td className="p-3">{phone ? <a href={`tel:${phone}`} className="text-primary hover:underline">{phone}</a> : '-'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -465,6 +471,8 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [students, setStudents] = useState<any[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [existingIds, setExistingIds] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -490,7 +498,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     if (!selectedBatch) return;
     const { data } = await supabase
       .from('batch_students')
-      .select('student_id, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))')
+      .select('student_id, students(id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
 
     const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive');
@@ -498,6 +506,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
 
     const studentIds = studs.map(s => s.student_id);
     const map: Record<string, string> = {};
+    const existing: Record<string, boolean> = {};
 
     if (studentIds.length > 0) {
       const { data: att } = await supabase
@@ -507,11 +516,15 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
         .eq('batch_id', selectedBatch)
         .eq('date', date);
 
-      att?.forEach(a => { map[a.student_id] = a.status; });
+      att?.forEach(a => { map[a.student_id] = a.status; existing[a.student_id] = true; });
     }
 
-    studentIds.forEach(id => { if (!map[id]) map[id] = 'unmarked'; });
+    // UI default: show ABSENT for every student. Do NOT save automatically —
+    // only records the teacher explicitly touched (or that already exist) are saved.
+    studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
     setAttendanceMap(map);
+    setExistingIds(existing);
+    setTouched({});
     setHasLoaded(true);
   };
 
@@ -520,14 +533,15 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
   const toggleAttendance = (studentId: string) => {
     setAttendanceMap(prev => ({
       ...prev,
-      [studentId]: cycleStatus(prev[studentId] || 'unmarked'),
+      [studentId]: cycleStatus(prev[studentId] || 'absent'),
     }));
+    setTouched(prev => ({ ...prev, [studentId]: true }));
   };
 
   const saveAttendance = async () => {
     try {
       const records = Object.entries(attendanceMap)
-        .filter(([, status]) => status !== 'unmarked')
+        .filter(([sid, status]) => status !== 'unmarked' && (touched[sid] || existingIds[sid]))
         .map(([student_id, status]) => ({
           student_id,
           batch_id: selectedBatch,
@@ -537,7 +551,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
           institute_id: instituteId,
         }));
       if (records.length === 0) {
-        toast.error('No attendance marked yet.');
+        toast.error('No attendance changes to save.');
         return;
       }
       const { error } = await supabase.from('attendance').upsert(records, {
@@ -545,10 +559,12 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       });
       if (error) throw error;
       toast.success('Attendance saved!');
+      setTouched({});
     } catch (err: any) {
       toast.error(err.message);
     }
   };
+
 
   const filteredStudents = searchTerm
     ? students.filter(s => {
@@ -592,20 +608,23 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
                   <th className="text-left p-3 font-medium">S.No</th>
                   <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
                   <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <th className="text-left p-3 font-medium">Contact</th>
                   <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
                 </tr>
               </thead>
               <tbody>
                 {displayStudents.map((s, index) => {
                   const student = s.students as any;
+                  const phone = student?.parent_phone;
                   return (
                     <tr key={s.student_id} className="border-t">
                       <td className="p-3">{index + 1}</td>
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
+                      <td className="p-3">{phone ? <a href={`tel:${phone}`} className="text-primary hover:underline">{phone}</a> : '-'}</td>
                       <td className="p-3">
                         <StatusBadge
-                          status={attendanceMap[s.student_id] || 'unmarked'}
+                          status={attendanceMap[s.student_id] || 'absent'}
                           onClick={() => toggleAttendance(s.student_id)}
                         />
                       </td>

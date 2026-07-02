@@ -351,6 +351,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [regNo, setRegNo] = useState('');
   const [dob, setDob] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [parentName, setParentName] = useState('');
+  const [gender, setGender] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
@@ -435,7 +438,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         if (taken) { toast.error('Registration Number already exists in this institute'); return; }
       }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'create_student', name, reg_no: regNo, dob, parent_phone: parentPhone },
+        body: {
+          action: 'create_student',
+          name, reg_no: regNo, dob, parent_phone: parentPhone,
+          parent_name: parentName, gender, emergency_contact: emergencyContact,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -457,6 +464,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       toast.success('Student added!');
       setShowAdd(false);
       setName(''); setRegNo(''); setDob(''); setParentPhone('');
+      setParentName(''); setGender(''); setEmergencyContact('');
       setAddGameId(''); setAddMonthlyFee(''); setAddBatchId('');
       fetchStudents();
     } catch (err: any) {
@@ -496,6 +504,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           student_id: editStudent.id,
           name, dob,
           parent_phone: parentPhone,
+          parent_name: parentName,
+          gender,
+          emergency_contact: emergencyContact,
           reg_no: regNo || undefined,
           status,
         },
@@ -594,7 +605,20 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                   />
                 </div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
-                <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+                <div><Label>Parent / Guardian Name</Label><Input value={parentName} onChange={e => setParentName(e.target.value)} placeholder="Full name" /></div>
+                <div><Label>Parent Mobile Number</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+                <div><Label>Emergency Contact Number</Label><Input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} /></div>
+                <div>
+                  <Label>Gender</Label>
+                  <Select value={gender} onValueChange={setGender}>
+                    <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Game / Course *</Label>
                   <Select value={addGameId} onValueChange={(v) => { setAddGameId(v); setAddBatchId(''); }}>
@@ -692,6 +716,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                       setRegNo(s.reg_no || '');
                       setDob(s.dob);
                       setParentPhone(s.parent_phone || '');
+                      setParentName(s.parent_name || '');
+                      setGender(s.gender || '');
+                      setEmergencyContact(s.emergency_contact || '');
                       setStatus((s.status === 'inactive' ? 'inactive' : 'active') as any);
                       setShowEdit(true);
                     }}><Pencil className="h-3 w-3" /></Button>
@@ -724,7 +751,20 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <Input value={dob} onChange={e => setDob(e.target.value)} required />
               <p className="text-xs text-muted-foreground mt-1">Used as login password. Changing it updates the student's password automatically.</p>
             </div>
-            <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+            <div><Label>Parent / Guardian Name</Label><Input value={parentName} onChange={e => setParentName(e.target.value)} /></div>
+            <div><Label>Parent Mobile Number</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+            <div><Label>Emergency Contact Number</Label><Input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} /></div>
+            <div>
+              <Label>Gender</Label>
+              <Select value={gender} onValueChange={setGender}>
+                <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label>Overall Status</Label>
               <Select value={status} onValueChange={(v: any) => setStatus(v)}>
@@ -833,6 +873,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [birthYear, setBirthYear] = useState('');
   const [role, setRole] = useState<'teacher' | 'principal'>('teacher');
   const [teacherIdInput, setTeacherIdInput] = useState('');
+  const [tGender, setTGender] = useState('');
+  const [tDob, setTDob] = useState('');
+  const [tBloodGroup, setTBloodGroup] = useState('');
+  const [tEmergency, setTEmergency] = useState('');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchTeachers = async () => {
@@ -892,7 +936,14 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       }
 
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'create_teacher', name, email, phone, birth_year: birthYear },
+        body: {
+          action: 'create_teacher',
+          name, email, phone, birth_year: birthYear,
+          gender: tGender,
+          date_of_birth: tDob,
+          blood_group: tBloodGroup,
+          emergency_contact: tEmergency,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -909,6 +960,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       setShowAdd(false);
       setName(''); setEmail(''); setPhone(''); setBirthYear('');
       setRole('teacher'); setTeacherIdInput('');
+      setTGender(''); setTDob(''); setTBloodGroup(''); setTEmergency('');
       fetchTeachers();
     } catch (err: any) {
       toast.error(err.message);
@@ -939,7 +991,16 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         }
       }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear, email: email || undefined },
+        body: {
+          action: 'update_teacher',
+          teacher_id: editTeacher.id,
+          name, phone, birth_year: birthYear,
+          email: email || undefined,
+          gender: tGender,
+          date_of_birth: tDob,
+          blood_group: tBloodGroup,
+          emergency_contact: tEmergency,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -973,7 +1034,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Teacher</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Add Teacher</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
@@ -1003,8 +1064,30 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                   </p>
                 </div>
                 <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-                <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
+                <div><Label>Mobile Number</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
                 <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required placeholder="e.g. 1990" /></div>
+                <div>
+                  <Label>Gender</Label>
+                  <Select value={tGender} onValueChange={setTGender}>
+                    <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Date of Birth</Label><Input type="date" value={tDob} onChange={e => setTDob(e.target.value)} /></div>
+                <div>
+                  <Label>Blood Group</Label>
+                  <Select value={tBloodGroup} onValueChange={setTBloodGroup}>
+                    <SelectTrigger><SelectValue placeholder="Select blood group" /></SelectTrigger>
+                    <SelectContent>
+                      {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Emergency Contact Number</Label><Input value={tEmergency} onChange={e => setTEmergency(e.target.value)} /></div>
                 <Button type="submit" className="w-full">Add Teacher</Button>
               </form>
             </DialogContent>
@@ -1056,6 +1139,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     setBirthYear(t.birth_year);
                     setRole((t.role === 'principal' ? 'principal' : 'teacher'));
                     setTeacherIdInput(t.teacher_id || '');
+                    setTGender(t.gender || '');
+                    setTDob(t.date_of_birth || '');
+                    setTBloodGroup(t.blood_group || '');
+                    setTEmergency(t.emergency_contact || '');
                     setShowEdit(true);
                   }}><Pencil className="h-3 w-3" /></Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(t.id)}>
@@ -1072,7 +1159,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       </div>
 
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
@@ -1101,8 +1188,30 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
               <p className="text-xs text-muted-foreground mt-1">Used as login email. Changing it updates the teacher's login immediately; all batches, attendance, and assignments are preserved.</p>
             </div>
-            <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
+            <div><Label>Mobile Number</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
             <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required /></div>
+            <div>
+              <Label>Gender</Label>
+              <Select value={tGender} onValueChange={setTGender}>
+                <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Date of Birth</Label><Input type="date" value={tDob} onChange={e => setTDob(e.target.value)} /></div>
+            <div>
+              <Label>Blood Group</Label>
+              <Select value={tBloodGroup} onValueChange={setTBloodGroup}>
+                <SelectTrigger><SelectValue placeholder="Select blood group" /></SelectTrigger>
+                <SelectContent>
+                  {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Emergency Contact Number</Label><Input value={tEmergency} onChange={e => setTEmergency(e.target.value)} /></div>
             <Button type="submit" className="w-full">Update</Button>
           </form>
         </DialogContent>
@@ -1481,7 +1590,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
               <div>
                 <Label>Assign Teachers (select multiple)</Label>
                 <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
-                  {teachers.map(t => (
+                  {teachers.filter(t => t.role !== 'principal').map(t => (
                     <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1 rounded">
                       <input
                         type="checkbox"
@@ -1494,8 +1603,9 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                       {(t.profiles as any)?.name}
                     </label>
                   ))}
-                  {teachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
+                  {teachers.filter(t => t.role !== 'principal').length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">Principals aren't assigned to individual batches — they see all institute batches automatically.</p>
               </div>
               <Button type="submit" className="w-full">Create</Button>
             </form>
@@ -1590,7 +1700,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                       <SelectValue placeholder="+ Change / Add Teacher" />
                     </SelectTrigger>
                     <SelectContent>
-                      {teachers.filter(t => !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
+                      {teachers.filter(t => t.role !== 'principal' && !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
                         <SelectItem key={t.id} value={t.id}>{(t.profiles as any)?.name}</SelectItem>
                       ))}
                     </SelectContent>
