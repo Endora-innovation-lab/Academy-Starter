@@ -991,7 +991,16 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         }
       }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'update_teacher', teacher_id: editTeacher.id, name, phone, birth_year: birthYear, email: email || undefined },
+        body: {
+          action: 'update_teacher',
+          teacher_id: editTeacher.id,
+          name, phone, birth_year: birthYear,
+          email: email || undefined,
+          gender: tGender,
+          date_of_birth: tDob,
+          blood_group: tBloodGroup,
+          emergency_contact: tEmergency,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
