@@ -277,16 +277,22 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
                   <th className="text-left p-3 font-medium">S.No</th>
                   <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
                   <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <th className="text-left p-3 font-medium">Contact</th>
                 </tr>
               </thead>
               <tbody>
-                {displayStudents.map((s, index) => (
-                  <tr key={s.id} className="border-t">
-                    <td className="p-3">{index + 1}</td>
-                    <td className="p-3">{(s.students as any)?.profiles?.name}</td>
-                    <td className="p-3">{(s.students as any)?.reg_no}</td>
-                  </tr>
-                ))}
+                {displayStudents.map((s, index) => {
+                  const stu = s.students as any;
+                  const phone = stu?.parent_phone;
+                  return (
+                    <tr key={s.id} className="border-t">
+                      <td className="p-3">{index + 1}</td>
+                      <td className="p-3">{stu?.profiles?.name}</td>
+                      <td className="p-3">{stu?.reg_no}</td>
+                      <td className="p-3">{phone ? <a href={`tel:${phone}`} className="text-primary hover:underline">{phone}</a> : '-'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
