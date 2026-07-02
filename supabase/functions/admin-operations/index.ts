@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     const { action } = body
 
     if (action === 'create_student') {
-      const { name, reg_no, dob, parent_phone } = body
+      const { name, reg_no, dob, parent_phone, parent_name, gender, emergency_contact } = body
       const email = `${reg_no.toLowerCase().replace(/[^a-z0-9]/g, '')}@student.academy.local`
       const password = dob // dd-mm-yyyy format
 
