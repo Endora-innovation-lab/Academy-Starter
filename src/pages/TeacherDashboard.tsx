@@ -602,20 +602,23 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
                   <th className="text-left p-3 font-medium">S.No</th>
                   <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
                   <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
+                  <th className="text-left p-3 font-medium">Contact</th>
                   <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
                 </tr>
               </thead>
               <tbody>
                 {displayStudents.map((s, index) => {
                   const student = s.students as any;
+                  const phone = student?.parent_phone;
                   return (
                     <tr key={s.student_id} className="border-t">
                       <td className="p-3">{index + 1}</td>
                       <td className="p-3">{student?.profiles?.name}</td>
                       <td className="p-3">{student?.reg_no}</td>
+                      <td className="p-3">{phone ? <a href={`tel:${phone}`} className="text-primary hover:underline">{phone}</a> : '-'}</td>
                       <td className="p-3">
                         <StatusBadge
-                          status={attendanceMap[s.student_id] || 'unmarked'}
+                          status={attendanceMap[s.student_id] || 'absent'}
                           onClick={() => toggleAttendance(s.student_id)}
                         />
                       </td>
