@@ -6,9 +6,12 @@ import { Loader2, BookOpen, Wallet, CalendarCheck } from 'lucide-react';
 
 interface Props { studentId: string }
 
+const NotSet = () => <span className="text-muted-foreground italic">not set</span>;
+
 export default function StudentProfile({ studentId }: Props) {
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [instituteCode, setInstituteCode] = useState('');
   const [games, setGames] = useState<string[]>([]);
   const [feeSummary, setFeeSummary] = useState({ total: 0, paid: 0, due: 0 });
@@ -19,6 +22,10 @@ export default function StudentProfile({ studentId }: Props) {
       setLoading(true);
       const { data: s } = await supabase.from('students').select('*').eq('id', studentId).maybeSingle();
       setStudent(s);
+      if (s?.user_id) {
+        const { data: p } = await supabase.from('profiles').select('name, email').eq('user_id', s.user_id).maybeSingle();
+        setProfile(p);
+      }
       if (s?.institute_id) {
         const { data: ins } = await supabase.from('institutes').select('code').eq('id', s.institute_id).maybeSingle();
         setInstituteCode(ins?.code || '');
@@ -31,13 +38,17 @@ export default function StudentProfile({ studentId }: Props) {
 
       const { data: fees } = await supabase
         .from('fees')
-        .select('total_amount,paid_amount,due_amount')
+        .select('amount, collected_amount')
         .eq('student_id', studentId);
-      const f = (fees || []).reduce((a: any, r: any) => ({
-        total: a.total + Number(r.total_amount || 0),
-        paid: a.paid + Number(r.paid_amount || 0),
-        due: a.due + Number(r.due_amount || 0),
-      }), { total: 0, paid: 0, due: 0 });
+      const f = (fees || []).reduce((a: any, r: any) => {
+        const total = Number(r.amount || 0);
+        const paid = Number(r.collected_amount || 0);
+        return {
+          total: a.total + total,
+          paid: a.paid + paid,
+          due: a.due + Math.max(0, total - paid),
+        };
+      }, { total: 0, paid: 0, due: 0 });
       setFeeSummary(f);
 
       const { data: att } = await supabase.from('attendance').select('status').eq('student_id', studentId);
@@ -55,20 +66,22 @@ export default function StudentProfile({ studentId }: Props) {
   if (loading) return <div className="py-12 text-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin inline mr-2" />Loading…</div>;
   if (!student) return <div className="py-12 text-center text-muted-foreground">Profile not found</div>;
 
+  const name = profile?.name || '';
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center text-xl font-bold">
-              {(student.name || '?').slice(0, 1).toUpperCase()}
+              {(name || '?').slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <CardTitle className="truncate">{student.name}</CardTitle>
-              <CardDescription className="flex items-center gap-2 flex-wrap">
-                <span>Reg No: {student.reg_no}</span>
-                <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
-                  {student.status || 'active'}
+              <CardTitle className="truncate text-xl">{name || <NotSet />}</CardTitle>
+              <CardDescription className="flex items-center gap-2 flex-wrap mt-1">
+                <span>Reg No: {student.reg_no || '—'}</span>
+                <Badge variant={student.status === 'inactive' ? 'secondary' : 'default'}>
+                  {student.status === 'inactive' ? 'Inactive' : 'Active'}
                 </Badge>
               </CardDescription>
             </div>
@@ -76,15 +89,15 @@ export default function StudentProfile({ studentId }: Props) {
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground italic mb-3">
-            This profile is read-only. Contact your institute to update details.
+            This profile is read-only. To update these details, use the Add/Edit Student option in the institute dashboard.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <Info label="Institute ID" value={instituteCode} />
-            <Info label="Parent / Guardian" value={student.parent_name} />
-            <Info label="Parent Mobile" value={student.parent_mobile} />
-            <Info label="Date of Birth" value={student.dob} />
-            <Info label="Gender" value={student.gender} />
+            <Info label="Parent / Guardian Name" value={student.parent_name} />
+            <Info label="Parent Mobile Number" value={student.parent_phone} />
             <Info label="Emergency Contact" value={student.emergency_contact} />
+            <Info label="Gender" value={student.gender} />
+            <Info label="Date of Birth" value={student.dob} />
           </div>
         </CardContent>
       </Card>
@@ -121,7 +134,7 @@ function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-medium">{value || <span className="text-muted-foreground italic">Not set</span>}</div>
+      <div className="font-medium">{value || <NotSet />}</div>
     </div>
   );
 }
