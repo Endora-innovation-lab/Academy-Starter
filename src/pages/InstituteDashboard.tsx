@@ -716,6 +716,9 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                       setRegNo(s.reg_no || '');
                       setDob(s.dob);
                       setParentPhone(s.parent_phone || '');
+                      setParentName(s.parent_name || '');
+                      setGender(s.gender || '');
+                      setEmergencyContact(s.emergency_contact || '');
                       setStatus((s.status === 'inactive' ? 'inactive' : 'active') as any);
                       setShowEdit(true);
                     }}><Pencil className="h-3 w-3" /></Button>
