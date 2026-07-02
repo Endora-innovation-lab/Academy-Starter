@@ -1188,8 +1188,30 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
               <p className="text-xs text-muted-foreground mt-1">Used as login email. Changing it updates the teacher's login immediately; all batches, attendance, and assignments are preserved.</p>
             </div>
-            <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
+            <div><Label>Mobile Number</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
             <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required /></div>
+            <div>
+              <Label>Gender</Label>
+              <Select value={tGender} onValueChange={setTGender}>
+                <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Date of Birth</Label><Input type="date" value={tDob} onChange={e => setTDob(e.target.value)} /></div>
+            <div>
+              <Label>Blood Group</Label>
+              <Select value={tBloodGroup} onValueChange={setTBloodGroup}>
+                <SelectTrigger><SelectValue placeholder="Select blood group" /></SelectTrigger>
+                <SelectContent>
+                  {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Emergency Contact Number</Label><Input value={tEmergency} onChange={e => setTEmergency(e.target.value)} /></div>
             <Button type="submit" className="w-full">Update</Button>
           </form>
         </DialogContent>
