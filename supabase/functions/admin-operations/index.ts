@@ -267,7 +267,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update_student') {
-      const { student_id, name, dob, parent_phone, reg_no, status } = body
+      const { student_id, name, dob, parent_phone, reg_no, status, parent_name, gender, emergency_contact } = body
       const { data: student } = await supabaseAdmin.from('students').select('user_id, reg_no, dob').eq('id', student_id).single()
       if (student) {
         const stuPatch: any = {}
@@ -275,6 +275,9 @@ Deno.serve(async (req) => {
         if (parent_phone !== undefined) stuPatch.parent_phone = parent_phone
         if (reg_no !== undefined) stuPatch.reg_no = reg_no
         if (status !== undefined) stuPatch.status = status
+        if (parent_name !== undefined) stuPatch.parent_name = parent_name
+        if (gender !== undefined) stuPatch.gender = gender
+        if (emergency_contact !== undefined) stuPatch.emergency_contact = emergency_contact
         if (Object.keys(stuPatch).length > 0) {
           await supabaseAdmin.from('students').update(stuPatch).eq('id', student_id)
         }
