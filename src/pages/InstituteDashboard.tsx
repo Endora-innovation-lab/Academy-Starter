@@ -751,7 +751,20 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
               <Input value={dob} onChange={e => setDob(e.target.value)} required />
               <p className="text-xs text-muted-foreground mt-1">Used as login password. Changing it updates the student's password automatically.</p>
             </div>
-            <div><Label>Parent Phone</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+            <div><Label>Parent / Guardian Name</Label><Input value={parentName} onChange={e => setParentName(e.target.value)} /></div>
+            <div><Label>Parent Mobile Number</Label><Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></div>
+            <div><Label>Emergency Contact Number</Label><Input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} /></div>
+            <div>
+              <Label>Gender</Label>
+              <Select value={gender} onValueChange={setGender}>
+                <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label>Overall Status</Label>
               <Select value={status} onValueChange={(v: any) => setStatus(v)}>
