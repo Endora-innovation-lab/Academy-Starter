@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'create_teacher') {
-      const { name, email, phone, birth_year } = body
+      const { name, email, phone, birth_year, gender, date_of_birth, blood_group, emergency_contact } = body
       const password = phone.slice(-4) + birth_year
 
       // Try to create auth user, handle duplicate by cleaning up orphan
