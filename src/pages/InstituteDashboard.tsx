@@ -936,7 +936,14 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       }
 
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'create_teacher', name, email, phone, birth_year: birthYear },
+        body: {
+          action: 'create_teacher',
+          name, email, phone, birth_year: birthYear,
+          gender: tGender,
+          date_of_birth: tDob,
+          blood_group: tBloodGroup,
+          emergency_contact: tEmergency,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -953,6 +960,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       setShowAdd(false);
       setName(''); setEmail(''); setPhone(''); setBirthYear('');
       setRole('teacher'); setTeacherIdInput('');
+      setTGender(''); setTDob(''); setTBloodGroup(''); setTEmergency('');
       fetchTeachers();
     } catch (err: any) {
       toast.error(err.message);
