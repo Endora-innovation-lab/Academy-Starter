@@ -873,6 +873,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [birthYear, setBirthYear] = useState('');
   const [role, setRole] = useState<'teacher' | 'principal'>('teacher');
   const [teacherIdInput, setTeacherIdInput] = useState('');
+  const [tGender, setTGender] = useState('');
+  const [tDob, setTDob] = useState('');
+  const [tBloodGroup, setTBloodGroup] = useState('');
+  const [tEmergency, setTEmergency] = useState('');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchTeachers = async () => {
