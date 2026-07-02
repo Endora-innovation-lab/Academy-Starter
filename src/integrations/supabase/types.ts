@@ -569,8 +569,10 @@ export type Database = {
           created_at: string
           dob: string
           emergency_contact: string | null
+          gender: string | null
           id: string
           institute_id: string
+          parent_name: string | null
           parent_phone: string | null
           reg_no: string
           status: string
@@ -580,8 +582,10 @@ export type Database = {
           created_at?: string
           dob: string
           emergency_contact?: string | null
+          gender?: string | null
           id?: string
           institute_id: string
+          parent_name?: string | null
           parent_phone?: string | null
           reg_no: string
           status?: string
@@ -591,8 +595,10 @@ export type Database = {
           created_at?: string
           dob?: string
           emergency_contact?: string | null
+          gender?: string | null
           id?: string
           institute_id?: string
+          parent_name?: string | null
           parent_phone?: string | null
           reg_no?: string
           status?: string
