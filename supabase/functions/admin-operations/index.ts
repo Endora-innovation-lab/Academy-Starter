@@ -219,7 +219,11 @@ Deno.serve(async (req) => {
         user_id: newUser.user.id,
         institute_id: roleData.institute_id,
         phone,
-        birth_year
+        birth_year,
+        gender: gender || null,
+        date_of_birth: date_of_birth || null,
+        blood_group: blood_group || null,
+        emergency_contact: emergency_contact || null,
       }).select().single()
 
       if (teacherError) {
