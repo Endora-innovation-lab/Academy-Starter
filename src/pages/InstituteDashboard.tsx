@@ -1034,7 +1034,7 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Teacher</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Add Teacher</DialogTitle></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-3">
                 <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
