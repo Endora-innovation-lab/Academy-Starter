@@ -510,7 +510,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       att?.forEach(a => { map[a.student_id] = a.status; });
     }
 
-    studentIds.forEach(id => { if (!map[id]) map[id] = 'unmarked'; });
+    studentIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
     setAttendanceMap(map);
     setHasLoaded(true);
   };
