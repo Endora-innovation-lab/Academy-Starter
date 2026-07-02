@@ -438,7 +438,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         if (taken) { toast.error('Registration Number already exists in this institute'); return; }
       }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
-        body: { action: 'create_student', name, reg_no: regNo, dob, parent_phone: parentPhone },
+        body: {
+          action: 'create_student',
+          name, reg_no: regNo, dob, parent_phone: parentPhone,
+          parent_name: parentName, gender, emergency_contact: emergencyContact,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -460,6 +464,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       toast.success('Student added!');
       setShowAdd(false);
       setName(''); setRegNo(''); setDob(''); setParentPhone('');
+      setParentName(''); setGender(''); setEmergencyContact('');
       setAddGameId(''); setAddMonthlyFee(''); setAddBatchId('');
       fetchStudents();
     } catch (err: any) {
