@@ -1700,7 +1700,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                       <SelectValue placeholder="+ Change / Add Teacher" />
                     </SelectTrigger>
                     <SelectContent>
-                      {teachers.filter(t => !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
+                      {teachers.filter(t => t.role !== 'principal' && !batchTeachers.some(bt => (bt.teachers as any)?.id === t.id)).map(t => (
                         <SelectItem key={t.id} value={t.id}>{(t.profiles as any)?.name}</SelectItem>
                       ))}
                     </SelectContent>
