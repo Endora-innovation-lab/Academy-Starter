@@ -1590,7 +1590,7 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
               <div>
                 <Label>Assign Teachers (select multiple)</Label>
                 <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1 mt-1">
-                  {teachers.map(t => (
+                  {teachers.filter(t => t.role !== 'principal').map(t => (
                     <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1 rounded">
                       <input
                         type="checkbox"
@@ -1603,8 +1603,9 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
                       {(t.profiles as any)?.name}
                     </label>
                   ))}
-                  {teachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
+                  {teachers.filter(t => t.role !== 'principal').length === 0 && <p className="text-xs text-muted-foreground">No teachers available yet</p>}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">Principals aren't assigned to individual batches — they see all institute batches automatically.</p>
               </div>
               <Button type="submit" className="w-full">Create</Button>
             </form>
