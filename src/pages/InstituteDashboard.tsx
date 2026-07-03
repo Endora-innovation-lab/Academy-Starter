@@ -995,11 +995,12 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         body: {
           action: 'update_teacher',
           teacher_id: editTeacher.id,
-          name, phone, birth_year: birthYear,
+          name, phone,
+          birth_year: tDob ? String(new Date(tDob).getFullYear()) : birthYear,
           email: email || undefined,
           gender: tGender,
           date_of_birth: tDob,
-          blood_group: tBloodGroup,
+          blood_group: tBloodGroup.trim().toUpperCase().slice(0, 20),
           emergency_contact: tEmergency,
         },
       });
