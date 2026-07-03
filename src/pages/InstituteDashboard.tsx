@@ -1067,7 +1067,6 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                 </div>
                 <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
                 <div><Label>Mobile Number</Label><Input value={phone} onChange={e => setPhone(e.target.value)} required /></div>
-                <div><Label>Birth Year</Label><Input value={birthYear} onChange={e => setBirthYear(e.target.value)} required placeholder="e.g. 1990" /></div>
                 <div>
                   <Label>Gender</Label>
                   <Select value={tGender} onValueChange={setTGender}>
@@ -1079,15 +1078,20 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Date of Birth</Label><Input type="date" value={tDob} onChange={e => setTDob(e.target.value)} /></div>
+                <div><Label>Date of Birth</Label><Input type="date" value={tDob} onChange={e => setTDob(e.target.value)} required /></div>
                 <div>
                   <Label>Blood Group</Label>
-                  <Select value={tBloodGroup} onValueChange={setTBloodGroup}>
-                    <SelectTrigger><SelectValue placeholder="Select blood group" /></SelectTrigger>
-                    <SelectContent>
-                      {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    list="blood-group-options"
+                    value={tBloodGroup}
+                    onChange={e => setTBloodGroup(e.target.value.toUpperCase().slice(0, 20))}
+                    onBlur={e => setTBloodGroup(e.target.value.trim().toUpperCase().slice(0, 20))}
+                    maxLength={20}
+                    placeholder="e.g. O+"
+                  />
+                  <datalist id="blood-group-options">
+                    {['A+','A-','B+','B-','AB+','AB-','O+','O-','A1+','A1-','A2+','A2-','A1B+','A1B-','BOMBAY (OH)','RH NULL'].map(bg => <option key={bg} value={bg} />)}
+                  </datalist>
                 </div>
                 <div><Label>Emergency Contact Number</Label><Input value={tEmergency} onChange={e => setTEmergency(e.target.value)} /></div>
                 <Button type="submit" className="w-full">Add Teacher</Button>
