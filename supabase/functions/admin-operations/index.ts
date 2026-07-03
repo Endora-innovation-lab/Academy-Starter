@@ -315,7 +315,7 @@ Deno.serve(async (req) => {
 
     if (action === 'update_teacher') {
       const { teacher_id, name, phone, birth_year, email, gender, date_of_birth, blood_group, emergency_contact } = body
-      const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id').eq('id', teacher_id).single()
+      const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id, phone, birth_year').eq('id', teacher_id).single()
       if (teacher) {
         const tPatch: any = { phone, birth_year }
         if (gender !== undefined) tPatch.gender = gender
@@ -329,8 +329,21 @@ Deno.serve(async (req) => {
         if (Object.keys(profPatch).length > 0) {
           await supabaseAdmin.from('profiles').update(profPatch).eq('user_id', teacher.user_id)
         }
+        const authPatch: any = {}
         if (email !== undefined) {
-          const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(teacher.user_id, { email, email_confirm: true })
+          authPatch.email = email
+          authPatch.email_confirm = true
+        }
+        // Sync password when phone or birth_year change: last4(phone) + birth_year
+        const newPhone = phone !== undefined ? phone : teacher.phone
+        const newBirthYear = birth_year !== undefined ? birth_year : teacher.birth_year
+        const phoneChanged = phone !== undefined && phone !== teacher.phone
+        const yearChanged = birth_year !== undefined && birth_year !== teacher.birth_year
+        if ((phoneChanged || yearChanged) && newPhone && newBirthYear) {
+          authPatch.password = String(newPhone).slice(-4) + String(newBirthYear)
+        }
+        if (Object.keys(authPatch).length > 0) {
+          const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(teacher.user_id, authPatch)
           if (authErr) {
             return new Response(JSON.stringify({ error: authErr.message }), {
               status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -338,6 +351,7 @@ Deno.serve(async (req) => {
           }
         }
       }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
