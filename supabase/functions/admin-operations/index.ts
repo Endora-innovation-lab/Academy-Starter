@@ -335,13 +335,19 @@ Deno.serve(async (req) => {
           authPatch.email = email
           authPatch.email_confirm = true
         }
-        // Sync password when phone or birth_year change: last4(phone) + birth_year
+        // Always sync password to canonical format: last4(phone) + birth_year
         const newPhone = phone !== undefined ? phone : teacher.phone
         const newBirthYear = birth_year !== undefined ? birth_year : teacher.birth_year
-        const phoneChanged = phone !== undefined && phone !== teacher.phone
-        const yearChanged = birth_year !== undefined && birth_year !== teacher.birth_year
-        if ((phoneChanged || yearChanged) && newPhone && newBirthYear) {
-          authPatch.password = String(newPhone).slice(-4) + String(newBirthYear)
+        let passwordUpdated = false
+        if (newPhone && newBirthYear) {
+          const oldPhoneStr = String(teacher.phone ?? '')
+          const oldYearStr = String(teacher.birth_year ?? '')
+          const newPhoneStr = String(newPhone)
+          const newYearStr = String(newBirthYear)
+          if (oldPhoneStr !== newPhoneStr || oldYearStr !== newYearStr) {
+            authPatch.password = newPhoneStr.slice(-4) + newYearStr
+            passwordUpdated = true
+          }
         }
         if (Object.keys(authPatch).length > 0) {
           const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(teacher.user_id, authPatch)
@@ -351,12 +357,16 @@ Deno.serve(async (req) => {
             })
           }
         }
+        return new Response(JSON.stringify({ success: true, password_updated: passwordUpdated, new_password: passwordUpdated ? authPatch.password : undefined }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
 
     if (action === 'reset_password') {
       const { email, new_password } = body
