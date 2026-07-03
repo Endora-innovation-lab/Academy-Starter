@@ -1012,6 +1012,10 @@ const TeachersTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       await supabase.from('teachers').update(patch).eq('id', editTeacher.id);
 
       toast.success('Teacher updated. Login email synced.');
+      if (data?.password_updated) {
+        toast.success('Default login password has been updated successfully.');
+      }
+
       setShowEdit(false);
       fetchTeachers();
     } catch (err: any) {
