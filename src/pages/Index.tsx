@@ -237,7 +237,8 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
         }
         toast.success('Logged in successfully');
         onClose();
-        navigate('/dashboard/teacher');
+        const { data: teacherRow } = await supabase.from('teachers').select('role').eq('user_id', user!.id).maybeSingle();
+        navigate(teacherRow?.role === 'principal' ? '/dashboard/principal' : '/dashboard/teacher');
       } else {
         if (!instituteId.trim()) throw new Error('Institute ID is required');
         const loginEmail = `${regNo.toLowerCase().replace(/[^a-z0-9]/g, '')}@student.academy.local`;
