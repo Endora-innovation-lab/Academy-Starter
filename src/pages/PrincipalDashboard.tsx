@@ -338,7 +338,6 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
               <th className="text-left p-3 font-medium">Contact</th>
               <SortableTH sortKey="role" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Role</SortableTH>
-              <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium">Action</th>
             </tr>
           </thead>
