@@ -86,7 +86,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
     (async () => {
       const [s, t, b, g, att, tatt, f] = await Promise.all([
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).neq('status', 'inactive'),
-        supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).neq('status', 'inactive'),
+        supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         supabase.from('batches').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         supabase.from('games').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         supabase.from('attendance').select('status,student_id').eq('institute_id', instituteId).eq('date', today),
