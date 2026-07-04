@@ -288,7 +288,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
     (async () => {
       const { data } = await supabase
         .from('teachers')
-        .select('id, teacher_id, role, status, phone, profiles!teachers_user_id_profiles_fkey(name, email)')
+        .select('id, teacher_id, role, phone, profiles!teachers_user_id_profiles_fkey(name, email)')
         .eq('institute_id', instituteId)
         .order('teacher_id');
       setRows(data || []);
