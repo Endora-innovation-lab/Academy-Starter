@@ -568,9 +568,9 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     if (!selectedBatch) return;
     const { data: btData } = await supabase
       .from('batch_teachers')
-      .select('teacher_id, teachers(id, teacher_id, status, phone, profiles!teachers_user_id_profiles_fkey(name))')
+      .select('teacher_id, teachers(id, teacher_id, phone, profiles!teachers_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
-    const ts = (btData || []).filter((r: any) => (r.teachers as any)?.status !== 'inactive');
+    const ts = btData || [];
     setTeachers(ts);
 
     const ids = ts.map(r => r.teacher_id);
