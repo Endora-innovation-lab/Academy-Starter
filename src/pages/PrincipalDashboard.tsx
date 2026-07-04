@@ -349,7 +349,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">{(r.profiles as any)?.name || '—'}</td>
                 <td className="p-3">{r.phone ? <a href={`tel:${r.phone}`} className="text-primary hover:underline">{r.phone}</a> : '-'}</td>
                 <td className="p-3"><Badge variant="outline">{r.role === 'principal' ? 'Principal' : 'Teacher'}</Badge></td>
-                <td className="p-3"><Badge variant={r.status === 'inactive' ? 'secondary' : 'default'}>{r.status || 'active'}</Badge></td>
+                
                 <td className="p-3">
                   <Button size="sm" variant="outline" onClick={() => setOpenId(r.id)}>
                     <Eye className="h-3.5 w-3.5 mr-1" /> View
