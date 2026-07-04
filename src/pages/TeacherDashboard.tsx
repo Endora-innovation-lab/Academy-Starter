@@ -42,6 +42,10 @@ const TeacherDashboard = () => {
     return <Navigate to="/" replace />;
   }
 
+  if (teacherRecord?.role === 'principal') {
+    return <Navigate to="/dashboard/principal" replace />;
+  }
+
   return (
     <DashboardLayout title="Teacher Dashboard" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'overview' && teacherRecord && <OverviewTab teacherId={teacherRecord.id} instituteId={instituteId} />}

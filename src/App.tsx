@@ -14,6 +14,7 @@ const InstituteRegister = lazy(() => import("./pages/InstituteRegister"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const InstituteDashboard = lazy(() => import("./pages/InstituteDashboard"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const Inactive = lazy(() => import("./pages/Inactive"));
 
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/dashboard/institute" element={<InstituteDashboard />} />
               <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
+              <Route path="/dashboard/principal" element={<PrincipalDashboard />} />
               <Route path="/dashboard/student" element={<StudentDashboard />} />
               <Route path="/inactive" element={<Inactive />} />
               <Route path="*" element={<NotFound />} />
