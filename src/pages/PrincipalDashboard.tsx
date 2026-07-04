@@ -358,7 +358,7 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
               </tr>
             ))}
             {sorted.length === 0 && (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No teachers found</td></tr>
             )}
           </tbody>
         </table>
