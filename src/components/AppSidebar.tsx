@@ -30,6 +30,7 @@ interface AppSidebarProps {
   userLabel?: string;
   userRoleLabel?: string;
   onLogout: () => void;
+  hideLogout?: boolean;
 }
 
 export function AppSidebar({
