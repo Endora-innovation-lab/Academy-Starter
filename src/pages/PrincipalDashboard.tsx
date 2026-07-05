@@ -9,10 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
   LayoutDashboard, Users, GraduationCap, ClipboardList, DollarSign, User,
-  Search, UserCheck, Eye,
+  Search, Eye, Filter, Pencil,
 } from 'lucide-react';
 import TeacherProfile from '@/components/profiles/TeacherProfile';
 import StudentProfile from '@/components/profiles/StudentProfile';
@@ -47,11 +49,12 @@ const PrincipalDashboard = () => {
     return <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">Loading dashboard...</div>;
   }
   if (!user || !instituteId) return <Navigate to="/" replace />;
-  // Guard: only principals allowed here
   if (checked && teacherRecord && teacherRecord.role !== 'principal') {
     return <Navigate to="/dashboard/teacher" replace />;
   }
   if (checked && !teacherRecord) return <Navigate to="/" replace />;
+
+  const principalTeacherId: string = teacherRecord?.id;
 
   return (
     <DashboardLayout
@@ -60,38 +63,43 @@ const PrincipalDashboard = () => {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       userRoleLabel="Principal"
+      headerLogoutIcon
     >
-      {activeTab === 'overview' && <OverviewTab instituteId={instituteId} />}
+      {activeTab === 'overview' && <OverviewTab instituteId={instituteId} principalTeacherId={principalTeacherId} />}
       {activeTab === 'students' && <StudentsTab instituteId={instituteId} />}
-      {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} />}
-      {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId} userId={user.id} />}
-      {activeTab === 'fees' && <FeesTab instituteId={instituteId} />}
-      {activeTab === 'profile' && teacherRecord && <TeacherProfile teacherId={teacherRecord.id} />}
+      {activeTab === 'teachers' && <TeachersTab instituteId={instituteId} principalTeacherId={principalTeacherId} />}
+      {activeTab === 'attendance' && <AttendanceTab instituteId={instituteId} userId={user.id} principalTeacherId={principalTeacherId} />}
+      {activeTab === 'fees' && <FeesTab instituteId={instituteId} userId={user.id} />}
+      {activeTab === 'profile' && teacherRecord && <TeacherProfile teacherId={teacherRecord.id} hideAssignments />}
     </DashboardLayout>
   );
 };
 
 // ============= OVERVIEW =============
-const OverviewTab = ({ instituteId }: { instituteId: string }) => {
-  const today = new Date().toISOString().split('T')[0];
-  const month = today.slice(0, 7);
+const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string; principalTeacherId: string }) => {
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const month = date.slice(0, 7);
   const [stats, setStats] = useState({
     students: 0, teachers: 0, batches: 0, games: 0,
     presentStudents: 0, absentStudents: 0,
     presentTeachers: 0, absentTeachers: 0,
+    classesConducted: 0,
     paidFees: 0, partialFees: 0, unpaidFees: 0,
   });
 
   useEffect(() => {
     (async () => {
-      const [s, t, b, g, att, tatt, f] = await Promise.all([
+      const teachersQ = supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId);
+      if (principalTeacherId) teachersQ.neq('id', principalTeacherId);
+      const [s, t, b, g, att, tatt, f, sess] = await Promise.all([
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).neq('status', 'inactive'),
-        supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+        teachersQ,
         supabase.from('batches').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         supabase.from('games').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
-        supabase.from('attendance').select('status,student_id').eq('institute_id', instituteId).eq('date', today),
-        supabase.from('teacher_attendance').select('status,teacher_id').eq('institute_id', instituteId).eq('date', today),
+        supabase.from('attendance').select('status,student_id').eq('institute_id', instituteId).eq('date', date),
+        supabase.from('teacher_attendance').select('status,teacher_id').eq('institute_id', instituteId).eq('date', date),
         supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', month),
+        supabase.from('attendance_sessions').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).eq('session_date', date),
       ]);
 
       const presentStudentSet = new Set<string>();
@@ -123,12 +131,13 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         absentStudents: absentStudentSet.size,
         presentTeachers: presentTSet.size,
         absentTeachers: absentTSet.size,
+        classesConducted: sess.count || 0,
         paidFees: paid,
         partialFees: partial,
         unpaidFees: unpaid,
       });
     })();
-  }, [instituteId, today, month]);
+  }, [instituteId, date, month, principalTeacherId]);
 
   const Stat = ({ label, value, color = '' }: { label: string; value: number; color?: string }) => (
     <Card>
@@ -141,7 +150,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold">Institute Overview</h2>
-        <p className="text-sm text-muted-foreground">Today: {today} · Fee month: {month}</p>
+        <p className="text-sm text-muted-foreground">Fee month: {month}</p>
       </div>
 
       <div>
@@ -155,12 +164,23 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Today's Attendance</h3>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Attendance</h3>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Date</Label>
+            <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44 h-8" />
+          </div>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Present Students" value={stats.presentStudents} color="text-accent" />
-          <Stat label="Absent Students" value={stats.absentStudents} color="text-destructive" />
-          <Stat label="Present Teachers" value={stats.presentTeachers} color="text-accent" />
-          <Stat label="Absent Teachers" value={stats.absentTeachers} color="text-destructive" />
+          <Stat label="Total Students" value={stats.students} />
+          <Stat label="Present" value={stats.presentStudents} color="text-accent" />
+          <Stat label="Absent" value={stats.absentStudents} color="text-destructive" />
+          <Stat label="Classes Conducted" value={stats.classesConducted} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+          <Stat label="Total Teachers" value={stats.teachers} />
+          <Stat label="Teachers Present" value={stats.presentTeachers} color="text-accent" />
+          <Stat label="Teachers Absent" value={stats.absentTeachers} color="text-destructive" />
         </div>
       </div>
 
@@ -179,34 +199,72 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
 // ============= STUDENTS =============
 const StudentsTab = ({ instituteId }: { instituteId: string }) => {
   const [rows, setRows] = useState<any[]>([]);
+  const [studentGames, setStudentGames] = useState<Record<string, string[]>>({});
+  const [studentBatches, setStudentBatches] = useState<Record<string, string[]>>({});
+  const [gamesList, setGamesList] = useState<{ id: string; name: string }[]>([]);
+  const [batchesList, setBatchesList] = useState<{ id: string; name: string }[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [gameFilter, setGameFilter] = useState('all');
+  const [batchFilter, setBatchFilter] = useState('all');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from('students')
-        .select('id, reg_no, status, parent_phone, gender, profiles!students_user_id_profiles_fkey(name, email)')
-        .eq('institute_id', instituteId)
-        .order('reg_no');
-      setRows(data || []);
+      const [studs, sg, bs, games, batches] = await Promise.all([
+        supabase.from('students')
+          .select('id, reg_no, status, parent_phone, gender, profiles!students_user_id_profiles_fkey(name, email)')
+          .eq('institute_id', instituteId)
+          .order('reg_no'),
+        supabase.from('student_games').select('student_id, games(id, name)').eq('institute_id', instituteId),
+        supabase.from('batch_students').select('student_id, batches(id, name)'),
+        supabase.from('games').select('id, name').eq('institute_id', instituteId).order('name'),
+        supabase.from('batches').select('id, name').eq('institute_id', instituteId).order('name'),
+      ]);
+      setRows(studs.data || []);
+      const gMap: Record<string, string[]> = {};
+      (sg.data || []).forEach((r: any) => {
+        const n = r.games?.name;
+        if (!n) return;
+        (gMap[r.student_id] ||= []).push(n);
+      });
+      setStudentGames(gMap);
+      const bMap: Record<string, string[]> = {};
+      (bs.data || []).forEach((r: any) => {
+        const id = r.batches?.id;
+        if (!id) return;
+        (bMap[r.student_id] ||= []).push(id);
+      });
+      setStudentBatches(bMap);
+      setGamesList(games.data || []);
+      setBatchesList(batches.data || []);
     })();
   }, [instituteId]);
 
   const filtered = useMemo(() => rows.filter(r => {
     if (statusFilter !== 'all' && (r.status || 'active') !== statusFilter) return false;
+    if (gameFilter !== 'all') {
+      const gName = gamesList.find(g => g.id === gameFilter)?.name;
+      if (!gName || !(studentGames[r.id] || []).includes(gName)) return false;
+    }
+    if (batchFilter !== 'all') {
+      if (!(studentBatches[r.id] || []).includes(batchFilter)) return false;
+    }
     if (!search) return true;
     const q = search.toLowerCase();
     const name = (r.profiles as any)?.name?.toLowerCase() || '';
     return name.includes(q) || (r.reg_no || '').toLowerCase().includes(q);
-  }), [rows, search, statusFilter]);
+  }), [rows, search, statusFilter, gameFilter, batchFilter, studentGames, studentBatches, gamesList]);
 
   const { sorted, sortKey, sortDir, toggle } = useSort(filtered, {
     name: (r: any) => (r.profiles as any)?.name || '',
     reg_no: (r: any) => r.reg_no || '',
     status: (r: any) => r.status || 'active',
   });
+
+  const activeFilterCount = [statusFilter, gameFilter, batchFilter].filter(v => v !== 'all').length;
+  const resetFilters = () => { setStatusFilter('all'); setGameFilter('all'); setBatchFilter('all'); };
 
   return (
     <div className="space-y-4">
@@ -217,14 +275,53 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-56" placeholder="Search name / reg no" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-1" /> Filter
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">{activeFilterCount}</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 space-y-3" align="end">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Game</Label>
+                <Select value={gameFilter} onValueChange={setGameFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Games</SelectItem>
+                    {gamesList.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Batch</Label>
+                <Select value={batchFilter} onValueChange={setBatchFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Batches</SelectItem>
+                    {batchesList.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-between gap-2 pt-1">
+                <Button variant="ghost" size="sm" onClick={resetFilters}>Reset</Button>
+                <Button size="sm" onClick={() => setFilterOpen(false)}>Apply</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -235,6 +332,7 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">S.No</th>
               <SortableTH sortKey="reg_no" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Reg No</SortableTH>
               <SortableTH sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Name</SortableTH>
+              <th className="text-left p-3 font-medium">Game</th>
               <th className="text-left p-3 font-medium">Contact</th>
               <SortableTH sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle}>Status</SortableTH>
               <th className="text-left p-3 font-medium">Action</th>
@@ -243,11 +341,17 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
           <tbody>
             {sorted.map((r, i) => {
               const phone = r.parent_phone;
+              const gnames = studentGames[r.id] || [];
               return (
                 <tr key={r.id} className="border-t">
                   <td className="p-3">{i + 1}</td>
                   <td className="p-3">{r.reg_no}</td>
                   <td className="p-3">{(r.profiles as any)?.name || '—'}</td>
+                  <td className="p-3">
+                    {gnames.length
+                      ? <div className="flex flex-wrap gap-1">{gnames.map(g => <Badge key={g} variant="outline" className="text-xs">{g}</Badge>)}</div>
+                      : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="p-3">{phone ? <a href={`tel:${phone}`} className="text-primary hover:underline">{phone}</a> : '-'}</td>
                   <td className="p-3">
                     <Badge variant={r.status === 'inactive' ? 'secondary' : 'default'}>{r.status || 'active'}</Badge>
@@ -261,7 +365,7 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
               );
             })}
             {sorted.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No students found</td></tr>
             )}
           </tbody>
         </table>
@@ -278,10 +382,9 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
 };
 
 // ============= TEACHERS =============
-const TeachersTab = ({ instituteId }: { instituteId: string }) => {
+const TeachersTab = ({ instituteId, principalTeacherId }: { instituteId: string; principalTeacherId: string }) => {
   const [rows, setRows] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -291,17 +394,16 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
         .select('id, teacher_id, role, phone, profiles!teachers_user_id_profiles_fkey(name, email)')
         .eq('institute_id', instituteId)
         .order('teacher_id');
-      setRows(data || []);
+      setRows((data || []).filter((r: any) => r.id !== principalTeacherId));
     })();
-  }, [instituteId]);
+  }, [instituteId, principalTeacherId]);
 
   const filtered = useMemo(() => rows.filter(r => {
-    if (roleFilter !== 'all' && (r.role || 'teacher') !== roleFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return ((r.profiles as any)?.name?.toLowerCase() || '').includes(q)
       || (r.teacher_id || '').toLowerCase().includes(q);
-  }), [rows, search, roleFilter]);
+  }), [rows, search]);
 
   const { sorted, sortKey, sortDir, toggle } = useSort(filtered, {
     tid: (r: any) => r.teacher_id || '',
@@ -318,14 +420,6 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8 w-56" placeholder="Search name / id" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="teacher">Teacher</SelectItem>
-              <SelectItem value="principal">Principal</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -349,7 +443,6 @@ const TeachersTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="p-3">{(r.profiles as any)?.name || '—'}</td>
                 <td className="p-3">{r.phone ? <a href={`tel:${r.phone}`} className="text-primary hover:underline">{r.phone}</a> : '-'}</td>
                 <td className="p-3"><Badge variant="outline">{r.role === 'principal' ? 'Principal' : 'Teacher'}</Badge></td>
-                
                 <td className="p-3">
                   <Button size="sm" variant="outline" onClick={() => setOpenId(r.id)}>
                     <Eye className="h-3.5 w-3.5 mr-1" /> View
@@ -399,7 +492,15 @@ const StatusBadge = ({ status, onClick }: { status: string; onClick?: () => void
   return <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block w-8 text-center ${cls}`}>{label}</span>;
 };
 
-const AttendanceTab = ({ instituteId, userId }: { instituteId: string; userId: string }) => {
+const SummaryCards = ({ total, present, absent, label }: { total: number; present: number; absent: number; label: string }) => (
+  <div className="grid grid-cols-3 gap-3">
+    <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Total {label}</CardTitle></CardHeader><CardContent><div className="text-xl font-bold">{total}</div></CardContent></Card>
+    <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Present</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-accent">{present}</div></CardContent></Card>
+    <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Absent</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-destructive">{absent}</div></CardContent></Card>
+  </div>
+);
+
+const AttendanceTab = ({ instituteId, userId, principalTeacherId }: { instituteId: string; userId: string; principalTeacherId: string }) => {
   const [mode, setMode] = useState<'students' | 'teachers'>('students');
   return (
     <div className="space-y-4">
@@ -418,7 +519,7 @@ const AttendanceTab = ({ instituteId, userId }: { instituteId: string; userId: s
       </div>
       {mode === 'students'
         ? <StudentAttendancePanel instituteId={instituteId} userId={userId} />
-        : <TeacherAttendancePanel instituteId={instituteId} userId={userId} />}
+        : <TeacherAttendancePanel instituteId={instituteId} userId={userId} principalTeacherId={principalTeacherId} />}
     </div>
   );
 };
@@ -433,6 +534,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
   const [existingIds, setExistingIds] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -463,11 +565,13 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     setExistingIds(existing);
     setTouched({});
     setHasLoaded(true);
+    setEditing(false);
   };
 
   useEffect(() => { setHasLoaded(false); load(); }, [selectedBatch, date]);
 
   const toggle = (sid: string) => {
+    if (!editing) return;
     setAttendanceMap(p => ({ ...p, [sid]: cycleStatus(p[sid] || 'absent') }));
     setTouched(p => ({ ...p, [sid]: true }));
   };
@@ -484,11 +588,19 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     if (error) return toast.error(error.message);
     toast.success('Attendance saved');
     setTouched({});
+    setEditing(false);
   };
 
   const filtered = search
     ? students.filter(s => ((s.students as any)?.profiles?.name?.toLowerCase() || '').includes(search.toLowerCase()))
     : students;
+
+  const totals = students.reduce((a, s) => {
+    const st = attendanceMap[s.student_id];
+    if (st === 'present' || st === 'late') a.present++;
+    else if (st === 'absent') a.absent++;
+    return a;
+  }, { present: 0, absent: 0 });
 
   return (
     <div className="space-y-4">
@@ -508,6 +620,15 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
 
       {hasLoaded && filtered.length > 0 && (
         <>
+          <SummaryCards total={students.length} present={totals.present} absent={totals.absent} label="Students" />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {editing ? 'Edit mode — tap a status to cycle P → L → A. Click Save to apply.' : 'View mode — click Edit to modify attendance.'}
+            </p>
+            {!editing
+              ? <Button size="sm" variant="outline" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+              : <Button size="sm" variant="ghost" onClick={() => { setEditing(false); load(); }}>Cancel</Button>}
+          </div>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
@@ -529,7 +650,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
                       <td className="p-3">{stu?.reg_no}</td>
                       <td className="p-3">{stu?.parent_phone ? <a href={`tel:${stu.parent_phone}`} className="text-primary hover:underline">{stu.parent_phone}</a> : '-'}</td>
                       <td className="p-3">
-                        <StatusBadge status={attendanceMap[s.student_id] || 'absent'} onClick={() => toggle(s.student_id)} />
+                        <StatusBadge status={attendanceMap[s.student_id] || 'absent'} onClick={editing ? () => toggle(s.student_id) : undefined} />
                       </td>
                     </tr>
                   );
@@ -537,7 +658,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
               </tbody>
             </table>
           </div>
-          <Button onClick={save}>Save Attendance</Button>
+          {editing && <Button onClick={save}>Save Attendance</Button>}
         </>
       )}
       {hasLoaded && filtered.length === 0 && selectedBatch && (
@@ -547,7 +668,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
   );
 };
 
-const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; userId: string }) => {
+const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { instituteId: string; userId: string; principalTeacherId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -556,6 +677,7 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [existingIds, setExistingIds] = useState<Record<string, boolean>>({});
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -566,31 +688,53 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
 
   const load = async () => {
     if (!selectedBatch) return;
+    // 1) Get teacher ids for this batch
     const { data: btData } = await supabase
       .from('batch_teachers')
-      .select('teacher_id, teachers(id, teacher_id, phone, profiles!teachers_user_id_profiles_fkey(name))')
+      .select('teacher_id')
       .eq('batch_id', selectedBatch);
-    const ts = btData || [];
+    const teacherIds = (btData || [])
+      .map((r: any) => r.teacher_id)
+      .filter((id: string) => id !== principalTeacherId);
+
+    if (teacherIds.length === 0) {
+      setTeachers([]); setAttMap({}); setExistingIds({}); setTouched({}); setHasLoaded(true); setEditing(false);
+      return;
+    }
+    // 2) Fetch teachers + profiles explicitly to avoid nested FK issues
+    const { data: teacherRows } = await supabase
+      .from('teachers')
+      .select('id, teacher_id, phone, user_id')
+      .in('id', teacherIds);
+    const userIds = (teacherRows || []).map((t: any) => t.user_id).filter(Boolean);
+    const { data: profs } = userIds.length
+      ? await supabase.from('profiles').select('user_id, name').in('user_id', userIds)
+      : { data: [] as any[] };
+    const profMap: Record<string, string> = {};
+    (profs || []).forEach((p: any) => { profMap[p.user_id] = p.name; });
+    const ts = (teacherRows || []).map((t: any) => ({
+      teacher_id: t.id,
+      teachers: { id: t.id, teacher_id: t.teacher_id, phone: t.phone, name: profMap[t.user_id] || '—' },
+    }));
     setTeachers(ts);
 
-    const ids = ts.map(r => r.teacher_id);
     const map: Record<string, string> = {};
     const existing: Record<string, boolean> = {};
-    if (ids.length > 0) {
-      const { data: att } = await supabase.from('teacher_attendance')
-        .select('teacher_id,status').in('teacher_id', ids).eq('batch_id', selectedBatch).eq('date', date);
-      att?.forEach(a => { map[a.teacher_id] = a.status; existing[a.teacher_id] = true; });
-    }
-    ids.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    const { data: att } = await supabase.from('teacher_attendance')
+      .select('teacher_id,status').in('teacher_id', teacherIds).eq('batch_id', selectedBatch).eq('date', date);
+    att?.forEach(a => { map[a.teacher_id] = a.status; existing[a.teacher_id] = true; });
+    teacherIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
     setAttMap(map);
     setExistingIds(existing);
     setTouched({});
     setHasLoaded(true);
+    setEditing(false);
   };
 
   useEffect(() => { setHasLoaded(false); load(); }, [selectedBatch, date]);
 
   const toggle = (tid: string) => {
+    if (!editing) return;
     setAttMap(p => ({ ...p, [tid]: cycleStatus(p[tid] || 'absent') }));
     setTouched(p => ({ ...p, [tid]: true }));
   };
@@ -607,7 +751,15 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     if (error) return toast.error(error.message);
     toast.success('Teacher attendance saved');
     setTouched({});
+    setEditing(false);
   };
+
+  const totals = teachers.reduce((a, t) => {
+    const st = attMap[t.teacher_id];
+    if (st === 'present' || st === 'late') a.present++;
+    else if (st === 'absent') a.absent++;
+    return a;
+  }, { present: 0, absent: 0 });
 
   return (
     <div className="space-y-4">
@@ -621,6 +773,15 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
 
       {hasLoaded && teachers.length > 0 && (
         <>
+          <SummaryCards total={teachers.length} present={totals.present} absent={totals.absent} label="Teachers" />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {editing ? 'Edit mode — tap a status to cycle P → L → A. Click Save to apply.' : 'View mode — click Edit to modify attendance.'}
+            </p>
+            {!editing
+              ? <Button size="sm" variant="outline" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+              : <Button size="sm" variant="ghost" onClick={() => { setEditing(false); load(); }}>Cancel</Button>}
+          </div>
           <div className="rounded-lg border bg-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
@@ -639,10 +800,10 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
                     <tr key={t.teacher_id} className="border-t">
                       <td className="p-3">{i + 1}</td>
                       <td className="p-3">{T?.teacher_id || '—'}</td>
-                      <td className="p-3">{T?.profiles?.name}</td>
+                      <td className="p-3">{T?.name || '—'}</td>
                       <td className="p-3">{T?.phone ? <a href={`tel:${T.phone}`} className="text-primary hover:underline">{T.phone}</a> : '-'}</td>
                       <td className="p-3">
-                        <StatusBadge status={attMap[t.teacher_id] || 'absent'} onClick={() => toggle(t.teacher_id)} />
+                        <StatusBadge status={attMap[t.teacher_id] || 'absent'} onClick={editing ? () => toggle(t.teacher_id) : undefined} />
                       </td>
                     </tr>
                   );
@@ -650,7 +811,7 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
               </tbody>
             </table>
           </div>
-          <Button onClick={save}>Save Attendance</Button>
+          {editing && <Button onClick={save}>Save Attendance</Button>}
         </>
       )}
       {hasLoaded && teachers.length === 0 && selectedBatch && (
@@ -660,27 +821,32 @@ const TeacherAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
   );
 };
 
-// ============= FEES (view-only) =============
-const FeesTab = ({ instituteId }: { instituteId: string }) => {
+// ============= FEES =============
+const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string }) => {
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [rows, setRows] = useState<any[]>([]);
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from('fees')
-        .select('id, student_id, month, amount, collected_amount, status, payment_mode, notes, games(name), students(reg_no, profiles!students_user_id_profiles_fkey(name))')
-        .eq('institute_id', instituteId)
-        .eq('month', month)
-        .order('created_at', { ascending: false });
-      setRows(data || []);
-    })();
-  }, [instituteId, month]);
+  const load = async () => {
+    const { data } = await supabase
+      .from('fees')
+      .select('id, student_id, month, amount, collected_amount, status, payment_mode, notes, game_id, games(name), students(reg_no, profiles!students_user_id_profiles_fkey(name))')
+      .eq('institute_id', instituteId)
+      .eq('month', month)
+      .order('created_at', { ascending: false });
+    setRows(data || []);
+    setDirty({});
+    setEditing(false);
+  };
+
+  useEffect(() => { load(); }, [instituteId, month]);
 
   const filtered = rows.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
@@ -696,11 +862,56 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     partial: a.partial + (r.status === 'partial' ? 1 : 0),
     unpaid: a.unpaid + (r.status === 'unpaid' ? 1 : 0),
     collected: a.collected + Number(r.collected_amount || 0),
-    billed: a.billed + Number(r.amount || 0),
-  }), { paid: 0, partial: 0, unpaid: 0, collected: 0, billed: 0 });
+  }), { paid: 0, partial: 0, unpaid: 0, collected: 0 });
 
   const statusCls = (s: string) => s === 'paid' ? 'bg-accent/10 text-accent'
     : s === 'partial' ? 'bg-yellow-500/10 text-yellow-600' : 'bg-destructive/10 text-destructive';
+
+  const updateRow = (id: string, patch: Partial<any>) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+    setDirty(prev => ({ ...prev, [id]: true }));
+  };
+
+  const save = async () => {
+    const changedIds = Object.keys(dirty).filter(id => dirty[id]);
+    if (changedIds.length === 0) { toast.info('No changes to save'); return; }
+    setSaving(true);
+    try {
+      for (const id of changedIds) {
+        const r = rows.find(x => x.id === id);
+        if (!r) continue;
+        const amt = Number(r.amount) || 0;
+        const col = Number(r.collected_amount) || 0;
+        const status = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
+        const excess = Math.max(0, col - amt);
+        const payload: any = {
+          amount: amt,
+          collected_amount: col,
+          excess_amount: excess,
+          status,
+          payment_mode: r.payment_mode || null,
+          notes: r.notes || null,
+          updated_by: userId,
+        };
+        const { error } = await supabase.from('fees').update(payload).eq('id', id);
+        if (error) throw error;
+        await supabase.from('fee_history').insert({
+          fee_id: id, student_id: r.student_id, institute_id: instituteId, month,
+          amount: amt, collected_amount: col, excess_amount: excess, status,
+          payment_mode: r.payment_mode || null, notes: r.notes || null, game_id: r.game_id,
+          updated_by: userId, updated_by_role: 'principal',
+        });
+      }
+      toast.success(`${changedIds.length} fee record(s) saved`);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dirtyCount = Object.values(dirty).filter(Boolean).length;
 
   return (
     <div className="space-y-4">
@@ -724,12 +935,20 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Paid</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-accent">{totals.paid}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Partial</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-yellow-600">{totals.partial}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Unpaid</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-destructive">{totals.unpaid}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Collected</CardTitle></CardHeader><CardContent><div className="text-xl font-bold">₹{totals.collected}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Billed</CardTitle></CardHeader><CardContent><div className="text-xl font-bold">₹{totals.billed}</div></CardContent></Card>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {editing ? 'Edit mode — update Collected / Mode / Notes. Status is calculated. Click Save.' : 'View mode — click Edit to update fees.'}
+        </p>
+        {!editing
+          ? <Button size="sm" variant="outline" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+          : <Button size="sm" variant="ghost" onClick={() => { setEditing(false); load(); }}>Cancel</Button>}
       </div>
 
       <div className="rounded-lg border bg-card overflow-x-auto">
@@ -743,34 +962,69 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               <th className="text-left p-3 font-medium">Amount</th>
               <th className="text-left p-3 font-medium">Collected</th>
               <th className="text-left p-3 font-medium">Mode</th>
+              <th className="text-left p-3 font-medium">Note</th>
               <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((r, i) => {
               const stu = r.students as any;
+              const amt = Number(r.amount) || 0;
+              const col = Number(r.collected_amount) || 0;
+              const st = editing ? (col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial') : r.status;
               return (
-                <tr key={r.id} className="border-t">
+                <tr key={r.id} className={`border-t ${dirty[r.id] ? 'bg-yellow-50/40' : ''}`}>
                   <td className="p-3">{i + 1}</td>
                   <td className="p-3">{stu?.reg_no || '—'}</td>
                   <td className="p-3">{stu?.profiles?.name || '—'}</td>
                   <td className="p-3">{(r.games as any)?.name || '—'}</td>
-                  <td className="p-3">₹{Number(r.amount || 0)}</td>
-                  <td className="p-3">₹{Number(r.collected_amount || 0)}</td>
-                  <td className="p-3">{r.payment_mode || '-'}</td>
+                  <td className="p-3">₹{amt}</td>
                   <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusCls(r.status)}`}>{r.status}</span>
+                    {editing ? (
+                      <Input type="number" min="0" className="w-24 h-8" value={r.collected_amount ?? 0}
+                        onChange={e => updateRow(r.id, { collected_amount: Number(e.target.value) || 0 })} />
+                    ) : `₹${col}`}
+                  </td>
+                  <td className="p-3">
+                    {editing ? (
+                      <Select value={r.payment_mode || 'none'}
+                        onValueChange={v => updateRow(r.id, { payment_mode: v === 'none' ? '' : v })}>
+                        <SelectTrigger className="w-28 h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">—</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="online">Online</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (r.payment_mode || '-')}
+                  </td>
+                  <td className="p-3">
+                    {editing ? (
+                      <Input className="w-40 h-8" value={r.notes || ''}
+                        onChange={e => updateRow(r.id, { notes: e.target.value })}
+                        placeholder="Optional note" />
+                    ) : (r.notes || '-')}
+                  </td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusCls(st)}`}>{st}</span>
                   </td>
                 </tr>
               );
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+              <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
             )}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground italic">Read-only view. Fee amounts and structure can only be changed by the institute admin.</p>
+      {editing && (
+        <div className="flex items-center gap-3">
+          <Button onClick={save} disabled={saving || dirtyCount === 0}>
+            {saving ? 'Saving...' : `Save${dirtyCount > 0 ? ` (${dirtyCount})` : ''}`}
+          </Button>
+          {dirtyCount > 0 && <span className="text-xs text-muted-foreground">Unsaved changes — click Save to apply.</span>}
+        </div>
+      )}
     </div>
   );
 };
