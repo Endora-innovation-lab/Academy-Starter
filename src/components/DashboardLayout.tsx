@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, LucideIcon } from 'lucide-react';
+import { MessageSquare, LucideIcon, LogOut } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   SidebarProvider,
@@ -25,6 +25,7 @@ interface DashboardLayoutProps {
   onTabChange: (tab: string) => void;
   userLabel?: string;
   userRoleLabel?: string;
+  headerLogoutIcon?: boolean;
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
