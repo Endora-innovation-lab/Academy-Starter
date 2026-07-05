@@ -36,6 +36,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onTabChange,
   userLabel,
   userRoleLabel,
+  headerLogoutIcon,
 }) => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
