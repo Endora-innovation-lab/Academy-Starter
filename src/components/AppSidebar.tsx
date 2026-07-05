@@ -105,9 +105,11 @@ export function AppSidebar({
             )}
           </div>
         )}
-        <Button variant="outline" size="sm" className="w-full justify-start" onClick={onLogout}>
-          <LogOut className="h-4 w-4 mr-2" /> Logout
-        </Button>
+        {!hideLogout && (
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={onLogout}>
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </Button>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
