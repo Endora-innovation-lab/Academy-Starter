@@ -41,6 +41,7 @@ export function AppSidebar({
   userLabel,
   userRoleLabel,
   onLogout,
+  hideLogout,
 }: AppSidebarProps) {
   const { instituteCode } = useAuth();
   const { setOpenMobile, isMobile } = useSidebar();
