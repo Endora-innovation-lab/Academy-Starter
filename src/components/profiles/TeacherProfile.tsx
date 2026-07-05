@@ -8,7 +8,7 @@ interface Props { teacherId: string; hideAssignments?: boolean }
 
 const NotSet = () => <span className="text-muted-foreground italic">not set</span>;
 
-export default function TeacherProfile({ teacherId }: Props) {
+export default function TeacherProfile({ teacherId, hideAssignments }: Props) {
   const [loading, setLoading] = useState(true);
   const [teacher, setTeacher] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
