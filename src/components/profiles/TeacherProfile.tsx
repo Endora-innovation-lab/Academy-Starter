@@ -89,24 +89,26 @@ export default function TeacherProfile({ teacherId, hideAssignments }: Props) {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4" /> Assigned Games</CardTitle></CardHeader>
-          <CardContent>
-            {games.length ? (
-              <div className="flex flex-wrap gap-2">{games.map((g) => <Badge key={g} variant="outline">{g}</Badge>)}</div>
-            ) : <p className="text-sm text-muted-foreground">No games assigned</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> Assigned Batches</CardTitle></CardHeader>
-          <CardContent>
-            {batches.length ? (
-              <ul className="space-y-1.5 text-sm">{batches.map((b) => <li key={b.id} className="flex items-center gap-2"><User className="h-3.5 w-3.5 text-muted-foreground" />{b.name}</li>)}</ul>
-            ) : <p className="text-sm text-muted-foreground">No batches assigned</p>}
-          </CardContent>
-        </Card>
-      </div>
+      {!hideAssignments && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4" /> Assigned Games</CardTitle></CardHeader>
+            <CardContent>
+              {games.length ? (
+                <div className="flex flex-wrap gap-2">{games.map((g) => <Badge key={g} variant="outline">{g}</Badge>)}</div>
+              ) : <p className="text-sm text-muted-foreground">No games assigned</p>}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4" /> Assigned Batches</CardTitle></CardHeader>
+            <CardContent>
+              {batches.length ? (
+                <ul className="space-y-1.5 text-sm">{batches.map((b) => <li key={b.id} className="flex items-center gap-2"><User className="h-3.5 w-3.5 text-muted-foreground" />{b.name}</li>)}</ul>
+              ) : <p className="text-sm text-muted-foreground">No batches assigned</p>}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
