@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, BookOpen, Layers, User } from 'lucide-react';
 
-interface Props { teacherId: string }
+interface Props { teacherId: string; hideAssignments?: boolean }
 
 const NotSet = () => <span className="text-muted-foreground italic">not set</span>;
 
