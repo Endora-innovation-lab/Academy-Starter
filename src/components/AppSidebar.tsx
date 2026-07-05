@@ -30,6 +30,7 @@ interface AppSidebarProps {
   userLabel?: string;
   userRoleLabel?: string;
   onLogout: () => void;
+  hideLogout?: boolean;
 }
 
 export function AppSidebar({
@@ -40,6 +41,7 @@ export function AppSidebar({
   userLabel,
   userRoleLabel,
   onLogout,
+  hideLogout,
 }: AppSidebarProps) {
   const { instituteCode } = useAuth();
   const { setOpenMobile, isMobile } = useSidebar();
@@ -103,9 +105,11 @@ export function AppSidebar({
             )}
           </div>
         )}
-        <Button variant="outline" size="sm" className="w-full justify-start" onClick={onLogout}>
-          <LogOut className="h-4 w-4 mr-2" /> Logout
-        </Button>
+        {!hideLogout && (
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={onLogout}>
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </Button>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

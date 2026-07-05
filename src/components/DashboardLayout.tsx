@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, LucideIcon } from 'lucide-react';
+import { MessageSquare, LucideIcon, LogOut } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   SidebarProvider,
@@ -25,6 +25,7 @@ interface DashboardLayoutProps {
   onTabChange: (tab: string) => void;
   userLabel?: string;
   userRoleLabel?: string;
+  headerLogoutIcon?: boolean;
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -35,6 +36,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onTabChange,
   userLabel,
   userRoleLabel,
+  headerLogoutIcon,
 }) => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
@@ -64,6 +66,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           userLabel={userLabel}
           userRoleLabel={userRoleLabel}
           onLogout={() => setShowLogoutPopup(true)}
+          hideLogout={headerLogoutIcon}
         />
 
         <SidebarInset className="flex-1 flex flex-col min-w-0">
@@ -76,12 +79,24 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   <p className="text-xs text-muted-foreground truncate hidden sm:block">{title}</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" asChild>
-                <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
-                  <MessageSquare className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Feedback</span>
-                </a>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
+                    <MessageSquare className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Feedback</span>
+                  </a>
+                </Button>
+                {headerLogoutIcon && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Logout"
+                    onClick={() => setShowLogoutPopup(true)}
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </header>
 
