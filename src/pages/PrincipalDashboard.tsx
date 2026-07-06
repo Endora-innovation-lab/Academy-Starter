@@ -835,7 +835,47 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const ensureMonthlyFees = async () => {
+    const { data: activeStuds } = await supabase
+      .from('students')
+      .select('id')
+      .eq('institute_id', instituteId)
+      .neq('status', 'inactive');
+    const studentIds = (activeStuds || []).map((s: any) => s.id);
+    if (studentIds.length === 0) return;
+    const [{ data: existing }, { data: sg }] = await Promise.all([
+      supabase.from('fees').select('student_id').eq('institute_id', instituteId).eq('month', month).in('student_id', studentIds),
+      supabase.from('student_games').select('student_id, game_id, monthly_fee, status').in('student_id', studentIds),
+    ]);
+    const has = new Set((existing || []).map((f: any) => f.student_id));
+    const perStudent: Record<string, { game_id: string; amount: number }> = {};
+    (sg || []).forEach((r: any) => {
+      if (r.status && r.status !== 'active') return;
+      if (!perStudent[r.student_id]) {
+        perStudent[r.student_id] = { game_id: r.game_id, amount: Number(r.monthly_fee) || 0 };
+      } else {
+        perStudent[r.student_id].amount += Number(r.monthly_fee) || 0;
+      }
+    });
+    const toInsert = studentIds
+      .filter((id: string) => !has.has(id) && perStudent[id])
+      .map((id: string) => ({
+        student_id: id,
+        institute_id: instituteId,
+        month,
+        amount: perStudent[id].amount,
+        collected_amount: 0,
+        excess_amount: 0,
+        status: 'unpaid',
+        game_id: perStudent[id].game_id,
+      }));
+    if (toInsert.length > 0) {
+      await supabase.from('fees').upsert(toInsert, { onConflict: 'student_id,month', ignoreDuplicates: true });
+    }
+  };
+
   const load = async () => {
+    await ensureMonthlyFees();
     const { data } = await supabase
       .from('fees')
       .select('id, student_id, month, amount, collected_amount, status, payment_mode, notes, game_id, games(name), students(reg_no, profiles!students_user_id_profiles_fkey(name))')
