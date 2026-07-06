@@ -83,7 +83,14 @@ const NoBatchWarning = ({ onGoToBatches }: { onGoToBatches?: () => void }) => (
 
 // ============= OVERVIEW TAB =============
 const OverviewTab = ({ instituteId }: { instituteId: string }) => {
-  const [stats, setStats] = useState({ present: 0, absent: 0, late: 0, paid: 0, unpaid: 0, students: 0, activeStudents: 0, inactiveStudents: 0, teachers: 0, classes: 0, totalCollected: 0, totalPending: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0 });
+  const [stats, setStats] = useState({
+    present: 0, absent: 0, late: 0,
+    paid: 0, partial: 0, unpaid: 0,
+    students: 0, activeStudents: 0, inactiveStudents: 0,
+    teachers: 0, batchesCount: 0, gamesCount: 0,
+    classes: 0, totalCollected: 0, totalPending: 0,
+    teacherTotal: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0,
+  });
   const [batches, setBatches] = useState<any[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
@@ -122,19 +129,19 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       }
 
       let attQuery = supabase.from('attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
-      let feeQuery = supabase.from('fees').select('status, amount').eq('institute_id', instituteId);
+      let feeQuery = supabase.from('fees').select('status, amount, collected_amount').eq('institute_id', instituteId);
       if (filterType === 'yearly') {
-        // For yearly, match all months in the year
         feeQuery = feeQuery.gte('month', `${filterYear}-01`).lte('month', `${filterYear}-12`);
       } else {
         feeQuery = feeQuery.eq('month', feeMonth);
       }
-
       let teaAttQuery = supabase.from('teacher_attendance').select('status').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
       let classesQuery = supabase.from('attendance').select('date, batch_id').eq('institute_id', instituteId).gte('date', firstDay).lte('date', lastDay);
 
       let studentCount = 0;
       let teacherCount = 0;
+      let activeStudents = 0;
+      let inactiveStudents = 0;
 
       if (filterBatch !== 'all') {
         attQuery = attQuery.eq('batch_id', filterBatch);
@@ -149,6 +156,10 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         teacherCount = batchTeachers?.length || 0;
         if (studentIds.length > 0) {
           feeQuery = feeQuery.in('student_id', studentIds);
+          const { count: activeC } = await supabase.from('students').select('id', { count: 'exact', head: true }).in('id', studentIds).eq('status', 'active');
+          const { count: inactiveC } = await supabase.from('students').select('id', { count: 'exact', head: true }).in('id', studentIds).eq('status', 'inactive');
+          activeStudents = activeC || 0;
+          inactiveStudents = inactiveC || 0;
         } else {
           feeQuery = feeQuery.eq('student_id', '00000000-0000-0000-0000-000000000000');
         }
@@ -161,11 +172,13 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         ]);
         studentCount = stuRes.count || 0;
         teacherCount = teaRes.count || 0;
-        var activeStudents = activeStuRes.count || 0;
-        var inactiveStudents = inactiveStuRes.count || 0;
+        activeStudents = activeStuRes.count || 0;
+        inactiveStudents = inactiveStuRes.count || 0;
       }
 
-      const [attRes, feeRes, teaAttRes, classesRes] = await Promise.all([
+      const [batchCntRes, gameCntRes, attRes, feeRes, teaAttRes, classesRes] = await Promise.all([
+        supabase.from('batches').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
+        supabase.from('games').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId),
         attQuery, feeQuery, teaAttQuery, classesQuery,
       ]);
 
@@ -176,20 +189,28 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       const classesSet = new Set(classesData.map((c: any) => `${c.date}__${c.batch_id}`));
 
       const paidFees = feeData.filter(f => f.status === 'paid');
+      const partialFees = feeData.filter(f => f.status === 'partial');
       const unpaidFees = feeData.filter(f => f.status === 'unpaid');
+      const totalBilled = feeData.reduce((s, f: any) => s + (Number(f.amount) || 0), 0);
+      const totalCollected = feeData.reduce((s, f: any) => s + (Number(f.collected_amount) || 0), 0);
+
       setStats({
         present: attData.filter(a => a.status === 'present').length,
         absent: attData.filter(a => a.status === 'absent').length,
         late: attData.filter(a => a.status === 'late').length,
         paid: paidFees.length,
+        partial: partialFees.length,
         unpaid: unpaidFees.length,
         students: studentCount,
-        activeStudents: activeStudents || 0,
-        inactiveStudents: inactiveStudents || 0,
+        activeStudents,
+        inactiveStudents,
         teachers: teacherCount,
+        batchesCount: batchCntRes.count || 0,
+        gamesCount: gameCntRes.count || 0,
         classes: classesSet.size,
-        totalCollected: paidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
-        totalPending: unpaidFees.reduce((sum, f) => sum + (Number((f as any).amount) || 0), 0),
+        totalCollected,
+        totalPending: Math.max(0, totalBilled - totalCollected),
+        teacherTotal: teacherCount,
         teacherPresent: teaAttData.filter(a => a.status === 'present').length,
         teacherAbsent: teaAttData.filter(a => a.status === 'absent').length,
         teacherLate: teaAttData.filter(a => a.status === 'late').length,
@@ -207,11 +228,21 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
     return filterYear;
   };
 
+  const Stat = ({ label, value, color = '' }: { label: string; value: number | string; color?: string }) => (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle></CardHeader>
+      <CardContent><div className={`text-2xl font-bold ${color}`}>{value}</div></CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> {filterType === 'daily' ? 'Daily' : filterType === 'monthly' ? 'Monthly' : 'Yearly'} Review — {getFilterLabel()}</h2>
-        <div className="flex gap-2">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Institute Overview</h2>
+          <p className="text-sm text-muted-foreground">{filterType === 'daily' ? 'Daily' : filterType === 'monthly' ? 'Monthly' : 'Yearly'} view — {getFilterLabel()}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -233,100 +264,45 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Total Students</p>
-            <p className="text-3xl font-bold text-primary">{stats.students}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Active Students</p>
-            <p className="text-3xl font-bold text-accent">{stats.activeStudents}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Inactive Students</p>
-            <p className="text-3xl font-bold text-destructive">{stats.inactiveStudents}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">Total Teachers</p>
-            <p className="text-3xl font-bold text-primary">{stats.teachers}</p>
-          </CardContent>
-        </Card>
+      <div>
+        <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Institute</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <Stat label="Total Students" value={stats.students} />
+          <Stat label="Active / Inactive" value={`${stats.activeStudents} / ${stats.inactiveStudents}`} />
+          <Stat label="Total Teachers" value={stats.teachers} />
+          <Stat label="Total Batches" value={stats.batchesCount} />
+          <Stat label="Total Games" value={stats.gamesCount} />
+        </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Student Attendance</CardTitle></CardHeader>
-          <CardContent className="flex gap-6 flex-wrap">
-            <div>
-              <p className="text-2xl font-bold text-accent">{stats.present}</p>
-              <p className="text-sm text-muted-foreground">Present</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
-              <p className="text-sm text-muted-foreground">Late</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{stats.absent}</p>
-              <p className="text-sm text-muted-foreground">Absent</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-primary">{stats.classes}</p>
-              <p className="text-sm text-muted-foreground">Classes Conducted</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Teacher Attendance</CardTitle></CardHeader>
-          <CardContent className="flex gap-6">
-            <div>
-              <p className="text-2xl font-bold text-accent">{stats.teacherPresent}</p>
-              <p className="text-sm text-muted-foreground">Present</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{stats.teacherLate}</p>
-              <p className="text-sm text-muted-foreground">Late</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{stats.teacherAbsent}</p>
-              <p className="text-sm text-muted-foreground">Absent</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Fee Summary</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-6">
-              <div>
-                <p className="text-2xl font-bold text-accent">{stats.paid}</p>
-                <p className="text-sm text-muted-foreground">Paid</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-destructive">{stats.unpaid}</p>
-                <p className="text-sm text-muted-foreground">Unpaid</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Collected & Pending</CardTitle></CardHeader>
-          <CardContent className="flex gap-6">
-            <div>
-              <p className="text-2xl font-bold text-accent">₹{stats.totalCollected.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Collected</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">₹{stats.totalPending.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Pending</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div>
+        <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Attendance</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Total Students" value={stats.students} />
+          <Stat label="Present" value={stats.present} color="text-accent" />
+          <Stat label="Late" value={stats.late} color="text-yellow-600" />
+          <Stat label="Absent" value={stats.absent} color="text-destructive" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+          <Stat label="Total Teachers" value={stats.teacherTotal} />
+          <Stat label="Teachers Present" value={stats.teacherPresent} color="text-accent" />
+          <Stat label="Teachers Late" value={stats.teacherLate} color="text-yellow-600" />
+          <Stat label="Teachers Absent" value={stats.teacherAbsent} color="text-destructive" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+          <Stat label="Classes Conducted" value={stats.classes} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Fees</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <Stat label="Paid" value={stats.paid} color="text-accent" />
+          <Stat label="Partial" value={stats.partial} color="text-yellow-600" />
+          <Stat label="Unpaid" value={stats.unpaid} color="text-destructive" />
+          <Stat label="Total Collected" value={`₹${stats.totalCollected.toLocaleString()}`} color="text-accent" />
+          <Stat label="Total Pending" value={`₹${stats.totalPending.toLocaleString()}`} color="text-destructive" />
+        </div>
       </div>
     </div>
   );
