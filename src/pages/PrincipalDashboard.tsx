@@ -217,24 +217,25 @@ const StudentsTab = ({ instituteId }: { instituteId: string }) => {
           .select('id, reg_no, status, parent_phone, gender, profiles!students_user_id_profiles_fkey(name, email)')
           .eq('institute_id', instituteId)
           .order('reg_no'),
-        supabase.from('student_games').select('student_id, games(id, name)').eq('institute_id', instituteId),
-        supabase.from('batch_students').select('student_id, batches(id, name)'),
+        supabase.from('student_games').select('student_id, game_id').eq('institute_id', instituteId),
+        supabase.from('batch_students').select('student_id, batch_id'),
         supabase.from('games').select('id, name').eq('institute_id', instituteId).order('name'),
         supabase.from('batches').select('id, name').eq('institute_id', instituteId).order('name'),
       ]);
       setRows(studs.data || []);
+      const gameById: Record<string, string> = {};
+      (games.data || []).forEach((g: any) => { gameById[g.id] = g.name; });
       const gMap: Record<string, string[]> = {};
       (sg.data || []).forEach((r: any) => {
-        const n = r.games?.name;
+        const n = gameById[r.game_id];
         if (!n) return;
         (gMap[r.student_id] ||= []).push(n);
       });
       setStudentGames(gMap);
       const bMap: Record<string, string[]> = {};
       (bs.data || []).forEach((r: any) => {
-        const id = r.batches?.id;
-        if (!id) return;
-        (bMap[r.student_id] ||= []).push(id);
+        if (!r.batch_id) return;
+        (bMap[r.student_id] ||= []).push(r.batch_id);
       });
       setStudentBatches(bMap);
       setGamesList(games.data || []);
