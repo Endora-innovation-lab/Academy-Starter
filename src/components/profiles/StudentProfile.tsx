@@ -32,9 +32,15 @@ export default function StudentProfile({ studentId }: Props) {
       }
       const { data: sg } = await supabase
         .from('student_games')
-        .select('games(name)')
+        .select('game_id')
         .eq('student_id', studentId);
-      setGames((sg || []).map((r: any) => r.games?.name).filter(Boolean));
+      const gameIds = (sg || []).map((r: any) => r.game_id).filter(Boolean);
+      if (gameIds.length) {
+        const { data: gs } = await supabase.from('games').select('id, name').in('id', gameIds);
+        setGames((gs || []).map((g: any) => g.name).filter(Boolean));
+      } else {
+        setGames([]);
+      }
 
       const { data: fees } = await supabase
         .from('fees')
