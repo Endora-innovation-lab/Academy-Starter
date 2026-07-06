@@ -1,0 +1,1 @@
+CREATE POLICY "Institute users can view teachers" ON public.teachers FOR SELECT USING (institute_id = public.get_user_institute_id(auth.uid()));
