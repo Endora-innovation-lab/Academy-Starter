@@ -112,7 +112,7 @@ export default function StudentProfile({ studentId }: Props) {
         <Card>
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4" /> Enrolled Games</CardTitle></CardHeader>
           <CardContent>
-            {games.length ? <div className="flex flex-wrap gap-2">{games.map((g) => <Badge key={g} variant="outline">{g}</Badge>)}</div> : <p className="text-sm text-muted-foreground">None</p>}
+            {games.length ? <div className="flex flex-wrap gap-2">{games.map((g) => <Badge key={g} variant="outline">{g}</Badge>)}</div> : <p className="text-sm text-muted-foreground">No enrolled games.</p>}
           </CardContent>
         </Card>
         <Card>
