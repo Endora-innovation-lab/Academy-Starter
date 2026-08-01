@@ -1885,7 +1885,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
         // Show every enrolled active student for the day; those without a record are absentees
         let bsQuery = supabase
           .from('batch_students')
-          .select('batch_id, student_id, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches(name, institute_id)')
+          .select('batch_id, student_id, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches!inner(name, institute_id)')
           .eq('batches.institute_id', instituteId);
         if (filterBatch !== 'all') bsQuery = bsQuery.eq('batch_id', filterBatch);
         const { data: enrollments } = await bsQuery.limit(2000);
