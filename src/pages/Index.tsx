@@ -64,10 +64,12 @@ const Index = () => {
             <Button
               size="lg"
               className="bg-white text-primary font-bold hover:bg-white/90 px-8 py-6 text-base"
-              onClick={() => setShowLogin(true)}
+              asChild
             >
-              <LogIn className="h-5 w-5 mr-2" />
-              Login to Dashboard
+              <Link to="/login">
+                <LogIn className="h-5 w-5 mr-2" />
+                Login to Dashboard
+              </Link>
             </Button>
             <Button
               size="lg"
@@ -80,12 +82,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Login Dialog */}
-      <Dialog open={showLogin} onOpenChange={setShowLogin}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-          <LoginModal onClose={() => setShowLogin(false)} />
-        </DialogContent>
-      </Dialog>
+
 
       {/* How it works */}
       <div className="max-w-5xl mx-auto px-4 py-16 w-full">
