@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Login = lazy(() => import("./pages/Login"));
 const InstituteRegister = lazy(() => import("./pages/InstituteRegister"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const InstituteDashboard = lazy(() => import("./pages/InstituteDashboard"));
@@ -36,6 +37,7 @@ const App = () => (
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/register" element={<InstituteRegister />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/dashboard/institute" element={<InstituteDashboard />} />
