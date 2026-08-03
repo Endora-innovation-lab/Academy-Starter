@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const { user, role } = useAuth();
-  const { user, role } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
