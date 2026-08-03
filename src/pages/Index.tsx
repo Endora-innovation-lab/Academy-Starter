@@ -3,17 +3,11 @@ import logo from '@/assets/logo.png';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { LogIn, Users, GraduationCap, ClipboardList, DollarSign, Shield, Building2, CheckSquare } from 'lucide-react';
-import { toast } from 'sonner';
-import { Eye, EyeOff, GraduationCap, Users, BookOpen, ClipboardList, DollarSign, Shield, LogIn, Building2, CheckSquare, Key } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-type LoginRole = 'institute' | 'teacher' | 'student';
-
 const Index = () => {
-  const [showLogin, setShowLogin] = useState(false);
+  const { user, role } = useAuth();
   const { user, role } = useAuth();
   const navigate = useNavigate();
 
