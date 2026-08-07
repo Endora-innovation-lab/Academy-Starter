@@ -877,16 +877,42 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
 
   const load = async () => {
     await ensureMonthlyFees();
-    const { data } = await supabase
-      .from('fees')
-      .select('id, student_id, month, amount, collected_amount, status, payment_mode, notes, game_id, games(name), students(reg_no, profiles!students_user_id_profiles_fkey(name))')
-      .eq('institute_id', instituteId)
-      .eq('month', month)
-      .order('created_at', { ascending: false });
-    setRows(data || []);
+    const [{ data }, { data: allStuds }] = await Promise.all([
+      supabase
+        .from('fees')
+        .select('id, student_id, month, amount, collected_amount, status, payment_mode, notes, game_id, games(name), students(reg_no, profiles!students_user_id_profiles_fkey(name))')
+        .eq('institute_id', instituteId)
+        .eq('month', month)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('students')
+        .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
+        .eq('institute_id', instituteId)
+        .neq('status', 'inactive'),
+    ]);
+    const feeRows = data || [];
+    const covered = new Set(feeRows.map((f: any) => f.student_id));
+    const synthetic = (allStuds || [])
+      .filter((s: any) => !covered.has(s.id))
+      .map((s: any) => ({
+        id: `synthetic-${s.id}`,
+        synthetic: true,
+        student_id: s.id,
+        month,
+        amount: 0,
+        collected_amount: 0,
+        status: 'unpaid',
+        payment_mode: null,
+        notes: null,
+        game_id: null,
+        games: null,
+        students: { reg_no: s.reg_no, profiles: s.profiles },
+      }));
+    setRows([...feeRows, ...synthetic]);
     setDirty({});
     setEditing(false);
   };
+
 
   useEffect(() => { load(); }, [instituteId, month]);
 
