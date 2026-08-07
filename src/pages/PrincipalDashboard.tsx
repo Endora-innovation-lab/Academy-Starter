@@ -834,122 +834,126 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
   const [statusFilter, setStatusFilter] = useState('all');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const ensureMonthlyFees = async () => {
-    const { data: activeStuds } = await supabase
+  // Build rows straight from the database: every active enrollment (student × game)
+  // joined with its fee record for the selected month (if any).
+  const load = async () => {
+    setLoading(true);
+    const { data: studs } = await supabase
       .from('students')
-      .select('id')
+      .select('id, reg_no, status, profiles!students_user_id_profiles_fkey(name)')
       .eq('institute_id', instituteId)
       .neq('status', 'inactive');
-    const studentIds = (activeStuds || []).map((s: any) => s.id);
-    if (studentIds.length === 0) return;
-    const [{ data: existing }, { data: sg }] = await Promise.all([
-      supabase.from('fees').select('student_id').eq('institute_id', instituteId).eq('month', month).in('student_id', studentIds),
+    const studentIds = (studs || []).map((s: any) => s.id);
+    const stuMap: Record<string, any> = {};
+    (studs || []).forEach((s: any) => { stuMap[s.id] = s; });
+
+    if (studentIds.length === 0) { setRows([]); setDirty({}); setEditing(false); setLoading(false); return; }
+
+    const [{ data: sg }, { data: gamesData }, { data: fees }] = await Promise.all([
       supabase.from('student_games').select('student_id, game_id, monthly_fee, status').in('student_id', studentIds),
+      supabase.from('games').select('id, name').eq('institute_id', instituteId),
+      supabase.from('fees').select('*').eq('institute_id', instituteId).eq('month', month).in('student_id', studentIds),
     ]);
-    const has = new Set((existing || []).map((f: any) => f.student_id));
-    const perStudent: Record<string, { game_id: string; amount: number }> = {};
-    (sg || []).forEach((r: any) => {
-      if (r.status && r.status !== 'active') return;
-      if (!perStudent[r.student_id]) {
-        perStudent[r.student_id] = { game_id: r.game_id, amount: Number(r.monthly_fee) || 0 };
-      } else {
-        perStudent[r.student_id].amount += Number(r.monthly_fee) || 0;
-      }
+
+    const gameMap: Record<string, string> = {};
+    (gamesData || []).forEach((g: any) => { gameMap[g.id] = g.name; });
+
+    const feeMap: Record<string, any> = {};
+    (fees || []).forEach((f: any) => { feeMap[`${f.student_id}|${f.game_id || ''}`] = f; });
+
+    const built: any[] = [];
+    (sg || []).forEach((e: any) => {
+      if (e.status && e.status !== 'active') return;
+      const stu = stuMap[e.student_id];
+      if (!stu) return;
+      const fee = feeMap[`${e.student_id}|${e.game_id || ''}`] || feeMap[`${e.student_id}|`];
+      built.push({
+        key: `${e.student_id}|${e.game_id}`,
+        student_id: e.student_id,
+        game_id: e.game_id || null,
+        game_name: gameMap[e.game_id] || '—',
+        name: stu.profiles?.name || '—',
+        reg_no: stu.reg_no || '',
+        fee_id: fee?.id || null,
+        monthly_fee: Number(fee?.amount ?? e.monthly_fee ?? 0) || 0,
+        collected: Number(fee?.collected_amount) || 0,
+        mode: fee?.payment_mode || '',
+        notes: fee?.notes || '',
+      });
     });
-    const toInsert = studentIds
-      .filter((id: string) => !has.has(id))
-      .map((id: string) => ({
-        student_id: id,
-        institute_id: instituteId,
-        month,
-        amount: perStudent[id]?.amount ?? 0,
-        collected_amount: 0,
-        excess_amount: 0,
-        status: 'unpaid',
-        game_id: perStudent[id]?.game_id ?? null,
-      }));
-    if (toInsert.length > 0) {
-      await supabase.from('fees').upsert(toInsert, { onConflict: 'student_id,month', ignoreDuplicates: true });
-    }
 
-  };
-
-  const load = async () => {
-    await ensureMonthlyFees();
-    const [{ data }, { data: allStuds }] = await Promise.all([
-      supabase
-        .from('fees')
-        .select('id, student_id, month, amount, collected_amount, status, payment_mode, notes, game_id, games(name), students(reg_no, profiles!students_user_id_profiles_fkey(name))')
-        .eq('institute_id', instituteId)
-        .eq('month', month)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('students')
-        .select('id, reg_no, profiles!students_user_id_profiles_fkey(name)')
-        .eq('institute_id', instituteId)
-        .neq('status', 'inactive'),
-    ]);
-    const feeRows = data || [];
-    const covered = new Set(feeRows.map((f: any) => f.student_id));
-    const synthetic = (allStuds || [])
-      .filter((s: any) => !covered.has(s.id))
-      .map((s: any) => ({
-        id: `synthetic-${s.id}`,
-        synthetic: true,
+    // Students with no active enrollment still appear so the full list is visible
+    const enrolled = new Set(built.map(r => r.student_id));
+    (studs || []).forEach((s: any) => {
+      if (enrolled.has(s.id)) return;
+      const fee = Object.values(feeMap).find((f: any) => f.student_id === s.id) as any;
+      built.push({
+        key: `${s.id}|none`,
         student_id: s.id,
-        month,
-        amount: 0,
-        collected_amount: 0,
-        status: 'unpaid',
-        payment_mode: null,
-        notes: null,
-        game_id: null,
-        games: null,
-        students: { reg_no: s.reg_no, profiles: s.profiles },
-      }));
-    setRows([...feeRows, ...synthetic]);
+        game_id: fee?.game_id || null,
+        game_name: '—',
+        name: s.profiles?.name || '—',
+        reg_no: s.reg_no || '',
+        fee_id: fee?.id || null,
+        monthly_fee: Number(fee?.amount || 0) || 0,
+        collected: Number(fee?.collected_amount) || 0,
+        mode: fee?.payment_mode || '',
+        notes: fee?.notes || '',
+      });
+    });
+
+    built.sort((a, b) => a.name.localeCompare(b.name));
+    setRows(built);
     setDirty({});
     setEditing(false);
+    setLoading(false);
   };
-
 
   useEffect(() => { load(); }, [instituteId, month]);
 
+  const rowStatus = (r: any) => {
+    const amt = Number(r.monthly_fee) || 0;
+    const col = Number(r.collected) || 0;
+    return col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
+  };
+
   const filtered = rows.filter(r => {
-    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    if (statusFilter !== 'all' && rowStatus(r) !== statusFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
-    const n = (r.students as any)?.profiles?.name?.toLowerCase() || '';
-    const reg = (r.students as any)?.reg_no?.toLowerCase() || '';
-    return n.includes(q) || reg.includes(q);
+    return (r.name || '').toLowerCase().includes(q) || (r.reg_no || '').toLowerCase().includes(q);
   });
 
-  const totals = filtered.reduce((a, r) => ({
-    paid: a.paid + (r.status === 'paid' ? 1 : 0),
-    partial: a.partial + (r.status === 'partial' ? 1 : 0),
-    unpaid: a.unpaid + (r.status === 'unpaid' ? 1 : 0),
-    collected: a.collected + Number(r.collected_amount || 0),
-  }), { paid: 0, partial: 0, unpaid: 0, collected: 0 });
+  const totals = filtered.reduce((a, r) => {
+    const st = rowStatus(r);
+    return {
+      paid: a.paid + (st === 'paid' ? 1 : 0),
+      partial: a.partial + (st === 'partial' ? 1 : 0),
+      unpaid: a.unpaid + (st === 'unpaid' ? 1 : 0),
+      collected: a.collected + (Number(r.collected) || 0),
+    };
+  }, { paid: 0, partial: 0, unpaid: 0, collected: 0 });
 
   const statusCls = (s: string) => s === 'paid' ? 'bg-accent/10 text-accent'
     : s === 'partial' ? 'bg-yellow-500/10 text-yellow-600' : 'bg-destructive/10 text-destructive';
 
-  const updateRow = (id: string, patch: Partial<any>) => {
-    setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
-    setDirty(prev => ({ ...prev, [id]: true }));
+  const updateRow = (key: string, patch: Partial<any>) => {
+    setRows(prev => prev.map(r => r.key === key ? { ...r, ...patch } : r));
+    setDirty(prev => ({ ...prev, [key]: true }));
   };
 
   const save = async () => {
-    const changedIds = Object.keys(dirty).filter(id => dirty[id]);
-    if (changedIds.length === 0) { toast.info('No changes to save'); return; }
+    const changedKeys = Object.keys(dirty).filter(k => dirty[k]);
+    if (changedKeys.length === 0) { toast.info('No changes to save'); return; }
     setSaving(true);
     try {
-      for (const id of changedIds) {
-        const r = rows.find(x => x.id === id);
-        if (!r || r.synthetic) continue;
-        const amt = Number(r.amount) || 0;
-        const col = Number(r.collected_amount) || 0;
+      for (const key of changedKeys) {
+        const r = rows.find(x => x.key === key);
+        if (!r) continue;
+        const amt = Number(r.monthly_fee) || 0;
+        const col = Number(r.collected) || 0;
         const status = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
         const excess = Math.max(0, col - amt);
         const payload: any = {
@@ -957,20 +961,30 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           collected_amount: col,
           excess_amount: excess,
           status,
-          payment_mode: r.payment_mode || null,
+          payment_mode: r.mode || null,
           notes: r.notes || null,
           updated_by: userId,
+          game_id: r.game_id,
         };
-        const { error } = await supabase.from('fees').update(payload).eq('id', id);
-        if (error) throw error;
+        let savedId = r.fee_id;
+        if (r.fee_id) {
+          const { error } = await supabase.from('fees').update(payload).eq('id', r.fee_id);
+          if (error) throw error;
+        } else {
+          const { data: ins, error } = await supabase.from('fees').insert({
+            ...payload, student_id: r.student_id, month, institute_id: instituteId,
+          }).select('id').single();
+          if (error) throw error;
+          savedId = ins?.id;
+        }
         await supabase.from('fee_history').insert({
-          fee_id: id, student_id: r.student_id, institute_id: instituteId, month,
+          fee_id: savedId, student_id: r.student_id, institute_id: instituteId, month,
           amount: amt, collected_amount: col, excess_amount: excess, status,
-          payment_mode: r.payment_mode || null, notes: r.notes || null, game_id: r.game_id,
+          payment_mode: r.mode || null, notes: r.notes || null, game_id: r.game_id,
           updated_by: userId, updated_by_role: 'principal',
         });
       }
-      toast.success(`${changedIds.length} fee record(s) saved`);
+      toast.success(`${changedKeys.length} fee record(s) saved`);
       await load();
     } catch (err: any) {
       toast.error(err.message || 'Save failed');
@@ -1007,7 +1021,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Paid</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-accent">{totals.paid}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Partial</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-yellow-600">{totals.partial}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Unpaid</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-destructive">{totals.unpaid}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Collected</CardTitle></CardHeader><CardContent><div className="text-xl font-bold">₹{totals.collected}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Collected</CardTitle></CardHeader><CardContent><div className="text-xl font-bold">₹{totals.collected.toLocaleString()}</div></CardContent></Card>
       </div>
 
       <div className="flex items-center justify-between">
@@ -1024,39 +1038,48 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           <thead className="bg-muted">
             <tr>
               <th className="text-left p-3 font-medium">S.No</th>
-              <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Name</th>
+              <th className="text-left p-3 font-medium">Reg No</th>
               <th className="text-left p-3 font-medium">Game</th>
-              <th className="text-left p-3 font-medium">Amount</th>
-              <th className="text-left p-3 font-medium">Collected</th>
+              <th className="text-left p-3 font-medium">Monthly Fee (₹)</th>
+              <th className="text-left p-3 font-medium">Collected (₹)</th>
+              <th className="text-left p-3 font-medium">Balance (₹)</th>
+              <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium">Mode</th>
               <th className="text-left p-3 font-medium">Note</th>
-              <th className="text-left p-3 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((r, i) => {
-              const stu = r.students as any;
-              const amt = Number(r.amount) || 0;
-              const col = Number(r.collected_amount) || 0;
-              const st = editing ? (col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial') : r.status;
+              const amt = Number(r.monthly_fee) || 0;
+              const col = Number(r.collected) || 0;
+              const due = Math.max(0, amt - col);
+              const excess = Math.max(0, col - amt);
+              const st = rowStatus(r);
               return (
-                <tr key={r.id} className={`border-t ${dirty[r.id] ? 'bg-yellow-50/40' : ''}`}>
+                <tr key={r.key} className={`border-t ${dirty[r.key] ? 'bg-yellow-50/40' : ''}`}>
                   <td className="p-3">{i + 1}</td>
-                  <td className="p-3">{stu?.reg_no || '—'}</td>
-                  <td className="p-3">{stu?.profiles?.name || '—'}</td>
-                  <td className="p-3">{(r.games as any)?.name || '—'}</td>
-                  <td className="p-3">₹{amt}</td>
+                  <td className="p-3">{r.name}</td>
+                  <td className="p-3">{r.reg_no || '—'}</td>
+                  <td className="p-3">{r.game_name}</td>
+                  <td className="p-3 font-medium">₹{amt.toLocaleString()}</td>
                   <td className="p-3">
                     {editing ? (
-                      <Input type="number" min="0" className="w-24 h-8" value={r.collected_amount ?? 0}
-                        onChange={e => updateRow(r.id, { collected_amount: Number(e.target.value) || 0 })} />
-                    ) : `₹${col}`}
+                      <>
+                        <Input type="number" min="0" className="w-24 h-8" value={r.collected}
+                          onChange={e => updateRow(r.key, { collected: Number(e.target.value) || 0 })} />
+                        {excess > 0 && <p className="text-xs text-accent mt-1">+₹{excess} excess</p>}
+                      </>
+                    ) : `₹${col.toLocaleString()}`}
+                  </td>
+                  <td className="p-3 font-medium">₹{due.toLocaleString()}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusCls(st)}`}>{st}</span>
                   </td>
                   <td className="p-3">
                     {editing ? (
-                      <Select value={r.payment_mode || 'none'}
-                        onValueChange={v => updateRow(r.id, { payment_mode: v === 'none' ? '' : v })}>
+                      <Select value={r.mode || 'none'}
+                        onValueChange={v => updateRow(r.key, { mode: v === 'none' ? '' : v })}>
                         <SelectTrigger className="w-28 h-8"><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">—</SelectItem>
@@ -1064,23 +1087,23 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
                           <SelectItem value="online">Online</SelectItem>
                         </SelectContent>
                       </Select>
-                    ) : (r.payment_mode || '-')}
+                    ) : (r.mode || '-')}
                   </td>
                   <td className="p-3">
                     {editing ? (
                       <Input className="w-40 h-8" value={r.notes || ''}
-                        onChange={e => updateRow(r.id, { notes: e.target.value })}
+                        onChange={e => updateRow(r.key, { notes: e.target.value })}
                         placeholder="Optional note" />
                     ) : (r.notes || '-')}
-                  </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusCls(st)}`}>{st}</span>
                   </td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No fee records</td></tr>
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">No students found</td></tr>
+            )}
+            {loading && (
+              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Loading…</td></tr>
             )}
           </tbody>
         </table>
@@ -1096,5 +1119,6 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
     </div>
   );
 };
+
 
 export default PrincipalDashboard;
