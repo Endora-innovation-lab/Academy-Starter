@@ -947,7 +947,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
     try {
       for (const id of changedIds) {
         const r = rows.find(x => x.id === id);
-        if (!r) continue;
+        if (!r || r.synthetic) continue;
         const amt = Number(r.amount) || 0;
         const col = Number(r.collected_amount) || 0;
         const status = col === 0 ? 'unpaid' : col >= amt ? 'paid' : 'partial';
