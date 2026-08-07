@@ -858,20 +858,21 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
       }
     });
     const toInsert = studentIds
-      .filter((id: string) => !has.has(id) && perStudent[id])
+      .filter((id: string) => !has.has(id))
       .map((id: string) => ({
         student_id: id,
         institute_id: instituteId,
         month,
-        amount: perStudent[id].amount,
+        amount: perStudent[id]?.amount ?? 0,
         collected_amount: 0,
         excess_amount: 0,
         status: 'unpaid',
-        game_id: perStudent[id].game_id,
+        game_id: perStudent[id]?.game_id ?? null,
       }));
     if (toInsert.length > 0) {
       await supabase.from('fees').upsert(toInsert, { onConflict: 'student_id,month', ignoreDuplicates: true });
     }
+
   };
 
   const load = async () => {
