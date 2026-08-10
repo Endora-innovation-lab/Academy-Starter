@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTH, useSort } from '@/components/SortableTable';
+import { AttendanceRangeTable, FeesRangeTable } from '@/components/RangeMatrix';
+
 import {
   fetchInstituteIdSettings, InstituteIdSettings,
   nextTeacherId, isTeacherIdTaken,
