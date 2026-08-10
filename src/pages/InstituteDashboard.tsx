@@ -1858,7 +1858,10 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   }, [instituteId]);
 
   const fetchAttendance = async () => {
+    if (filterType === 'range') return;
     let firstDay: string, lastDay: string;
+
+
 
     if (filterType === 'daily') {
       firstDay = filterDate;
