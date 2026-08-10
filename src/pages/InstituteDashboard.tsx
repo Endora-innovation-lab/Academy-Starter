@@ -2001,20 +2001,50 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly') => setFilterType(v)}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly' | 'range') => setFilterType(v)}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="daily">Daily</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
               <SelectItem value="yearly">Yearly</SelectItem>
+              <SelectItem value="range">Custom Date Range</SelectItem>
             </SelectContent>
           </Select>
           {filterType === 'daily' && <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-44" />}
           {filterType === 'monthly' && <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />}
           {filterType === 'yearly' && <Input type="number" min="2020" max="2099" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="w-28" />}
+          {filterType === 'range' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} className="w-40" />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} className="w-40" />
+              <Button
+                onClick={() => {
+                  if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { toast.error('Select a valid date range'); return; }
+                  setAppliedRange({ from: rangeFrom, to: rangeTo });
+                }}
+              >Apply</Button>
+            </div>
+          )}
         </div>
       </div>
+      {filterType === 'range' ? (
+        appliedRange ? (
+          <AttendanceRangeTable
+            instituteId={instituteId}
+            role={filterRole}
+            batchId={filterBatch}
+            from={appliedRange.from}
+            to={appliedRange.to}
+          />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To date, then click Apply.
+          </div>
+        )
+      ) : (
       <div className="rounded-lg border bg-card overflow-x-auto">
+
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
