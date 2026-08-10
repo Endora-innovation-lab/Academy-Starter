@@ -1837,13 +1837,17 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
   const [filterRole, setFilterRole] = useState<'student' | 'teacher'>('student');
   const [filterBatch, setFilterBatch] = useState('all');
-  const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
+  const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly' | 'range'>('daily');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [rangeFrom, setRangeFrom] = useState(() => new Date().toISOString().split('T')[0]);
+  const [rangeTo, setRangeTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [filterYear, setFilterYear] = useState(() => String(new Date().getFullYear()));
+
 
   useEffect(() => {
     const fetchBatches = async () => {
