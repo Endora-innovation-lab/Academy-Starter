@@ -2350,27 +2350,66 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </SelectContent>
             </Select>
           )}
-          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <Select value={monthMode} onValueChange={(v: 'single' | 'range') => setMonthMode(v)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="single">Single Month</SelectItem>
+              <SelectItem value="range">Custom Month Range</SelectItem>
             </SelectContent>
           </Select>
+          {monthMode === 'single' ? (
+            <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="month" value={monthFrom} onChange={e => setMonthFrom(e.target.value)} className="w-40" />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="month" value={monthTo} onChange={e => setMonthTo(e.target.value)} className="w-40" />
+              <Button
+                onClick={() => {
+                  if (!monthFrom || !monthTo || monthFrom > monthTo) { toast.error('Select a valid month range'); return; }
+                  setAppliedMonths({ from: monthFrom, to: monthTo });
+                }}
+              >Apply</Button>
+            </div>
+          )}
+          {monthMode === 'single' && (
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Update Fee</Button>
         </div>
       </div>
 
+      {monthMode === 'range' ? (
+        appliedMonths ? (
+          <FeesRangeTable
+            instituteId={instituteId}
+            gameId={filterGame}
+            from={appliedMonths.from}
+            to={appliedMonths.to}
+          />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To month, then click Apply.
+          </div>
+        )
+      ) : (
+      <>
       <div className="grid sm:grid-cols-3 gap-3">
         <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Total</p><p className="text-xl font-bold">₹{totalAmount.toLocaleString()}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Collected</p><p className="text-xl font-bold text-accent">₹{paidAmount.toLocaleString()}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Pending</p><p className="text-xl font-bold text-destructive">₹{unpaidAmount.toLocaleString()}</p></CardContent></Card>
       </div>
 
-      <div className="rounded-lg border bg-card overflow-x-auto">
+      <div className="rounded-lg border bg-card overflow-x-auto mt-4">
+
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
