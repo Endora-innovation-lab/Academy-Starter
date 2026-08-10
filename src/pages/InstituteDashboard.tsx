@@ -2205,7 +2205,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   useEffect(() => { fetchAll(); }, [instituteId]);
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterGame, students, games, studentGames]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterGame, students, games, studentGames, monthMode]);
 
   const totalAmount = rows.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const paidAmount = rows.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
