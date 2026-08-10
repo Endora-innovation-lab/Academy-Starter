@@ -2102,6 +2102,17 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [monthMode, setMonthMode] = useState<'single' | 'range'>('single');
+  const [monthFrom, setMonthFrom] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [monthTo, setMonthTo] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [appliedMonths, setAppliedMonths] = useState<{ from: string; to: string } | null>(null);
+
 
   const [editOpen, setEditOpen] = useState(false);
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
