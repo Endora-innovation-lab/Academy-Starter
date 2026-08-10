@@ -2081,6 +2081,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
           </tbody>
         </table>
       </div>
+      )}
+
     </div>
   );
 };
