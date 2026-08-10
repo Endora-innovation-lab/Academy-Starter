@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTH, useSort } from '@/components/SortableTable';
+import { AttendanceRangeTable, FeesRangeTable } from '@/components/RangeMatrix';
+
 import {
   fetchInstituteIdSettings, InstituteIdSettings,
   nextTeacherId, isTeacherIdTaken,
@@ -1837,13 +1839,17 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   const [batches, setBatches] = useState<any[]>([]);
   const [filterRole, setFilterRole] = useState<'student' | 'teacher'>('student');
   const [filterBatch, setFilterBatch] = useState('all');
-  const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
+  const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly' | 'range'>('daily');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [rangeFrom, setRangeFrom] = useState(() => new Date().toISOString().split('T')[0]);
+  const [rangeTo, setRangeTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [filterYear, setFilterYear] = useState(() => String(new Date().getFullYear()));
+
 
   useEffect(() => {
     const fetchBatches = async () => {
@@ -1854,7 +1860,10 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
   }, [instituteId]);
 
   const fetchAttendance = async () => {
+    if (filterType === 'range') return;
     let firstDay: string, lastDay: string;
+
+
 
     if (filterType === 'daily') {
       firstDay = filterDate;
@@ -1994,20 +2003,50 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly') => setFilterType(v)}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly' | 'range') => setFilterType(v)}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="daily">Daily</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
               <SelectItem value="yearly">Yearly</SelectItem>
+              <SelectItem value="range">Custom Date Range</SelectItem>
             </SelectContent>
           </Select>
           {filterType === 'daily' && <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-44" />}
           {filterType === 'monthly' && <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />}
           {filterType === 'yearly' && <Input type="number" min="2020" max="2099" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="w-28" />}
+          {filterType === 'range' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} className="w-40" />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} className="w-40" />
+              <Button
+                onClick={() => {
+                  if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { toast.error('Select a valid date range'); return; }
+                  setAppliedRange({ from: rangeFrom, to: rangeTo });
+                }}
+              >Apply</Button>
+            </div>
+          )}
         </div>
       </div>
+      {filterType === 'range' ? (
+        appliedRange ? (
+          <AttendanceRangeTable
+            instituteId={instituteId}
+            role={filterRole}
+            batchId={filterBatch}
+            from={appliedRange.from}
+            to={appliedRange.to}
+          />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To date, then click Apply.
+          </div>
+        )
+      ) : (
       <div className="rounded-lg border bg-card overflow-x-auto">
+
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
@@ -2044,6 +2083,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
           </tbody>
         </table>
       </div>
+      )}
+
     </div>
   );
 };
@@ -2061,6 +2102,17 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [monthMode, setMonthMode] = useState<'single' | 'range'>('single');
+  const [monthFrom, setMonthFrom] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [monthTo, setMonthTo] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [appliedMonths, setAppliedMonths] = useState<{ from: string; to: string } | null>(null);
+
 
   const [editOpen, setEditOpen] = useState(false);
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
@@ -2087,7 +2139,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   const fetchFees = async () => {
+    if (monthMode === 'range') return;
     if (!filterMonth) return;
+
     const studentMap = Object.fromEntries(students.map((s: any) => [s.id, s]));
     const gameMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
@@ -2151,7 +2205,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   useEffect(() => { fetchAll(); }, [instituteId]);
-  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterGame, students, games, studentGames]);
+  useEffect(() => { fetchFees(); }, [instituteId, filterStatus, filterMonth, filterGame, students, games, studentGames, monthMode]);
 
   const totalAmount = rows.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
   const paidAmount = rows.reduce((sum, f) => sum + (Number(f.collected_amount) || 0), 0);
@@ -2298,27 +2352,66 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </SelectContent>
             </Select>
           )}
-          <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <Select value={monthMode} onValueChange={(v: 'single' | 'range') => setMonthMode(v)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="single">Single Month</SelectItem>
+              <SelectItem value="range">Custom Month Range</SelectItem>
             </SelectContent>
           </Select>
+          {monthMode === 'single' ? (
+            <Input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-48" />
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="month" value={monthFrom} onChange={e => setMonthFrom(e.target.value)} className="w-40" />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="month" value={monthTo} onChange={e => setMonthTo(e.target.value)} className="w-40" />
+              <Button
+                onClick={() => {
+                  if (!monthFrom || !monthTo || monthFrom > monthTo) { toast.error('Select a valid month range'); return; }
+                  setAppliedMonths({ from: monthFrom, to: monthTo });
+                }}
+              >Apply</Button>
+            </div>
+          )}
+          {monthMode === 'single' && (
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Update Fee</Button>
         </div>
       </div>
 
+      {monthMode === 'range' ? (
+        appliedMonths ? (
+          <FeesRangeTable
+            instituteId={instituteId}
+            gameId={filterGame}
+            from={appliedMonths.from}
+            to={appliedMonths.to}
+          />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To month, then click Apply.
+          </div>
+        )
+      ) : (
+      <>
       <div className="grid sm:grid-cols-3 gap-3">
         <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Total</p><p className="text-xl font-bold">₹{totalAmount.toLocaleString()}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Collected</p><p className="text-xl font-bold text-accent">₹{paidAmount.toLocaleString()}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Pending</p><p className="text-xl font-bold text-destructive">₹{unpaidAmount.toLocaleString()}</p></CardContent></Card>
       </div>
 
-      <div className="rounded-lg border bg-card overflow-x-auto">
+      <div className="rounded-lg border bg-card overflow-x-auto mt-4">
+
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
@@ -2385,6 +2478,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           </tbody>
         </table>
       </div>
+      </>
+      )}
+
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
