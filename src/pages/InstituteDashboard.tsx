@@ -2139,7 +2139,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   };
 
   const fetchFees = async () => {
+    if (monthMode === 'range') return;
     if (!filterMonth) return;
+
     const studentMap = Object.fromEntries(students.map((s: any) => [s.id, s]));
     const gameMap = Object.fromEntries(games.map((g: any) => [g.id, g]));
 
