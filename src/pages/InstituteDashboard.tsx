@@ -2476,6 +2476,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           </tbody>
         </table>
       </div>
+      </>
+      )}
+
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
