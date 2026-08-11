@@ -764,22 +764,41 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           game_id: gameId,
         };
         let savedId = r.fee_id;
-        if (r.fee_id) {
-          const { error } = await supabase.from('fees').update(payload).eq('id', r.fee_id);
+        if (!savedId) {
+          // A fee row may already exist for this student/month (unique key student_id+month)
+          const { data: existing } = await supabase.from('fees')
+            .select('id').eq('student_id', sid).eq('month', month).maybeSingle();
+          if (existing?.id) savedId = existing.id;
+        }
+        if (savedId) {
+          const { error } = await supabase.from('fees').update(payload).eq('id', savedId);
           if (error) throw error;
         } else {
           const { data: ins, error } = await supabase.from('fees').insert({
             ...payload, student_id: sid, month, institute_id: instituteId,
           }).select('id').single();
-          if (error) throw error;
-          savedId = ins?.id;
+          if (error) {
+            if ((error as any).code === '23505') {
+              // race: record created meanwhile -> update it
+              const { data: ex2 } = await supabase.from('fees')
+                .select('id').eq('student_id', sid).eq('month', month).maybeSingle();
+              if (!ex2?.id) throw error;
+              const { error: upErr } = await supabase.from('fees').update(payload).eq('id', ex2.id);
+              if (upErr) throw upErr;
+              savedId = ex2.id;
+            } else throw error;
+          } else savedId = ins?.id;
         }
+        setRows(prev => prev.map(x => x.student_id === sid
+          ? { ...x, fee_id: savedId, amount: amt, collected: col, excess_amount: excess, status, mode: r.mode || '', notes: r.notes || '' }
+          : x));
         await supabase.from('fee_history').insert({
           fee_id: savedId, student_id: sid, institute_id: instituteId, month,
           amount: amt, collected_amount: col, excess_amount: excess, status,
           payment_mode: r.mode || null, notes: r.notes || null, game_id: gameId,
           updated_by: userId, updated_by_role: 'teacher',
         });
+
       }
       toast.success(`${changedIds.length} fee record(s) saved`);
       await load();
