@@ -2317,11 +2317,19 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     };
     let savedId: string | undefined = f._placeholder ? undefined : f.id;
     if (f._placeholder) {
-      const { data: ins, error } = await supabase.from('fees').insert({
-        ...payload, student_id: f.student_id, month: f.month, institute_id: instituteId,
-      }).select('id').single();
-      if (error) { toast.error(error.message); return; }
-      savedId = ins?.id;
+      const { data: existing } = await supabase.from('fees')
+        .select('id').eq('student_id', f.student_id).eq('month', f.month).maybeSingle();
+      if (existing?.id) {
+        const { error } = await supabase.from('fees').update(payload).eq('id', existing.id);
+        if (error) { toast.error(error.message); return; }
+        savedId = existing.id;
+      } else {
+        const { data: ins, error } = await supabase.from('fees').insert({
+          ...payload, student_id: f.student_id, month: f.month, institute_id: instituteId,
+        }).select('id').single();
+        if (error) { toast.error(error.message); return; }
+        savedId = ins?.id;
+      }
     } else {
       const { error } = await supabase.from('fees').update(payload).eq('id', f.id);
       if (error) { toast.error(error.message); return; }
