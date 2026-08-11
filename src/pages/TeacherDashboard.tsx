@@ -790,7 +790,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           } else savedId = ins?.id;
         }
         setRows(prev => prev.map(x => x.student_id === sid
-          ? { ...x, fee_id: savedId, amount: amt, collected: col, excess_amount: excess, status, mode: r.mode || '', notes: r.notes || '' }
+          ? { ...x, fee_id: savedId, monthly_fee: amt, collected: col, status, mode: r.mode || '', notes: r.notes || '' }
           : x));
         await supabase.from('fee_history').insert({
           fee_id: savedId, student_id: sid, institute_id: instituteId, month,

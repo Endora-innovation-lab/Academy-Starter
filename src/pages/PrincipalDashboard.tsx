@@ -967,16 +967,32 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           game_id: r.game_id,
         };
         let savedId = r.fee_id;
-        if (r.fee_id) {
-          const { error } = await supabase.from('fees').update(payload).eq('id', r.fee_id);
+        if (!savedId) {
+          const { data: existing } = await supabase.from('fees')
+            .select('id').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+          if (existing?.id) savedId = existing.id;
+        }
+        if (savedId) {
+          const { error } = await supabase.from('fees').update(payload).eq('id', savedId);
           if (error) throw error;
         } else {
           const { data: ins, error } = await supabase.from('fees').insert({
             ...payload, student_id: r.student_id, month, institute_id: instituteId,
           }).select('id').single();
-          if (error) throw error;
-          savedId = ins?.id;
+          if (error) {
+            if ((error as any).code === '23505') {
+              const { data: ex2 } = await supabase.from('fees')
+                .select('id').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+              if (!ex2?.id) throw error;
+              const { error: upErr } = await supabase.from('fees').update(payload).eq('id', ex2.id);
+              if (upErr) throw upErr;
+              savedId = ex2.id;
+            } else throw error;
+          } else savedId = ins?.id;
         }
+        setRows(prev => prev.map(x => x.key === key
+          ? { ...x, fee_id: savedId, monthly_fee: amt, collected: col, mode: r.mode || '', notes: r.notes || '' }
+          : x));
         await supabase.from('fee_history').insert({
           fee_id: savedId, student_id: r.student_id, institute_id: instituteId, month,
           amount: amt, collected_amount: col, excess_amount: excess, status,
