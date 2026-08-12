@@ -137,6 +137,16 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
         partialFees: partial,
         unpaidFees: unpaid,
       });
+
+      const sessBatchIds = Array.from(new Set((sess.data || []).map((r: any) => r.batch_id).filter(Boolean)));
+      if (sessBatchIds.length) {
+        const { data: bNames } = await supabase.from('batches').select('id, name').in('id', sessBatchIds);
+        const nameById: Record<string, string> = {};
+        (bNames || []).forEach((b: any) => { nameById[b.id] = b.name; });
+        setClassList((sess.data || []).map((r: any) => ({ id: r.id, name: nameById[r.batch_id] || 'Batch' })));
+      } else {
+        setClassList([]);
+      }
     })();
   }, [instituteId, date, month, principalTeacherId]);
 
