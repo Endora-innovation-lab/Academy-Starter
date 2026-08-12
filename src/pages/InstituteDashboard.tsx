@@ -94,6 +94,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
     teacherTotal: 0, teacherPresent: 0, teacherAbsent: 0, teacherLate: 0,
   });
   const [batches, setBatches] = useState<any[]>([]);
+  const [classList, setClassList] = useState<{ key: string; name: string; date: string }[]>([]);
   const [filterBatch, setFilterBatch] = useState('all');
   const [filterType, setFilterType] = useState<'daily' | 'monthly' | 'yearly'>('daily');
   const [filterDate, setFilterDate] = useState(() => new Date().toISOString().split('T')[0]);
