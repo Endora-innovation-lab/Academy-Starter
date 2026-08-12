@@ -916,6 +916,16 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'month' | 'range'>('month');
+  const [rangeFrom, setRangeFrom] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [rangeTo, setRangeTo] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
 
   // Build rows straight from the database: every active enrollment (student × game)
   // joined with its fee record for the selected month (if any).
@@ -1097,23 +1107,54 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
         <div className="flex gap-2 flex-wrap">
-          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <Select value={viewMode} onValueChange={(v: 'month' | 'range') => setViewMode(v)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="month">Current Month</SelectItem>
+              <SelectItem value="range">Custom Month Range</SelectItem>
             </SelectContent>
           </Select>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8 w-56" placeholder="Search student..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
+          {viewMode === 'month' ? (
+            <>
+              <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-8 w-56" placeholder="Search student..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="month" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} className="w-40" />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="month" value={rangeTo} onChange={e => setRangeTo(e.target.value)} className="w-40" />
+              <Button onClick={() => {
+                if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { toast.error('Select a valid month range'); return; }
+                setAppliedRange({ from: rangeFrom, to: rangeTo });
+              }}>Apply</Button>
+            </div>
+          )}
         </div>
       </div>
 
+      {viewMode === 'range' ? (
+        appliedRange ? (
+          <FeesRangeTable instituteId={instituteId} gameId="all" from={appliedRange.from} to={appliedRange.to} />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To month, then click Apply.
+          </div>
+        )
+      ) : (
+      <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Paid</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-accent">{totals.paid}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Partial</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-yellow-600">{totals.partial}</div></CardContent></Card>
@@ -1212,6 +1253,8 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           </Button>
           {dirtyCount > 0 && <span className="text-xs text-muted-foreground">Unsaved changes — click Save to apply.</span>}
         </div>
+      )}
+      </>
       )}
     </div>
   );
