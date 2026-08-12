@@ -87,6 +87,7 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
     classesConducted: 0,
     paidFees: 0, partialFees: 0, unpaidFees: 0,
   });
+  const [classList, setClassList] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -100,7 +101,7 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
         supabase.from('attendance').select('status,student_id').eq('institute_id', instituteId).eq('date', date),
         supabase.from('teacher_attendance').select('status,teacher_id').eq('institute_id', instituteId).eq('date', date),
         supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', month),
-        supabase.from('attendance_sessions').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).eq('session_date', date),
+        supabase.from('attendance_sessions').select('id, batch_id').eq('institute_id', instituteId).eq('session_date', date),
       ]);
 
       const presentStudentSet = new Set<string>();
@@ -132,11 +133,21 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
         absentStudents: absentStudentSet.size,
         presentTeachers: presentTSet.size,
         absentTeachers: absentTSet.size,
-        classesConducted: sess.count || 0,
+        classesConducted: (sess.data || []).length,
         paidFees: paid,
         partialFees: partial,
         unpaidFees: unpaid,
       });
+
+      const sessBatchIds = Array.from(new Set((sess.data || []).map((r: any) => r.batch_id).filter(Boolean)));
+      if (sessBatchIds.length) {
+        const { data: bNames } = await supabase.from('batches').select('id, name').in('id', sessBatchIds);
+        const nameById: Record<string, string> = {};
+        (bNames || []).forEach((b: any) => { nameById[b.id] = b.name; });
+        setClassList((sess.data || []).map((r: any) => ({ id: r.id, name: nameById[r.batch_id] || 'Batch' })));
+      } else {
+        setClassList([]);
+      }
     })();
   }, [instituteId, date, month, principalTeacherId]);
 
@@ -167,16 +178,33 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
       <div>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Attendance</h3>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Date</Label>
-            <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44 h-8" />
+          <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Date</Label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44 h-8" />
+            </div>
+            <Card className="w-56 shrink-0">
+              <CardHeader className="py-2 px-3">
+                <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                  <span>Classes Conducted</span>
+                  <span className="text-base font-bold text-foreground">{stats.classesConducted}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="h-24 overflow-y-auto overscroll-contain space-y-1 pr-1">
+                  {classList.length === 0 && <p className="text-xs text-muted-foreground">No classes conducted</p>}
+                  {classList.map(c => (
+                    <div key={c.id} className="text-xs truncate">{c.name}</div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Stat label="Total Students" value={stats.students} />
           <Stat label="Present" value={stats.presentStudents} color="text-accent" />
           <Stat label="Absent" value={stats.absentStudents} color="text-destructive" />
-          <Stat label="Classes Conducted" value={stats.classesConducted} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
           <Stat label="Total Teachers" value={stats.teachers} />
