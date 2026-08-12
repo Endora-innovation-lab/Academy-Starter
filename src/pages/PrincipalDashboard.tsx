@@ -132,7 +132,7 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
         absentStudents: absentStudentSet.size,
         presentTeachers: presentTSet.size,
         absentTeachers: absentTSet.size,
-        classesConducted: sess.count || 0,
+        classesConducted: (sess.data || []).length,
         paidFees: paid,
         partialFees: partial,
         unpaidFees: unpaid,
