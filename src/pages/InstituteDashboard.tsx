@@ -284,8 +284,29 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
         </div>
       </div>
 
-      <div>
-        <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Attendance</h3>
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Attendance</h3>
+          <Card className="w-56 shrink-0">
+            <CardHeader className="py-2 px-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                <span>Classes Conducted</span>
+                <span className="text-base font-bold text-foreground">{stats.classes}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <div className="h-24 overflow-y-auto overscroll-contain space-y-1 pr-1">
+                {classList.length === 0 && <p className="text-xs text-muted-foreground">No classes conducted</p>}
+                {classList.map((c) => (
+                  <div key={c.key} className="text-xs flex items-center justify-between gap-2">
+                    <span className="truncate">{batches.find(b => b.id === c.name)?.name || 'Batch'}</span>
+                    <span className="text-muted-foreground shrink-0">{new Date(c.date).toLocaleDateString('default', { day: '2-digit', month: 'short' })}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="Total Students" value={stats.students} />
           <Stat label="Present" value={stats.present} color="text-accent" />
@@ -297,9 +318,6 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           <Stat label="Teachers Present" value={stats.teacherPresent} color="text-accent" />
           <Stat label="Teachers Late" value={stats.teacherLate} color="text-yellow-600" />
           <Stat label="Teachers Absent" value={stats.teacherAbsent} color="text-destructive" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-          <Stat label="Classes Conducted" value={stats.classes} />
         </div>
       </div>
 
