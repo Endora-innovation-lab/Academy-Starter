@@ -190,6 +190,14 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
       const teaAttData = teaAttRes.data || [];
       const classesData = classesRes.data || [];
       const classesSet = new Set(classesData.map((c: any) => `${c.date}__${c.batch_id}`));
+      setClassList(
+        Array.from(classesSet)
+          .map((k) => {
+            const [d, bid] = (k as string).split('__');
+            return { key: k as string, date: d, name: bid };
+          })
+          .sort((a, b) => (a.date < b.date ? 1 : -1))
+      );
 
       const paidFees = feeData.filter(f => f.status === 'paid');
       const partialFees = feeData.filter(f => f.status === 'partial');
