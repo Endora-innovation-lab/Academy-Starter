@@ -87,6 +87,7 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
     classesConducted: 0,
     paidFees: 0, partialFees: 0, unpaidFees: 0,
   });
+  const [classList, setClassList] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     (async () => {
