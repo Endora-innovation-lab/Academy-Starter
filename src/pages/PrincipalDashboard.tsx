@@ -100,7 +100,7 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
         supabase.from('attendance').select('status,student_id').eq('institute_id', instituteId).eq('date', date),
         supabase.from('teacher_attendance').select('status,teacher_id').eq('institute_id', instituteId).eq('date', date),
         supabase.from('fees').select('status').eq('institute_id', instituteId).eq('month', month),
-        supabase.from('attendance_sessions').select('id', { count: 'exact', head: true }).eq('institute_id', instituteId).eq('session_date', date),
+        supabase.from('attendance_sessions').select('id, batch_id').eq('institute_id', instituteId).eq('session_date', date),
       ]);
 
       const presentStudentSet = new Set<string>();
