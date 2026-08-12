@@ -255,9 +255,7 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly') => setFilterType(v)}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="yearly">Yearly</SelectItem>
+              <SelectItem value="daily">Today</SelectItem>
             </SelectContent>
           </Select>
           {filterType === 'daily' && <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-44" />}
@@ -2006,9 +2004,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
           <Select value={filterType} onValueChange={(v: 'daily' | 'monthly' | 'yearly' | 'range') => setFilterType(v)}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="yearly">Yearly</SelectItem>
+              <SelectItem value="daily">Today</SelectItem>
               <SelectItem value="range">Custom Date Range</SelectItem>
             </SelectContent>
           </Select>

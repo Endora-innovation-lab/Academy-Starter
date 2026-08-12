@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import TeacherProfile from '@/components/profiles/TeacherProfile';
 import StudentProfile from '@/components/profiles/StudentProfile';
+import { AttendanceRangeTable, FeesRangeTable } from '@/components/RangeMatrix';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
 const PrincipalDashboard = () => {
@@ -536,6 +537,10 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
   const [search, setSearch] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [viewMode, setViewMode] = useState<'today' | 'range'>('today');
+  const [rangeFrom, setRangeFrom] = useState(new Date().toISOString().split('T')[0]);
+  const [rangeTo, setRangeTo] = useState(new Date().toISOString().split('T')[0]);
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -610,16 +615,53 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
           <SelectTrigger className="w-56"><SelectValue placeholder="Select batch" /></SelectTrigger>
           <SelectContent>{batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
         </Select>
-        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-48" />
-        {students.length > 0 && (
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8 w-48" placeholder="Search student..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Select value={viewMode} onValueChange={(v: 'today' | 'range') => setViewMode(v)}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="range">Custom Date Range</SelectItem>
+          </SelectContent>
+        </Select>
+        {viewMode === 'today' ? (
+          <>
+            <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-48" />
+            {students.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-8 w-48" placeholder="Search student..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} className="w-40" />
+            <span className="text-muted-foreground text-sm">to</span>
+            <Input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} className="w-40" />
+            <Button onClick={() => {
+              if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { toast.error('Select a valid date range'); return; }
+              setAppliedRange({ from: rangeFrom, to: rangeTo });
+            }}>Apply</Button>
           </div>
         )}
       </div>
 
-      {hasLoaded && filtered.length > 0 && (
+      {viewMode === 'range' && (
+        appliedRange ? (
+          <AttendanceRangeTable
+            instituteId={instituteId}
+            role="student"
+            batchId={selectedBatch || 'all'}
+            from={appliedRange.from}
+            to={appliedRange.to}
+          />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To date, then click Apply.
+          </div>
+        )
+      )}
+
+      {viewMode === 'today' && hasLoaded && filtered.length > 0 && (
         <>
           <SummaryCards total={students.length} present={totals.present} absent={totals.absent} label="Students" />
           <div className="flex items-center justify-between">
@@ -662,7 +704,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
           {editing && <Button onClick={save}>Save Attendance</Button>}
         </>
       )}
-      {hasLoaded && filtered.length === 0 && selectedBatch && (
+      {viewMode === 'today' && hasLoaded && filtered.length === 0 && selectedBatch && (
         <p className="text-muted-foreground text-center py-8">No students in this batch</p>
       )}
     </div>
@@ -679,6 +721,10 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
   const [existingIds, setExistingIds] = useState<Record<string, boolean>>({});
   const [hasLoaded, setHasLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [viewMode, setViewMode] = useState<'today' | 'range'>('today');
+  const [rangeFrom, setRangeFrom] = useState(new Date().toISOString().split('T')[0]);
+  const [rangeTo, setRangeTo] = useState(new Date().toISOString().split('T')[0]);
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -769,10 +815,45 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
           <SelectTrigger className="w-56"><SelectValue placeholder="Select batch" /></SelectTrigger>
           <SelectContent>{batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
         </Select>
-        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-48" />
+        <Select value={viewMode} onValueChange={(v: 'today' | 'range') => setViewMode(v)}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="range">Custom Date Range</SelectItem>
+          </SelectContent>
+        </Select>
+        {viewMode === 'today' ? (
+          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-48" />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} className="w-40" />
+            <span className="text-muted-foreground text-sm">to</span>
+            <Input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} className="w-40" />
+            <Button onClick={() => {
+              if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { toast.error('Select a valid date range'); return; }
+              setAppliedRange({ from: rangeFrom, to: rangeTo });
+            }}>Apply</Button>
+          </div>
+        )}
       </div>
 
-      {hasLoaded && teachers.length > 0 && (
+      {viewMode === 'range' && (
+        appliedRange ? (
+          <AttendanceRangeTable
+            instituteId={instituteId}
+            role="teacher"
+            batchId={selectedBatch || 'all'}
+            from={appliedRange.from}
+            to={appliedRange.to}
+          />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To date, then click Apply.
+          </div>
+        )
+      )}
+
+      {viewMode === 'today' && hasLoaded && teachers.length > 0 && (
         <>
           <SummaryCards total={teachers.length} present={totals.present} absent={totals.absent} label="Teachers" />
           <div className="flex items-center justify-between">
@@ -815,7 +896,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
           {editing && <Button onClick={save}>Save Attendance</Button>}
         </>
       )}
-      {hasLoaded && teachers.length === 0 && selectedBatch && (
+      {viewMode === 'today' && hasLoaded && teachers.length === 0 && selectedBatch && (
         <p className="text-muted-foreground text-center py-8">No teachers assigned to this batch</p>
       )}
     </div>
@@ -835,6 +916,16 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'month' | 'range'>('month');
+  const [rangeFrom, setRangeFrom] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [rangeTo, setRangeTo] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
 
   // Build rows straight from the database: every active enrollment (student × game)
   // joined with its fee record for the selected month (if any).
@@ -1016,23 +1107,54 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-bold flex items-center gap-2"><DollarSign className="h-5 w-5" /> Fees</h2>
         <div className="flex gap-2 flex-wrap">
-          <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <Select value={viewMode} onValueChange={(v: 'month' | 'range') => setViewMode(v)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="month">Current Month</SelectItem>
+              <SelectItem value="range">Custom Month Range</SelectItem>
             </SelectContent>
           </Select>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8 w-56" placeholder="Search student..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
+          {viewMode === 'month' ? (
+            <>
+              <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-48" />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-8 w-56" placeholder="Search student..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input type="month" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} className="w-40" />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="month" value={rangeTo} onChange={e => setRangeTo(e.target.value)} className="w-40" />
+              <Button onClick={() => {
+                if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) { toast.error('Select a valid month range'); return; }
+                setAppliedRange({ from: rangeFrom, to: rangeTo });
+              }}>Apply</Button>
+            </div>
+          )}
         </div>
       </div>
 
+      {viewMode === 'range' ? (
+        appliedRange ? (
+          <FeesRangeTable instituteId={instituteId} gameId="all" from={appliedRange.from} to={appliedRange.to} />
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            Select a From and To month, then click Apply.
+          </div>
+        )
+      ) : (
+      <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Paid</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-accent">{totals.paid}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Partial</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-yellow-600">{totals.partial}</div></CardContent></Card>
@@ -1131,6 +1253,8 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           </Button>
           {dirtyCount > 0 && <span className="text-xs text-muted-foreground">Unsaved changes — click Save to apply.</span>}
         </div>
+      )}
+      </>
       )}
     </div>
   );
