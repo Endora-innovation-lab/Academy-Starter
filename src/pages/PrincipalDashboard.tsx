@@ -178,16 +178,33 @@ const OverviewTab = ({ instituteId, principalTeacherId }: { instituteId: string;
       <div>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Attendance</h3>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Date</Label>
-            <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44 h-8" />
+          <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Date</Label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44 h-8" />
+            </div>
+            <Card className="w-56 shrink-0">
+              <CardHeader className="py-2 px-3">
+                <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                  <span>Classes Conducted</span>
+                  <span className="text-base font-bold text-foreground">{stats.classesConducted}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="h-24 overflow-y-auto overscroll-contain space-y-1 pr-1">
+                  {classList.length === 0 && <p className="text-xs text-muted-foreground">No classes conducted</p>}
+                  {classList.map(c => (
+                    <div key={c.id} className="text-xs truncate">{c.name}</div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Stat label="Total Students" value={stats.students} />
           <Stat label="Present" value={stats.presentStudents} color="text-accent" />
           <Stat label="Absent" value={stats.absentStudents} color="text-destructive" />
-          <Stat label="Classes Conducted" value={stats.classesConducted} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
           <Stat label="Total Teachers" value={stats.teachers} />
