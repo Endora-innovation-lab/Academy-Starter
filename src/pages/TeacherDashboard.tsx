@@ -564,6 +564,7 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       if (error) throw error;
       toast.success('Attendance saved!');
       setTouched({});
+      await loadStudents();
     } catch (err: any) {
       toast.error(err.message);
     }

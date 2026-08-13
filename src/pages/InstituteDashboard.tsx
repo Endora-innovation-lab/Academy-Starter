@@ -1915,33 +1915,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       // Hide records belonging to currently inactive students
       const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
 
-      // Only add absentees for batches that actually had a class that day
-      const activeBatchIds = Array.from(new Set(filtered.map((r: any) => r.batch_id).filter(Boolean)));
-      if (filterType === 'daily' && activeBatchIds.length > 0) {
-        let bsQuery = supabase
-          .from('batch_students')
-          .select('batch_id, student_id, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches!inner(name, institute_id)')
-          .eq('batches.institute_id', instituteId)
-          .in('batch_id', activeBatchIds);
-        if (filterBatch !== 'all') bsQuery = bsQuery.eq('batch_id', filterBatch);
-        const { data: enrollments } = await bsQuery.limit(2000);
-        const marked = new Set(filtered.map((r: any) => `${r.student_id}|${r.batch_id}`));
-        const synthetic = (enrollments || [])
-          .filter((e: any) => e.batches && (e.students as any)?.status !== 'inactive')
-          .filter((e: any) => !marked.has(`${e.student_id}|${e.batch_id}`))
-          .map((e: any) => ({
-            id: `absent-${e.batch_id}-${e.student_id}`,
-            student_id: e.student_id,
-            batch_id: e.batch_id,
-            date: filterDate,
-            status: 'absent',
-            students: e.students,
-            batches: { name: (e.batches as any)?.name },
-          }));
-        setAttendance([...filtered, ...synthetic]);
-      } else {
-        setAttendance(filtered);
-      }
+      // Show ONLY attendance actually saved in the database — no synthetic/derived rows
+      setAttendance(filtered);
 
     } else {
 
@@ -2209,17 +2184,22 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         _gameName: gameMap[sg.game_id]?.name || '—',
       });
     }
-    // Add orphan legacy fees (no matching enrollment) so old data stays visible
+    // Add orphan legacy fees (no matching enrollment) so old data stays visible.
+    // Never show a second generic "—" row for a student who already has game rows.
+    const studentsWithGameRows = new Set(merged.map(m => m.student_id));
+    const seenFeeIds = new Set(merged.map(m => m.id));
     feeRows.forEach((f: any) => {
-      if (!merged.find(m => m.student_id === f.student_id && m.game_id === f.game_id && !m._placeholder ? m.id === f.id : false)) {
-        const hasEnrollment = activeEnrolls.find(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
-        if (hasEnrollment) return;
-        merged.push({
-          ...f,
-          students: studentMap[f.student_id],
-          _gameName: gameMap[f.game_id]?.name || '—',
-        });
-      }
+      if (seenFeeIds.has(f.id)) return;
+      const hasEnrollment = activeEnrolls.some(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
+      if (hasEnrollment) return;
+      // Fee row without a game: skip if this student is already listed under their game(s)
+      if (!f.game_id && studentsWithGameRows.has(f.student_id)) return;
+      seenFeeIds.add(f.id);
+      merged.push({
+        ...f,
+        students: studentMap[f.student_id],
+        _gameName: f.game_id ? (gameMap[f.game_id]?.name || '—') : '—',
+      });
     });
 
     let final = merged;

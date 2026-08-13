@@ -623,6 +623,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     toast.success('Attendance saved');
     setTouched({});
     setEditing(false);
+    await load();
   };
 
   const filtered = search
@@ -987,7 +988,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
       if (e.status && e.status !== 'active') return;
       const stu = stuMap[e.student_id];
       if (!stu) return;
-      const fee = feeMap[`${e.student_id}|${e.game_id || ''}`] || feeMap[`${e.student_id}|`];
+      const fee = feeMap[`${e.student_id}|${e.game_id || ''}`];
       built.push({
         key: `${e.student_id}|${e.game_id}`,
         student_id: e.student_id,
