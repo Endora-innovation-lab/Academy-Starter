@@ -1915,33 +1915,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       // Hide records belonging to currently inactive students
       const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
 
-      // Only add absentees for batches that actually had a class that day
-      const activeBatchIds = Array.from(new Set(filtered.map((r: any) => r.batch_id).filter(Boolean)));
-      if (filterType === 'daily' && activeBatchIds.length > 0) {
-        let bsQuery = supabase
-          .from('batch_students')
-          .select('batch_id, student_id, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches!inner(name, institute_id)')
-          .eq('batches.institute_id', instituteId)
-          .in('batch_id', activeBatchIds);
-        if (filterBatch !== 'all') bsQuery = bsQuery.eq('batch_id', filterBatch);
-        const { data: enrollments } = await bsQuery.limit(2000);
-        const marked = new Set(filtered.map((r: any) => `${r.student_id}|${r.batch_id}`));
-        const synthetic = (enrollments || [])
-          .filter((e: any) => e.batches && (e.students as any)?.status !== 'inactive')
-          .filter((e: any) => !marked.has(`${e.student_id}|${e.batch_id}`))
-          .map((e: any) => ({
-            id: `absent-${e.batch_id}-${e.student_id}`,
-            student_id: e.student_id,
-            batch_id: e.batch_id,
-            date: filterDate,
-            status: 'absent',
-            students: e.students,
-            batches: { name: (e.batches as any)?.name },
-          }));
-        setAttendance([...filtered, ...synthetic]);
-      } else {
-        setAttendance(filtered);
-      }
+      // Show ONLY attendance actually saved in the database — no synthetic/derived rows
+      setAttendance(filtered);
 
     } else {
 
