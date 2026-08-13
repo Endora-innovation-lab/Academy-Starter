@@ -623,6 +623,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     toast.success('Attendance saved');
     setTouched({});
     setEditing(false);
+    await load();
   };
 
   const filtered = search
