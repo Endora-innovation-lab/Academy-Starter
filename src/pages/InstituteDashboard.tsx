@@ -2184,17 +2184,22 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         _gameName: gameMap[sg.game_id]?.name || '—',
       });
     }
-    // Add orphan legacy fees (no matching enrollment) so old data stays visible
+    // Add orphan legacy fees (no matching enrollment) so old data stays visible.
+    // Never show a second generic "—" row for a student who already has game rows.
+    const studentsWithGameRows = new Set(merged.map(m => m.student_id));
+    const seenFeeIds = new Set(merged.map(m => m.id));
     feeRows.forEach((f: any) => {
-      if (!merged.find(m => m.student_id === f.student_id && m.game_id === f.game_id && !m._placeholder ? m.id === f.id : false)) {
-        const hasEnrollment = activeEnrolls.find(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
-        if (hasEnrollment) return;
-        merged.push({
-          ...f,
-          students: studentMap[f.student_id],
-          _gameName: gameMap[f.game_id]?.name || '—',
-        });
-      }
+      if (seenFeeIds.has(f.id)) return;
+      const hasEnrollment = activeEnrolls.some(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
+      if (hasEnrollment) return;
+      // Fee row without a game: skip if this student is already listed under their game(s)
+      if (!f.game_id && studentsWithGameRows.has(f.student_id)) return;
+      seenFeeIds.add(f.id);
+      merged.push({
+        ...f,
+        students: studentMap[f.student_id],
+        _gameName: f.game_id ? (gameMap[f.game_id]?.name || '—') : '—',
+      });
     });
 
     let final = merged;
