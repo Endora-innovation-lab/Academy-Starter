@@ -230,8 +230,15 @@ export const FeesRangeTable = ({
           && studentMap[sg.student_id].status !== 'inactive')
         .forEach((sg: any) => ensure(sg.student_id, sg.game_id));
 
+      // Students that already have at least one game-based row
+      const studentsWithGameRows = new Set(
+        Array.from(map.keys()).map(k => k.split('__')[0])
+      );
+
       fees.forEach((f: any) => {
         if (!studentMap[f.student_id]) return;
+        // Don't create an extra generic "—" row for a student already shown under their game(s)
+        if (!f.game_id && studentsWithGameRows.has(f.student_id)) return;
         ensure(f.student_id, f.game_id).cells[f.month] = f;
       });
 
