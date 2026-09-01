@@ -583,7 +583,14 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
       .from('batch_students')
       .select('student_id, students(id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
-    const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive');
+    // Dedupe by student_id and show all active students in the batch (institute-scoped via batch)
+    const seen = new Set<string>();
+    const studs = (data || []).filter((s: any) => {
+      if ((s.students as any)?.status === 'inactive') return false;
+      if (seen.has(s.student_id)) return false;
+      seen.add(s.student_id);
+      return true;
+    });
     setStudents(studs);
 
     const ids = studs.map(s => s.student_id);
@@ -764,14 +771,15 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
 
   const load = async () => {
     if (!selectedBatch) return;
-    // 1) Get teacher ids for this batch
-    const { data: btData } = await supabase
-      .from('batch_teachers')
-      .select('teacher_id')
-      .eq('batch_id', selectedBatch);
-    const teacherIds = (btData || [])
-      .map((r: any) => r.teacher_id)
-      .filter((id: string) => id !== principalTeacherId);
+    // 1) Get teacher ids for this batch — from batch_teachers AND legacy batches.teacher_id
+    const [{ data: btData }, { data: batchRow }] = await Promise.all([
+      supabase.from('batch_teachers').select('teacher_id').eq('batch_id', selectedBatch),
+      supabase.from('batches').select('teacher_id').eq('id', selectedBatch).maybeSingle(),
+    ]);
+    const teacherIds = Array.from(new Set([
+      ...(btData || []).map((r: any) => r.teacher_id),
+      ...(batchRow?.teacher_id ? [batchRow.teacher_id] : []),
+    ])).filter((id: string) => id && id !== principalTeacherId);
 
     if (teacherIds.length === 0) {
       setTeachers([]); setAttMap({}); setExistingIds({}); setTouched({}); setHasLoaded(true); setEditing(false);
@@ -828,6 +836,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
     toast.success('Teacher attendance saved');
     setTouched({});
     setEditing(false);
+    await load();
   };
 
   const totals = teachers.reduce((a, t) => {
