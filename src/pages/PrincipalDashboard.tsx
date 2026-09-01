@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// principal-attendance-fix
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -584,7 +583,14 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
       .from('batch_students')
       .select('student_id, students(id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
-    const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive');
+    // Dedupe by student_id and show all active students in the batch (institute-scoped via batch)
+    const seen = new Set<string>();
+    const studs = (data || []).filter((s: any) => {
+      if ((s.students as any)?.status === 'inactive') return false;
+      if (seen.has(s.student_id)) return false;
+      seen.add(s.student_id);
+      return true;
+    });
     setStudents(studs);
 
     const ids = studs.map(s => s.student_id);
@@ -830,6 +836,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
     toast.success('Teacher attendance saved');
     setTouched({});
     setEditing(false);
+    await load();
   };
 
   const totals = teachers.reduce((a, t) => {
