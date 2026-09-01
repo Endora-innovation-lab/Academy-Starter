@@ -596,12 +596,22 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     const ids = studs.map(s => s.student_id);
     const map: Record<string, string> = {};
     const existing: Record<string, boolean> = {};
+    let savedCount = 0;
     if (ids.length > 0) {
       const { data: att } = await supabase.from('attendance')
         .select('student_id,status').in('student_id', ids).eq('batch_id', selectedBatch).eq('date', date);
+      savedCount = att?.length || 0;
       att?.forEach(a => { map[a.student_id] = a.status; existing[a.student_id] = true; });
     }
-    ids.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    // A class counts as conducted if any attendance was saved OR a session exists for this batch/date
+    let conducted = savedCount > 0;
+    if (!conducted) {
+      const { data: sess } = await supabase.from('attendance_sessions')
+        .select('id').eq('institute_id', instituteId).eq('batch_id', selectedBatch).eq('session_date', date).limit(1);
+      conducted = (sess?.length || 0) > 0;
+    }
+    // Class conducted but no saved record for a student -> Absent; no class -> unmarked ("-")
+    ids.forEach(id => { if (!map[id]) map[id] = conducted ? 'absent' : 'unmarked'; });
     setAttendanceMap(map);
     setExistingIds(existing);
     setTouched({});
@@ -729,7 +739,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
                       <td className="p-3">{stu?.reg_no}</td>
                       <td className="p-3">{stu?.parent_phone ? <a href={`tel:${stu.parent_phone}`} className="text-primary hover:underline">{stu.parent_phone}</a> : '-'}</td>
                       <td className="p-3">
-                        <StatusBadge status={attendanceMap[s.student_id] || 'absent'} onClick={editing ? () => toggle(s.student_id) : undefined} />
+                        <StatusBadge status={attendanceMap[s.student_id] || 'unmarked'} onClick={editing ? () => toggle(s.student_id) : undefined} />
                       </td>
                     </tr>
                   );
@@ -807,7 +817,13 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
     const { data: att } = await supabase.from('teacher_attendance')
       .select('teacher_id,status').in('teacher_id', teacherIds).eq('batch_id', selectedBatch).eq('date', date);
     att?.forEach(a => { map[a.teacher_id] = a.status; existing[a.teacher_id] = true; });
-    teacherIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    let conducted = (att?.length || 0) > 0;
+    if (!conducted) {
+      const { data: sess } = await supabase.from('attendance_sessions')
+        .select('id').eq('institute_id', instituteId).eq('batch_id', selectedBatch).eq('session_date', date).limit(1);
+      conducted = (sess?.length || 0) > 0;
+    }
+    teacherIds.forEach(id => { if (!map[id]) map[id] = conducted ? 'absent' : 'unmarked'; });
     setAttMap(map);
     setExistingIds(existing);
     setTouched({});
@@ -923,7 +939,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
                       <td className="p-3">{T?.name || '—'}</td>
                       <td className="p-3">{T?.phone ? <a href={`tel:${T.phone}`} className="text-primary hover:underline">{T.phone}</a> : '-'}</td>
                       <td className="p-3">
-                        <StatusBadge status={attMap[t.teacher_id] || 'absent'} onClick={editing ? () => toggle(t.teacher_id) : undefined} />
+                        <StatusBadge status={attMap[t.teacher_id] || 'unmarked'} onClick={editing ? () => toggle(t.teacher_id) : undefined} />
                       </td>
                     </tr>
                   );
