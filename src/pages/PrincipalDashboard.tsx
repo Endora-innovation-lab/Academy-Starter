@@ -596,12 +596,22 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     const ids = studs.map(s => s.student_id);
     const map: Record<string, string> = {};
     const existing: Record<string, boolean> = {};
+    let savedCount = 0;
     if (ids.length > 0) {
       const { data: att } = await supabase.from('attendance')
         .select('student_id,status').in('student_id', ids).eq('batch_id', selectedBatch).eq('date', date);
+      savedCount = att?.length || 0;
       att?.forEach(a => { map[a.student_id] = a.status; existing[a.student_id] = true; });
     }
-    ids.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    // A class counts as conducted if any attendance was saved OR a session exists for this batch/date
+    let conducted = savedCount > 0;
+    if (!conducted) {
+      const { data: sess } = await supabase.from('attendance_sessions')
+        .select('id').eq('institute_id', instituteId).eq('batch_id', selectedBatch).eq('session_date', date).limit(1);
+      conducted = (sess?.length || 0) > 0;
+    }
+    // Class conducted but no saved record for a student -> Absent; no class -> unmarked ("-")
+    ids.forEach(id => { if (!map[id]) map[id] = conducted ? 'absent' : 'unmarked'; });
     setAttendanceMap(map);
     setExistingIds(existing);
     setTouched({});
