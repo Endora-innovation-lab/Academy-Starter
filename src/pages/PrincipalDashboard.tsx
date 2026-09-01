@@ -739,7 +739,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
                       <td className="p-3">{stu?.reg_no}</td>
                       <td className="p-3">{stu?.parent_phone ? <a href={`tel:${stu.parent_phone}`} className="text-primary hover:underline">{stu.parent_phone}</a> : '-'}</td>
                       <td className="p-3">
-                        <StatusBadge status={attendanceMap[s.student_id] || 'absent'} onClick={editing ? () => toggle(s.student_id) : undefined} />
+                        <StatusBadge status={attendanceMap[s.student_id] || 'unmarked'} onClick={editing ? () => toggle(s.student_id) : undefined} />
                       </td>
                     </tr>
                   );
