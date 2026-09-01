@@ -764,14 +764,15 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
 
   const load = async () => {
     if (!selectedBatch) return;
-    // 1) Get teacher ids for this batch
-    const { data: btData } = await supabase
-      .from('batch_teachers')
-      .select('teacher_id')
-      .eq('batch_id', selectedBatch);
-    const teacherIds = (btData || [])
-      .map((r: any) => r.teacher_id)
-      .filter((id: string) => id !== principalTeacherId);
+    // 1) Get teacher ids for this batch — from batch_teachers AND legacy batches.teacher_id
+    const [{ data: btData }, { data: batchRow }] = await Promise.all([
+      supabase.from('batch_teachers').select('teacher_id').eq('batch_id', selectedBatch),
+      supabase.from('batches').select('teacher_id').eq('id', selectedBatch).maybeSingle(),
+    ]);
+    const teacherIds = Array.from(new Set([
+      ...(btData || []).map((r: any) => r.teacher_id),
+      ...(batchRow?.teacher_id ? [batchRow.teacher_id] : []),
+    ])).filter((id: string) => id && id !== principalTeacherId);
 
     if (teacherIds.length === 0) {
       setTeachers([]); setAttMap({}); setExistingIds({}); setTouched({}); setHasLoaded(true); setEditing(false);
