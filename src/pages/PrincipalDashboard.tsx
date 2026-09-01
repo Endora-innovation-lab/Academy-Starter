@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+// principal-attendance-fix
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
