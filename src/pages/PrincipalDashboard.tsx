@@ -939,7 +939,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
                       <td className="p-3">{T?.name || '—'}</td>
                       <td className="p-3">{T?.phone ? <a href={`tel:${T.phone}`} className="text-primary hover:underline">{T.phone}</a> : '-'}</td>
                       <td className="p-3">
-                        <StatusBadge status={attMap[t.teacher_id] || 'absent'} onClick={editing ? () => toggle(t.teacher_id) : undefined} />
+                        <StatusBadge status={attMap[t.teacher_id] || 'unmarked'} onClick={editing ? () => toggle(t.teacher_id) : undefined} />
                       </td>
                     </tr>
                   );
