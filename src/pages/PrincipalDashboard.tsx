@@ -817,7 +817,13 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
     const { data: att } = await supabase.from('teacher_attendance')
       .select('teacher_id,status').in('teacher_id', teacherIds).eq('batch_id', selectedBatch).eq('date', date);
     att?.forEach(a => { map[a.teacher_id] = a.status; existing[a.teacher_id] = true; });
-    teacherIds.forEach(id => { if (!map[id]) map[id] = 'absent'; });
+    let conducted = (att?.length || 0) > 0;
+    if (!conducted) {
+      const { data: sess } = await supabase.from('attendance_sessions')
+        .select('id').eq('institute_id', instituteId).eq('batch_id', selectedBatch).eq('session_date', date).limit(1);
+      conducted = (sess?.length || 0) > 0;
+    }
+    teacherIds.forEach(id => { if (!map[id]) map[id] = conducted ? 'absent' : 'unmarked'; });
     setAttMap(map);
     setExistingIds(existing);
     setTouched({});
