@@ -70,6 +70,33 @@ export const AttendanceRangeTable = ({
       const map = new Map<string, { name: string; batch: string; cells: Record<string, string> }>();
 
       if (role === 'student') {
+        // Seed rows from the full enrolled student list so the date range only
+        // filters attendance columns/records, never the student list.
+        if (batchId !== 'all') {
+          const { data: enrollments } = await supabase
+            .from('batch_students')
+            .select('student_id')
+            .eq('batch_id', batchId);
+          const enrolledIds = Array.from(new Set((enrollments || []).map(e => e.student_id)));
+          const [{ data: activeStudents }, { data: batchRow }] = await Promise.all([
+            enrolledIds.length > 0
+              ? supabase
+                  .from('students')
+                  .select('id, status, profiles!students_user_id_profiles_fkey(name)')
+                  .eq('institute_id', instituteId)
+                  .neq('status', 'inactive')
+                  .in('id', enrolledIds)
+              : Promise.resolve({ data: [] as any[] }),
+            supabase.from('batches').select('name').eq('id', batchId).maybeSingle(),
+          ]);
+          (activeStudents || []).forEach((s: any) => {
+            map.set(`${s.id}|${batchId}`, {
+              name: (s.profiles as any)?.name || '-',
+              batch: (batchRow as any)?.name || '-',
+              cells: {},
+            });
+          });
+        }
         let q = supabase
           .from('attendance')
           .select('*, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches(name)')
