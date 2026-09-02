@@ -579,18 +579,23 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
 
   const load = async () => {
     if (!selectedBatch) return;
-    const { data } = await supabase
+    const { data: enrollments } = await supabase
       .from('batch_students')
-      .select('student_id, students(id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
+      .select('student_id')
       .eq('batch_id', selectedBatch);
-    // Dedupe by student_id and show all active students in the batch (institute-scoped via batch)
-    const seen = new Set<string>();
-    const studs = (data || []).filter((s: any) => {
-      if ((s.students as any)?.status === 'inactive') return false;
-      if (seen.has(s.student_id)) return false;
-      seen.add(s.student_id);
-      return true;
-    });
+
+    const enrolledIds = Array.from(new Set((enrollments || []).map(row => row.student_id)));
+    const { data: activeStudents } = enrolledIds.length > 0
+      ? await supabase
+          .from('students')
+          .select('id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name)')
+          .eq('institute_id', instituteId)
+          .neq('status', 'inactive')
+          .in('id', enrolledIds)
+      : { data: [] };
+
+    // Keep the existing row shape while loading eligibility directly from institute-scoped students.
+    const studs = (activeStudents || []).map(student => ({ student_id: student.id, students: student }));
     setStudents(studs);
 
     const ids = studs.map(s => s.student_id);
