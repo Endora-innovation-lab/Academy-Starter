@@ -242,14 +242,17 @@ Deno.serve(async (req) => {
       })
     }
 
+    const forbidden = () => new Response(JSON.stringify({ error: 'Record not in your institute' }), {
+      status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+
     if (action === 'delete_student') {
       const { student_id } = body
-      // Get the student's user_id
-      const { data: student } = await supabaseAdmin.from('students').select('user_id').eq('id', student_id).single()
-      if (student) {
-        await supabaseAdmin.from('students').delete().eq('id', student_id)
-        await supabaseAdmin.auth.admin.deleteUser(student.user_id)
-      }
+      // Get the student's user_id (scoped to the caller's institute)
+      const { data: student } = await supabaseAdmin.from('students').select('user_id, institute_id').eq('id', student_id).single()
+      if (!student || student.institute_id !== roleData.institute_id) return forbidden()
+      await supabaseAdmin.from('students').delete().eq('id', student_id).eq('institute_id', roleData.institute_id)
+      await supabaseAdmin.auth.admin.deleteUser(student.user_id)
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -257,11 +260,10 @@ Deno.serve(async (req) => {
 
     if (action === 'delete_teacher') {
       const { teacher_id } = body
-      const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id').eq('id', teacher_id).single()
-      if (teacher) {
-        await supabaseAdmin.from('teachers').delete().eq('id', teacher_id)
-        await supabaseAdmin.auth.admin.deleteUser(teacher.user_id)
-      }
+      const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id, institute_id').eq('id', teacher_id).single()
+      if (!teacher || teacher.institute_id !== roleData.institute_id) return forbidden()
+      await supabaseAdmin.from('teachers').delete().eq('id', teacher_id).eq('institute_id', roleData.institute_id)
+      await supabaseAdmin.auth.admin.deleteUser(teacher.user_id)
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -269,8 +271,10 @@ Deno.serve(async (req) => {
 
     if (action === 'update_student') {
       const { student_id, name, dob, parent_phone, reg_no, status, parent_name, gender, emergency_contact } = body
-      const { data: student } = await supabaseAdmin.from('students').select('user_id, reg_no, dob').eq('id', student_id).single()
-      if (student) {
+      const { data: student } = await supabaseAdmin.from('students').select('user_id, reg_no, dob, institute_id').eq('id', student_id).single()
+      if (!student || student.institute_id !== roleData.institute_id) return forbidden()
+      {
+
         const stuPatch: any = {}
         if (dob !== undefined) stuPatch.dob = dob
         if (parent_phone !== undefined) stuPatch.parent_phone = parent_phone
