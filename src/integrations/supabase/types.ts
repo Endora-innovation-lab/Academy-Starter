@@ -763,6 +763,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_institute_admin: {
+        Args: { _institute_id: string }
+        Returns: undefined
+      }
       generate_institute_code: { Args: never; Returns: string }
       get_user_institute_id: { Args: { _user_id: string }; Returns: string }
       has_role: {

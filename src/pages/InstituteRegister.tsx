@@ -62,12 +62,12 @@ const InstituteRegister = () => {
         institute_id: instData.id,
       });
 
-      // Create admin role
-      await supabase.from('user_roles').insert({
-        user_id: authData.user.id,
-        role: 'admin',
-        institute_id: instData.id,
+      // Create admin role via secured server-side check (owner of the institute only)
+      const { error: roleError } = await supabase.rpc('claim_institute_admin', {
+        _institute_id: instData.id,
       });
+      if (roleError) throw roleError;
+
 
       setCreatedCode(code);
       toast.success(`Institute registered! Your Institute ID: ${code}`);
