@@ -570,6 +570,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
   const [rangeFrom, setRangeFrom] = useState(new Date().toISOString().split('T')[0]);
   const [rangeTo, setRangeTo] = useState(new Date().toISOString().split('T')[0]);
   const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
+  const [rangeData, setRangeData] = useState<{ dates: string[]; rows: any[] } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -649,6 +650,29 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
     await load();
   };
 
+  const buildExport = () => {
+    if (viewMode === 'range') {
+      if (!appliedRange || !rangeData) return null;
+      return {
+        headers: ['S.No', 'Name', 'Batch', ...rangeData.dates],
+        rows: rangeData.rows.map((r, i) => [
+          i + 1, r.name, r.batch,
+          ...rangeData.dates.map(d => {
+            const st = r.cells[d];
+            return st ? (st === 'present' ? 'P' : st === 'late' ? 'L' : 'A') : '-';
+          }),
+        ]),
+      };
+    }
+    return {
+      headers: ['S.No', 'Name', 'Reg No', 'Contact', 'Date', 'Status'],
+      rows: filtered.map((s: any, i: number) => {
+        const stu = s.students as any;
+        return [i + 1, stu?.profiles?.name || '-', stu?.reg_no || '-', stu?.parent_phone || '-', date, attendanceMap[s.student_id] || 'unmarked'];
+      }),
+    };
+  };
+
   const filtered = search
     ? students.filter(s => ((s.students as any)?.profiles?.name?.toLowerCase() || '').includes(search.toLowerCase()))
     : students;
@@ -695,6 +719,12 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
             }}>Apply</Button>
           </div>
         )}
+        <div className="ml-auto">
+          <AttendanceExportButton
+            filename={`attendance-students-${viewMode === 'range' && appliedRange ? `${appliedRange.from}_to_${appliedRange.to}` : date}`}
+            getData={buildExport}
+          />
+        </div>
       </div>
 
       {viewMode === 'range' && (
@@ -705,6 +735,7 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
             batchId={selectedBatch || 'all'}
             from={appliedRange.from}
             to={appliedRange.to}
+            onData={setRangeData}
           />
         ) : (
           <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
@@ -777,6 +808,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
   const [rangeFrom, setRangeFrom] = useState(new Date().toISOString().split('T')[0]);
   const [rangeTo, setRangeTo] = useState(new Date().toISOString().split('T')[0]);
   const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
+  const [rangeData, setRangeData] = useState<{ dates: string[]; rows: any[] } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -861,6 +893,29 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
     await load();
   };
 
+  const buildExport = () => {
+    if (viewMode === 'range') {
+      if (!appliedRange || !rangeData) return null;
+      return {
+        headers: ['S.No', 'Teacher', 'Batch', ...rangeData.dates],
+        rows: rangeData.rows.map((r, i) => [
+          i + 1, r.name, r.batch,
+          ...rangeData.dates.map(d => {
+            const st = r.cells[d];
+            return st ? (st === 'present' ? 'P' : st === 'late' ? 'L' : 'A') : '-';
+          }),
+        ]),
+      };
+    }
+    return {
+      headers: ['S.No', 'Teacher ID', 'Name', 'Contact', 'Date', 'Status'],
+      rows: teachers.map((t: any, i: number) => {
+        const T = t.teachers as any;
+        return [i + 1, T?.teacher_id || '-', T?.name || '-', T?.phone || '-', date, attMap[t.teacher_id] || 'unmarked'];
+      }),
+    };
+  };
+
   const totals = teachers.reduce((a, t) => {
     const st = attMap[t.teacher_id];
     if (st === 'present' || st === 'late') a.present++;
@@ -895,6 +950,12 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
             }}>Apply</Button>
           </div>
         )}
+        <div className="ml-auto">
+          <AttendanceExportButton
+            filename={`attendance-teachers-${viewMode === 'range' && appliedRange ? `${appliedRange.from}_to_${appliedRange.to}` : date}`}
+            getData={buildExport}
+          />
+        </div>
       </div>
 
       {viewMode === 'range' && (
@@ -905,6 +966,7 @@ const TeacherAttendancePanel = ({ instituteId, userId, principalTeacherId }: { i
             batchId={selectedBatch || 'all'}
             from={appliedRange.from}
             to={appliedRange.to}
+            onData={setRangeData}
           />
         ) : (
           <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
