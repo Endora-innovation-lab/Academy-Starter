@@ -19,6 +19,7 @@ import {
 import TeacherProfile from '@/components/profiles/TeacherProfile';
 import StudentProfile from '@/components/profiles/StudentProfile';
 import { AttendanceRangeTable, FeesRangeTable } from '@/components/RangeMatrix';
+import { AttendanceExportButton } from '@/components/AttendanceExport';
 import { SortableTH, useSort } from '@/components/SortableTable';
 
 const PrincipalDashboard = () => {

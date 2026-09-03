@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTH, useSort } from '@/components/SortableTable';
 import { AttendanceRangeTable, FeesRangeTable } from '@/components/RangeMatrix';
+import { AttendanceExportButton } from '@/components/AttendanceExport';
 
 import {
   fetchInstituteIdSettings, InstituteIdSettings,
