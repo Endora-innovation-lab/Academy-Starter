@@ -63,6 +63,7 @@ export const AttendanceRangeTable = ({
   onData?: (payload: { dates: string[]; rows: { name: string; batch: string; cells: Record<string, string> }[] }) => void;
 }) => {
   const [rows, setRows] = useState<any[]>([]);
+  const [conducted, setConducted] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const dates = useMemo(() => enumerateDates(from, to), [from, to]);
 
@@ -71,36 +72,45 @@ export const AttendanceRangeTable = ({
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const map = new Map<string, { name: string; batch: string; cells: Record<string, string> }>();
+      const map = new Map<string, { name: string; batch: string; batchId: string; cells: Record<string, string> }>();
+
+      // Resolve the batches in scope (selected batch, or every batch of the institute)
+      const { data: batchRows } = await supabase
+        .from('batches')
+        .select('id, name, teacher_id')
+        .eq('institute_id', instituteId);
+      const allBatches = (batchRows || []).filter((b: any) => batchId === 'all' || b.id === batchId);
+      const batchIds = allBatches.map((b: any) => b.id);
+      const batchNames: Record<string, string> = Object.fromEntries(allBatches.map((b: any) => [b.id, b.name]));
 
       if (role === 'student') {
-        // Seed rows from the full enrolled student list so the date range only
+        // Seed rows from the full enrolled active student list so the date range only
         // filters attendance columns/records, never the student list.
-        if (batchId !== 'all') {
-          const { data: enrollments } = await supabase
-            .from('batch_students')
-            .select('student_id')
-            .eq('batch_id', batchId);
-          const enrolledIds = Array.from(new Set((enrollments || []).map(e => e.student_id)));
-          const [{ data: activeStudents }, { data: batchRow }] = await Promise.all([
-            enrolledIds.length > 0
-              ? supabase
-                  .from('students')
-                  .select('id, status, profiles!students_user_id_profiles_fkey(name)')
-                  .eq('institute_id', instituteId)
-                  .neq('status', 'inactive')
-                  .in('id', enrolledIds)
-              : Promise.resolve({ data: [] as any[] }),
-            supabase.from('batches').select('name').eq('id', batchId).maybeSingle(),
-          ]);
-          (activeStudents || []).forEach((s: any) => {
-            map.set(`${s.id}|${batchId}`, {
-              name: (s.profiles as any)?.name || '-',
-              batch: (batchRow as any)?.name || '-',
-              cells: {},
-            });
+        const { data: enrollments } = batchIds.length
+          ? await supabase.from('batch_students').select('student_id, batch_id').in('batch_id', batchIds)
+          : { data: [] as any[] };
+        const enrolledIds = Array.from(new Set((enrollments || []).map((e: any) => e.student_id)));
+        const { data: activeStudents } = enrolledIds.length
+          ? await supabase
+              .from('students')
+              .select('id, status, profiles!students_user_id_profiles_fkey(name)')
+              .eq('institute_id', instituteId)
+              .neq('status', 'inactive')
+              .in('id', enrolledIds)
+          : { data: [] as any[] };
+        const nameById: Record<string, string> = Object.fromEntries(
+          (activeStudents || []).map((s: any) => [s.id, (s.profiles as any)?.name || '-'])
+        );
+        (enrollments || []).forEach((e: any) => {
+          if (!nameById[e.student_id]) return;
+          map.set(`${e.student_id}|${e.batch_id}`, {
+            name: nameById[e.student_id],
+            batch: batchNames[e.batch_id] || '-',
+            batchId: e.batch_id,
+            cells: {},
           });
-        }
+        });
+
         let q = supabase
           .from('attendance')
           .select('*, students(reg_no, status, profiles!students_user_id_profiles_fkey(name)), batches(name)')
@@ -116,13 +126,23 @@ export const AttendanceRangeTable = ({
             if (!map.has(key)) {
               map.set(key, {
                 name: (r.students as any)?.profiles?.name || '-',
-                batch: (r.batches as any)?.name || '-',
+                batch: (r.batches as any)?.name || batchNames[r.batch_id] || '-',
+                batchId: r.batch_id,
                 cells: {},
               });
             }
             map.get(key)!.cells[r.date] = r.status;
           });
       } else {
+        // Seed rows from every teacher assigned to the batches in scope
+        const { data: bt } = batchIds.length
+          ? await supabase.from('batch_teachers').select('teacher_id, batch_id').in('batch_id', batchIds)
+          : { data: [] as any[] };
+        const assignments: { teacher_id: string; batch_id: string }[] = [
+          ...((bt || []) as any[]).map((r: any) => ({ teacher_id: r.teacher_id, batch_id: r.batch_id })),
+          ...allBatches.filter((b: any) => b.teacher_id).map((b: any) => ({ teacher_id: b.teacher_id, batch_id: b.id })),
+        ];
+
         let q = supabase
           .from('teacher_attendance')
           .select('*')
@@ -132,10 +152,12 @@ export const AttendanceRangeTable = ({
         if (batchId !== 'all') q = q.eq('batch_id', batchId);
         const { data } = await q.limit(5000);
         const records = data || [];
-        const teacherIds = Array.from(new Set(records.map((r: any) => r.teacher_id)));
-        const batchIds = Array.from(new Set(records.map((r: any) => r.batch_id).filter(Boolean)));
+
+        const teacherIds = Array.from(new Set([
+          ...assignments.map(a => a.teacher_id),
+          ...records.map((r: any) => r.teacher_id),
+        ]));
         const nameMap: Record<string, string> = {};
-        const batchMap: Record<string, string> = {};
         if (teacherIds.length) {
           const { data: tData } = await supabase.from('teachers').select('id, user_id').in('id', teacherIds);
           const userIds = (tData || []).map((t: any) => t.user_id);
@@ -146,29 +168,64 @@ export const AttendanceRangeTable = ({
           (pData || []).forEach((p: any) => { u2n[p.user_id] = p.name; });
           (tData || []).forEach((t: any) => { nameMap[t.id] = u2n[t.user_id] || '-'; });
         }
-        if (batchIds.length) {
-          const { data: bData } = await supabase.from('batches').select('id, name').in('id', batchIds);
-          (bData || []).forEach((b: any) => { batchMap[b.id] = b.name; });
+        const extraBatchIds = Array.from(new Set(records.map((r: any) => r.batch_id).filter((b: any) => b && !batchNames[b])));
+        if (extraBatchIds.length) {
+          const { data: bData } = await supabase.from('batches').select('id, name').in('id', extraBatchIds);
+          (bData || []).forEach((b: any) => { batchNames[b.id] = b.name; });
         }
+
+        assignments.forEach(a => {
+          const key = `${a.teacher_id}|${a.batch_id}`;
+          if (!map.has(key)) {
+            map.set(key, { name: nameMap[a.teacher_id] || '-', batch: batchNames[a.batch_id] || '-', batchId: a.batch_id, cells: {} });
+          }
+        });
         records.forEach((r: any) => {
           const key = `${r.teacher_id}|${r.batch_id}`;
           if (!map.has(key)) {
-            map.set(key, { name: nameMap[r.teacher_id] || '-', batch: batchMap[r.batch_id] || '-', cells: {} });
+            map.set(key, { name: nameMap[r.teacher_id] || '-', batch: batchNames[r.batch_id] || '-', batchId: r.batch_id, cells: {} });
           }
           map.get(key)!.cells[r.date] = r.status;
         });
       }
 
+      // Conducted classes: any saved attendance for the batch/date, or an attendance session
+      const conductedSet = new Set<string>();
+      Array.from(map.values()).forEach(v => {
+        Object.keys(v.cells).forEach(d => conductedSet.add(`${v.batchId}|${d}`));
+      });
+      let sq = supabase
+        .from('attendance_sessions')
+        .select('batch_id, session_date')
+        .eq('institute_id', instituteId)
+        .gte('session_date', from)
+        .lte('session_date', to);
+      if (batchId !== 'all') sq = sq.eq('batch_id', batchId);
+      const { data: sessions } = await sq.limit(5000);
+      (sessions || []).forEach((s: any) => conductedSet.add(`${s.batch_id}|${s.session_date}`));
+
       if (cancelled) return;
       const list = Array.from(map.entries()).map(([key, v]) => ({ key, ...v }));
       list.sort((a, b) => a.name.localeCompare(b.name) || a.batch.localeCompare(b.batch));
       setRows(list);
+      setConducted(conductedSet);
       setLoading(false);
-      onData?.({ dates, rows: list });
+      onData?.({
+        dates,
+        rows: list.map(r => ({
+          name: r.name,
+          batch: r.batch,
+          cells: Object.fromEntries(dates.map(d => [
+            d,
+            r.cells[d] || (conductedSet.has(`${r.batchId}|${d}`) ? 'absent' : ''),
+          ]).filter(([, v]) => v)) as Record<string, string>,
+        })),
+      });
     };
     load();
     return () => { cancelled = true; };
   }, [instituteId, role, batchId, from, to]);
+
 
 
   return (
