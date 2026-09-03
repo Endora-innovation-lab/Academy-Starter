@@ -1875,6 +1875,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [filterYear, setFilterYear] = useState(() => String(new Date().getFullYear()));
+  const [rangeData, setRangeData] = useState<{ dates: string[]; rows: any[] } | null>(null);
 
 
   useEffect(() => {
@@ -1970,6 +1971,33 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
     status: (a: any) => a.status || '',
   });
 
+  const buildExport = () => {
+    if (filterType === 'range') {
+      if (!appliedRange || !rangeData) return null;
+      return {
+        headers: ['S.No', filterRole === 'student' ? 'Name' : 'Teacher', 'Batch', ...rangeData.dates],
+        rows: rangeData.rows.map((r, i) => [
+          i + 1, r.name, r.batch,
+          ...rangeData.dates.map(d => {
+            const st = r.cells[d];
+            return st ? (st === 'present' ? 'P' : st === 'late' ? 'L' : 'A') : '-';
+          }),
+        ]),
+      };
+    }
+    return {
+      headers: ['S.No', filterRole === 'student' ? 'Student' : 'Teacher', filterRole === 'student' ? 'Reg No' : 'Phone', 'Batch', 'Date', 'Status'],
+      rows: sortedAttendance.map((a: any, i: number) => [
+        i + 1,
+        filterRole === 'student' ? ((a.students as any)?.profiles?.name || '-') : (a._teacherName || '-'),
+        filterRole === 'student' ? ((a.students as any)?.reg_no || '-') : ((a.teachers as any)?.phone || '-'),
+        (a.batches as any)?.name || '-',
+        a.date,
+        a.status,
+      ]),
+    };
+  };
+
   const counts = {
     present: attendance.filter((a: any) => a.status === 'present').length,
     absent: attendance.filter((a: any) => a.status === 'absent').length,
@@ -2027,6 +2055,10 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
               >Apply</Button>
             </div>
           )}
+          <AttendanceExportButton
+            filename={`attendance-${filterRole}-${filterType === 'range' && appliedRange ? `${appliedRange.from}_to_${appliedRange.to}` : filterDate}`}
+            getData={buildExport}
+          />
         </div>
       </div>
       {filterType === 'range' ? (
@@ -2037,6 +2069,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
             batchId={filterBatch}
             from={appliedRange.from}
             to={appliedRange.to}
+            onData={setRangeData}
           />
         ) : (
           <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
