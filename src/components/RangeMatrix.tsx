@@ -248,7 +248,7 @@ export const AttendanceRangeTable = ({
               <td className={`p-3 whitespace-nowrap ${stickyName}`}>{r.name}</td>
               <td className={`p-3 whitespace-nowrap ${stickySecond}`}>{r.batch}</td>
               {dates.map(d => {
-                const s = r.cells[d];
+                const s = r.cells[d] || (conducted.has(`${r.batchId}|${d}`) ? 'absent' : '');
                 return (
                   <td key={d} className="p-3 text-center">
                     {s ? (
