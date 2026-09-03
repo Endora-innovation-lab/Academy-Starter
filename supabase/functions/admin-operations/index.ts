@@ -320,8 +320,9 @@ Deno.serve(async (req) => {
 
     if (action === 'update_teacher') {
       const { teacher_id, name, phone, birth_year, email, gender, date_of_birth, blood_group, emergency_contact } = body
-      const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id, phone, birth_year').eq('id', teacher_id).single()
-      if (teacher) {
+      const { data: teacher } = await supabaseAdmin.from('teachers').select('user_id, phone, birth_year, institute_id').eq('id', teacher_id).single()
+      if (!teacher || teacher.institute_id !== roleData.institute_id) return forbidden()
+      {
         const tPatch: any = { phone, birth_year }
         if (gender !== undefined) tPatch.gender = gender
         if (date_of_birth !== undefined) tPatch.date_of_birth = date_of_birth || null
