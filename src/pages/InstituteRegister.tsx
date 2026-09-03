@@ -62,11 +62,9 @@ const InstituteRegister = () => {
         institute_id: instData.id,
       });
 
-      // Create admin role via secured server-side check (owner of the institute only)
-      const { error: roleError } = await supabase.rpc('claim_institute_admin', {
-        _institute_id: instData.id,
-      });
-      if (roleError) throw roleError;
+      // The admin role is granted automatically server-side when the institute row
+      // is created (owner-only), so no client-side role assignment is needed.
+
 
 
       setCreatedCode(code);
