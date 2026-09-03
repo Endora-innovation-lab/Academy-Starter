@@ -164,10 +164,12 @@ export const AttendanceRangeTable = ({
       list.sort((a, b) => a.name.localeCompare(b.name) || a.batch.localeCompare(b.batch));
       setRows(list);
       setLoading(false);
+      onData?.({ dates, rows: list });
     };
     load();
     return () => { cancelled = true; };
   }, [instituteId, role, batchId, from, to]);
+
 
   return (
     <div className="rounded-lg border bg-card overflow-x-auto max-w-full">
