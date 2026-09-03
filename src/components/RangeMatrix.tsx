@@ -57,11 +57,15 @@ const stickySecondHead = 'sticky left-[160px] z-30 bg-muted';
 
 // ============ ATTENDANCE RANGE ============
 export const AttendanceRangeTable = ({
-  instituteId, role, batchId, from, to,
-}: { instituteId: string; role: 'student' | 'teacher'; batchId: string; from: string; to: string }) => {
+  instituteId, role, batchId, from, to, onData,
+}: {
+  instituteId: string; role: 'student' | 'teacher'; batchId: string; from: string; to: string;
+  onData?: (payload: { dates: string[]; rows: { name: string; batch: string; cells: Record<string, string> }[] }) => void;
+}) => {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const dates = useMemo(() => enumerateDates(from, to), [from, to]);
+
 
   useEffect(() => {
     let cancelled = false;
