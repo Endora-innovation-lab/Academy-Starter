@@ -2371,11 +2371,25 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       updated_by: user?.id ?? null,
     };
     let savedId: string | undefined = f._placeholder ? undefined : f.id;
+    let expectedVersion = Number(f.version) || 1;
+    const guarded = (id: string) => supabase.rpc('update_fee_guarded', {
+      _fee_id: id,
+      _expected_version: expectedVersion,
+      _amount: payload.amount,
+      _collected_amount: payload.collected_amount,
+      _excess_amount: payload.excess_amount,
+      _status: payload.status,
+      _payment_mode: payload.payment_mode || null,
+      _notes: payload.notes || null,
+      _updated_by: payload.updated_by,
+      _game_id: payload.game_id,
+    });
     if (f._placeholder) {
       const { data: existing } = await supabase.from('fees')
-        .select('id').eq('student_id', f.student_id).eq('month', f.month).maybeSingle();
+        .select('id, version').eq('student_id', f.student_id).eq('month', f.month).maybeSingle();
       if (existing?.id) {
-        const { error } = await supabase.from('fees').update(payload).eq('id', existing.id);
+        expectedVersion = Number(existing.version) || 1;
+        const { error } = await guarded(existing.id);
         if (error) { toast.error(error.message); return; }
         savedId = existing.id;
       } else {
@@ -2386,7 +2400,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         savedId = ins?.id;
       }
     } else {
-      const { error } = await supabase.from('fees').update(payload).eq('id', f.id);
+      const { error } = await guarded(f.id);
       if (error) { toast.error(error.message); return; }
     }
     await supabase.from('fee_history').insert({
