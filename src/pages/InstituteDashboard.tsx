@@ -2148,6 +2148,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editFeeId, setEditFeeId] = useState<string | null>(null);
+  const [editFeeVersion, setEditFeeVersion] = useState<number>(1);
   const [editStudentId, setEditStudentId] = useState('');
   const [editGameId, setEditGameId] = useState('');
   const [editMonth, setEditMonth] = useState(filterMonth);
@@ -2259,6 +2260,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const openNew = () => {
     setEditFeeId(null);
+    setEditFeeVersion(1);
     setEditStudentId('');
     setEditGameId(filterGame !== 'all' ? filterGame : (games[0]?.id || ''));
     setEditMonth(filterMonth);
@@ -2268,6 +2270,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const openEdit = (f: any) => {
     setEditFeeId(f._placeholder ? null : f.id);
+    setEditFeeVersion(f._placeholder ? 1 : (Number(f.version) || 1));
     setEditStudentId(f.student_id);
     setEditGameId(f.game_id || '');
     setEditMonth(f.month);
