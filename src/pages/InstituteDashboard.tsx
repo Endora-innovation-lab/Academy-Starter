@@ -2212,6 +2212,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
         amount: existing?.amount ?? sg.monthly_fee ?? 0,
         collected_amount: existing?.collected_amount ?? 0,
         excess_amount: existing?.excess_amount ?? 0,
+        version: existing?.version ?? 1,
         status: existing?.status ?? 'unpaid',
         payment_mode: existing?.payment_mode ?? null,
         notes: existing?.notes ?? null,
@@ -2311,17 +2312,31 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     };
     let error;
     let savedId: string | undefined = editFeeId || undefined;
+    let expectedVersion = editFeeVersion;
+    const guarded = (id: string) => supabase.rpc('update_fee_guarded', {
+      _fee_id: id,
+      _expected_version: expectedVersion,
+      _amount: amt,
+      _collected_amount: col,
+      _excess_amount: excess,
+      _status: status,
+      _payment_mode: editMode || null,
+      _notes: editNotes || null,
+      _updated_by: user?.id ?? null,
+      _game_id: editGameId || null,
+    });
     if (editFeeId) {
-      ({ error } = await supabase.from('fees').update(payload).eq('id', editFeeId));
+      ({ error } = await guarded(editFeeId));
     } else {
       // look for existing for (student, game, month)
-      let q = supabase.from('fees').select('id')
+      let q = supabase.from('fees').select('id, version')
         .eq('institute_id', instituteId).eq('student_id', editStudentId).eq('month', editMonth);
       q = editGameId ? q.eq('game_id', editGameId) : q.is('game_id', null);
       const { data: existing } = await q.maybeSingle();
       if (existing) {
         savedId = existing.id;
-        ({ error } = await supabase.from('fees').update(payload).eq('id', existing.id));
+        expectedVersion = Number(existing.version) || 1;
+        ({ error } = await guarded(existing.id));
       } else {
         const { data: ins, error: insErr } = await supabase.from('fees').insert(payload).select('id').single();
         error = insErr;
