@@ -1090,6 +1090,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
         name: stu.profiles?.name || '—',
         reg_no: stu.reg_no || '',
         fee_id: fee?.id || null,
+        fee_version: Number(fee?.version) || 1,
         monthly_fee: Number(fee?.amount ?? e.monthly_fee ?? 0) || 0,
         collected: Number(fee?.collected_amount) || 0,
         mode: fee?.payment_mode || '',
@@ -1110,6 +1111,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
         name: s.profiles?.name || '—',
         reg_no: s.reg_no || '',
         fee_id: fee?.id || null,
+        fee_version: Number(fee?.version) || 1,
         monthly_fee: Number(fee?.amount || 0) || 0,
         collected: Number(fee?.collected_amount) || 0,
         mode: fee?.payment_mode || '',
@@ -1180,13 +1182,26 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           game_id: r.game_id,
         };
         let savedId = r.fee_id;
+        let expectedVersion = Number(r.fee_version) || 1;
+        const guarded = (id: string) => supabase.rpc('update_fee_guarded', {
+          _fee_id: id,
+          _expected_version: expectedVersion,
+          _amount: amt,
+          _collected_amount: col,
+          _excess_amount: excess,
+          _status: status,
+          _payment_mode: r.mode || null,
+          _notes: r.notes || null,
+          _updated_by: userId,
+          _game_id: r.game_id,
+        });
         if (!savedId) {
           const { data: existing } = await supabase.from('fees')
-            .select('id').eq('student_id', r.student_id).eq('month', month).maybeSingle();
-          if (existing?.id) savedId = existing.id;
+            .select('id, version').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+          if (existing?.id) { savedId = existing.id; expectedVersion = Number(existing.version) || 1; }
         }
         if (savedId) {
-          const { error } = await supabase.from('fees').update(payload).eq('id', savedId);
+          const { error } = await guarded(savedId);
           if (error) throw error;
         } else {
           const { data: ins, error } = await supabase.from('fees').insert({
@@ -1195,9 +1210,10 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           if (error) {
             if ((error as any).code === '23505') {
               const { data: ex2 } = await supabase.from('fees')
-                .select('id').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+                .select('id, version').eq('student_id', r.student_id).eq('month', month).maybeSingle();
               if (!ex2?.id) throw error;
-              const { error: upErr } = await supabase.from('fees').update(payload).eq('id', ex2.id);
+              expectedVersion = Number(ex2.version) || 1;
+              const { error: upErr } = await guarded(ex2.id);
               if (upErr) throw upErr;
               savedId = ex2.id;
             } else throw error;

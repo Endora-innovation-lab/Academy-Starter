@@ -310,6 +310,7 @@ export type Database = {
           status: string
           student_id: string
           updated_by: string | null
+          version: number
         }
         Insert: {
           amount?: number | null
@@ -325,6 +326,7 @@ export type Database = {
           status?: string
           student_id: string
           updated_by?: string | null
+          version?: number
         }
         Update: {
           amount?: number | null
@@ -340,6 +342,7 @@ export type Database = {
           status?: string
           student_id?: string
           updated_by?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -764,6 +767,21 @@ export type Database = {
     }
     Functions: {
       generate_institute_code: { Args: never; Returns: string }
+      update_fee_guarded: {
+        Args: {
+          _amount: number
+          _collected_amount: number
+          _excess_amount: number
+          _expected_version: number
+          _fee_id: string
+          _game_id: string
+          _notes: string
+          _payment_mode: string
+          _status: string
+          _updated_by: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "teacher" | "student"
