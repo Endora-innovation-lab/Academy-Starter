@@ -2286,6 +2286,31 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setEditOpen(true);
   };
 
+  // Enrollment-driven helpers for the Update Fee dialog
+  const activeEnrollments = studentGames.filter((sg: any) => sg.status === 'active');
+  const studentsForGame = editGameId
+    ? students.filter((s: any) => s.status !== 'inactive' && activeEnrollments.some((sg: any) => sg.student_id === s.id && sg.game_id === editGameId))
+    : students.filter((s: any) => s.status !== 'inactive');
+  const gamesForStudent = editStudentId
+    ? games.filter((g: any) => activeEnrollments.some((sg: any) => sg.student_id === editStudentId && sg.game_id === g.id))
+    : games;
+
+  const handleGameChange = (gid: string) => {
+    setEditGameId(gid);
+    if (editStudentId) {
+      const sg = activeEnrollments.find((x: any) => x.student_id === editStudentId && x.game_id === gid);
+      if (sg) setEditAmount(String(sg.monthly_fee ?? ''));
+      else { setEditStudentId(''); setEditAmount(''); }
+    }
+  };
+
+  const handleStudentChange = (sid: string) => {
+    setEditStudentId(sid);
+    const sg = activeEnrollments.find((x: any) => x.student_id === sid && x.game_id === editGameId);
+    if (sg) setEditAmount(String(sg.monthly_fee ?? ''));
+    else if (editGameId) setEditAmount('');
+  };
+
   const openHistory = async (f: any) => {
     let q = supabase.from('fee_history').select('*').eq('student_id', f.student_id).eq('month', f.month);
     if (f.game_id) q = q.eq('game_id', f.game_id);
@@ -2610,10 +2635,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           <div className="space-y-3">
             <div>
               <Label>Student</Label>
-              <Select value={editStudentId} onValueChange={setEditStudentId} disabled={!!editFeeId}>
+              <Select value={editStudentId} onValueChange={handleStudentChange} disabled={!!editFeeId}>
                 <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                 <SelectContent>
-                  {students.map(s => (
+                  {studentsForGame.map(s => (
                     <SelectItem key={s.id} value={s.id}>
                       {(s.profiles as any)?.name} ({s.reg_no})
                     </SelectItem>
@@ -2623,10 +2648,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             </div>
             <div>
               <Label>Game</Label>
-              <Select value={editGameId} onValueChange={setEditGameId}>
+              <Select value={editGameId} onValueChange={handleGameChange}>
                 <SelectTrigger><SelectValue placeholder="Select game" /></SelectTrigger>
                 <SelectContent>
-                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  {gamesForStudent.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
