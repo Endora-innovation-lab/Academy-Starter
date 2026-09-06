@@ -779,10 +779,13 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           _updated_by: userId,
           _game_id: gameId,
         });
+        const findFee = () => {
+          const q = supabase.from('fees').select('id, version').eq('student_id', sid).eq('month', month);
+          return (gameId ? q.eq('game_id', gameId) : q.is('game_id', null)).maybeSingle();
+        };
         if (!savedId) {
-          // A fee row may already exist for this student/month (unique key student_id+month)
-          const { data: existing } = await supabase.from('fees')
-            .select('id, version').eq('student_id', sid).eq('month', month).maybeSingle();
+          // A fee row may already exist for this student/month/game
+          const { data: existing } = await findFee();
           if (existing?.id) { savedId = existing.id; expectedVersion = Number(existing.version) || 1; }
         }
         if (savedId) {
@@ -795,8 +798,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           if (error) {
             if ((error as any).code === '23505') {
               // race: record created meanwhile -> guarded update against its current version
-              const { data: ex2 } = await supabase.from('fees')
-                .select('id, version').eq('student_id', sid).eq('month', month).maybeSingle();
+              const { data: ex2 } = await findFee();
               if (!ex2?.id) throw error;
               expectedVersion = Number(ex2.version) || 1;
               const { error: upErr } = await guarded(ex2.id);

@@ -1195,9 +1195,12 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           _updated_by: userId,
           _game_id: r.game_id,
         });
+        const findFee = () => {
+          const q = supabase.from('fees').select('id, version').eq('student_id', r.student_id).eq('month', month);
+          return (r.game_id ? q.eq('game_id', r.game_id) : q.is('game_id', null)).maybeSingle();
+        };
         if (!savedId) {
-          const { data: existing } = await supabase.from('fees')
-            .select('id, version').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+          const { data: existing } = await findFee();
           if (existing?.id) { savedId = existing.id; expectedVersion = Number(existing.version) || 1; }
         }
         if (savedId) {
@@ -1209,8 +1212,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           }).select('id').single();
           if (error) {
             if ((error as any).code === '23505') {
-              const { data: ex2 } = await supabase.from('fees')
-                .select('id, version').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+              const { data: ex2 } = await findFee();
               if (!ex2?.id) throw error;
               expectedVersion = Number(ex2.version) || 1;
               const { error: upErr } = await guarded(ex2.id);

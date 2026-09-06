@@ -2430,8 +2430,8 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       _game_id: payload.game_id,
     });
     if (f._placeholder) {
-      const { data: existing } = await supabase.from('fees')
-        .select('id, version').eq('student_id', f.student_id).eq('month', f.month).maybeSingle();
+      const fq = supabase.from('fees').select('id, version').eq('student_id', f.student_id).eq('month', f.month);
+      const { data: existing } = await (f.game_id ? fq.eq('game_id', f.game_id) : fq.is('game_id', null)).maybeSingle();
       if (existing?.id) {
         expectedVersion = Number(existing.version) || 1;
         const { error } = await guarded(existing.id);
