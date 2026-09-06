@@ -2635,10 +2635,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           <div className="space-y-3">
             <div>
               <Label>Student</Label>
-              <Select value={editStudentId} onValueChange={setEditStudentId} disabled={!!editFeeId}>
+              <Select value={editStudentId} onValueChange={handleStudentChange} disabled={!!editFeeId}>
                 <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                 <SelectContent>
-                  {students.map(s => (
+                  {studentsForGame.map(s => (
                     <SelectItem key={s.id} value={s.id}>
                       {(s.profiles as any)?.name} ({s.reg_no})
                     </SelectItem>
@@ -2648,10 +2648,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             </div>
             <div>
               <Label>Game</Label>
-              <Select value={editGameId} onValueChange={setEditGameId}>
+              <Select value={editGameId} onValueChange={handleGameChange}>
                 <SelectTrigger><SelectValue placeholder="Select game" /></SelectTrigger>
                 <SelectContent>
-                  {games.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  {gamesForStudent.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
