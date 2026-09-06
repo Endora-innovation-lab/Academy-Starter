@@ -798,8 +798,7 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           if (error) {
             if ((error as any).code === '23505') {
               // race: record created meanwhile -> guarded update against its current version
-              const { data: ex2 } = await supabase.from('fees')
-                .select('id, version').eq('student_id', sid).eq('month', month).maybeSingle();
+              const { data: ex2 } = await findFee();
               if (!ex2?.id) throw error;
               expectedVersion = Number(ex2.version) || 1;
               const { error: upErr } = await guarded(ex2.id);

@@ -1212,8 +1212,7 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
           }).select('id').single();
           if (error) {
             if ((error as any).code === '23505') {
-              const { data: ex2 } = await supabase.from('fees')
-                .select('id, version').eq('student_id', r.student_id).eq('month', month).maybeSingle();
+              const { data: ex2 } = await findFee();
               if (!ex2?.id) throw error;
               expectedVersion = Number(ex2.version) || 1;
               const { error: upErr } = await guarded(ex2.id);
