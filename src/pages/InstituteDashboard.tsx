@@ -2157,6 +2157,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const [editMode, setEditMode] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
+  const [markPaidFee, setMarkPaidFee] = useState<any>(null);
+  const [markPaidMode, setMarkPaidMode] = useState('');
+  const [markPaidSaving, setMarkPaidSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
 
@@ -2362,12 +2366,28 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     else { toast.success('Fee record saved'); setEditOpen(false); fetchAll(); fetchFees(); }
   };
 
-  const quickMarkPaid = async (f: any) => {
+  const openMarkPaid = (f: any) => {
+    setMarkPaidFee(f);
+    setMarkPaidMode('');
+    setMarkPaidOpen(true);
+  };
+
+  const confirmMarkPaid = async () => {
+    if (!markPaidFee) return;
+    if (!markPaidMode) { toast.error('Select a payment mode'); return; }
+    setMarkPaidSaving(true);
+    await quickMarkPaid(markPaidFee, markPaidMode);
+    setMarkPaidSaving(false);
+    setMarkPaidOpen(false);
+  };
+
+  const quickMarkPaid = async (f: any, mode: string) => {
     const amt = Number(f.amount) || 0;
     const col = Math.max(amt, Number(f.collected_amount) || 0);
     const payload: any = {
       status: 'paid', amount: amt, collected_amount: col,
       excess_amount: Math.max(0, col - amt), game_id: f.game_id || null,
+      payment_mode: mode,
       updated_by: user?.id ?? null,
     };
     let savedId: string | undefined = f._placeholder ? undefined : f.id;
@@ -2406,7 +2426,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     await supabase.from('fee_history').insert({
       fee_id: savedId, student_id: f.student_id, institute_id: instituteId, month: f.month,
       amount: amt, collected_amount: col, excess_amount: Math.max(0, col - amt), status: 'paid',
-      payment_mode: f.payment_mode || null, notes: f.notes || null, game_id: f.game_id || null,
+      payment_mode: mode, notes: f.notes || null, game_id: f.game_id || null,
       updated_by: user?.id ?? null, updated_by_role: 'admin',
     });
     toast.success('Marked paid');
@@ -2534,7 +2554,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                   <td className="p-3">
                     <div className="flex gap-1 flex-wrap">
                       {f.status !== 'paid' && (
-                        <Button size="sm" variant="outline" onClick={() => quickMarkPaid(f)}>Mark Paid</Button>
+                        <Button size="sm" variant="outline" onClick={() => openMarkPaid(f)}>Mark Paid</Button>
                       )}
                       <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
                         <Pencil className="h-4 w-4" />
@@ -2558,6 +2578,29 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       </>
       )}
 
+
+      <Dialog open={markPaidOpen} onOpenChange={setMarkPaidOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Mark Paid</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Payment Mode</Label>
+              <Select value={markPaidMode} onValueChange={setMarkPaidMode}>
+                <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={confirmMarkPaid} disabled={markPaidSaving}>
+              {markPaidSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
