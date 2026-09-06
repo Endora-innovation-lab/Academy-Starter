@@ -2426,7 +2426,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     await supabase.from('fee_history').insert({
       fee_id: savedId, student_id: f.student_id, institute_id: instituteId, month: f.month,
       amount: amt, collected_amount: col, excess_amount: Math.max(0, col - amt), status: 'paid',
-      payment_mode: f.payment_mode || null, notes: f.notes || null, game_id: f.game_id || null,
+      payment_mode: mode, notes: f.notes || null, game_id: f.game_id || null,
       updated_by: user?.id ?? null, updated_by_role: 'admin',
     });
     toast.success('Marked paid');
@@ -2554,7 +2554,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
                   <td className="p-3">
                     <div className="flex gap-1 flex-wrap">
                       {f.status !== 'paid' && (
-                        <Button size="sm" variant="outline" onClick={() => quickMarkPaid(f)}>Mark Paid</Button>
+                        <Button size="sm" variant="outline" onClick={() => openMarkPaid(f)}>Mark Paid</Button>
                       )}
                       <Button size="sm" variant="ghost" onClick={() => openEdit(f)}>
                         <Pencil className="h-4 w-4" />
@@ -2578,6 +2578,29 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       </>
       )}
 
+
+      <Dialog open={markPaidOpen} onOpenChange={setMarkPaidOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Mark Paid</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Payment Mode</Label>
+              <Select value={markPaidMode} onValueChange={setMarkPaidMode}>
+                <SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={confirmMarkPaid} disabled={markPaidSaving}>
+              {markPaidSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
