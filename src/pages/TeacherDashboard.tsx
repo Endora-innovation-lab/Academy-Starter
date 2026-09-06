@@ -779,10 +779,13 @@ const UpdateFeesTab = ({ teacherId, instituteId, userId }: { teacherId: string; 
           _updated_by: userId,
           _game_id: gameId,
         });
+        const findFee = () => {
+          const q = supabase.from('fees').select('id, version').eq('student_id', sid).eq('month', month);
+          return (gameId ? q.eq('game_id', gameId) : q.is('game_id', null)).maybeSingle();
+        };
         if (!savedId) {
-          // A fee row may already exist for this student/month (unique key student_id+month)
-          const { data: existing } = await supabase.from('fees')
-            .select('id, version').eq('student_id', sid).eq('month', month).maybeSingle();
+          // A fee row may already exist for this student/month/game
+          const { data: existing } = await findFee();
           if (existing?.id) { savedId = existing.id; expectedVersion = Number(existing.version) || 1; }
         }
         if (savedId) {
