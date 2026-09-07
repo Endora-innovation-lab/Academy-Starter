@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.fees_student_month_unique;
