@@ -2036,6 +2036,7 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="daily">Today</SelectItem>
+              <SelectItem value="monthly">Month</SelectItem>
               <SelectItem value="range">Custom Date Range</SelectItem>
             </SelectContent>
           </Select>
