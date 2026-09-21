@@ -448,8 +448,19 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           parent_name: parentName, gender, emergency_contact: emergencyContact,
         },
       });
-      if (error) throw error;
+      if (error) {
+        let detail = error.message;
+        try {
+          const res = (error as any)?.context;
+          if (res && typeof res.json === 'function') {
+            const payload = await res.clone().json();
+            if (payload?.error) detail = payload.error;
+          }
+        } catch { /* keep default message */ }
+        throw new Error(detail);
+      }
       if (data?.error) throw new Error(data.error);
+
       const studentId = data.student?.id;
       // Enroll into game
       if (studentId) {
