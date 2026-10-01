@@ -2142,6 +2142,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const [studentGames, setStudentGames] = useState<any[]>([]);
   const [filterGame, setFilterGame] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [feeSearch, setFeeSearch] = useState('');
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -2519,7 +2520,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
               </SelectContent>
             </Select>
           )}
-          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Update Fee</Button>
+          <Input placeholder="Search name / reg no" value={feeSearch} onChange={e => setFeeSearch(e.target.value)} className="w-56" />
         </div>
       </div>
 
@@ -2563,7 +2564,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
             </tr>
           </thead>
           <tbody>
-            {sortedFees.map((f, index) => {
+            {sortedFees.filter((f: any) => { const q = feeSearch.trim().toLowerCase(); if (!q) return true; return String(f.students?.profiles?.name || '').toLowerCase().includes(q) || String(f.students?.reg_no || '').toLowerCase().includes(q); }).map((f, index) => {
               const amt = Number(f.amount) || 0;
               const col = Number(f.collected_amount) || 0;
               const due = Math.max(0, amt - col);
