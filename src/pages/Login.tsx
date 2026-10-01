@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { registrationWhatsAppUrl } from '@/lib/registrationContact';
 
 type LoginRole = 'institute' | 'teacher' | 'student';
 
@@ -199,9 +200,9 @@ const Login = () => {
                 </Link>
                 <p className="hidden md:block text-sm text-muted-foreground">
                   Don't have an account?{' '}
-                  <Link to="/register" className="text-primary hover:underline font-medium">
+                  <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
                     Register Institute
-                  </Link>
+                  </a>
                 </p>
               </div>
             )}
