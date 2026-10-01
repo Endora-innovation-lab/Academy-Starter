@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogIn, Users, GraduationCap, ClipboardList, DollarSign, Shield, Building2, CheckSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { registrationWhatsAppUrl } from '@/lib/registrationContact';
 
 const Index = () => {
   const { user, role } = useAuth();
@@ -69,7 +70,7 @@ const Index = () => {
               className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-6 text-base font-bold"
               asChild
             >
-              <Link to="/register">Register Institute</Link>
+              <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">Register Institute</a>
             </Button>
           </div>
         </div>
@@ -150,10 +151,10 @@ const Index = () => {
         <h2 className="text-3xl font-bold text-white mb-3">Ready to get started?</h2>
         <p className="text-white/85 mb-8">Register your institute and take full control in minutes.</p>
         <Button size="lg" className="bg-white text-primary font-bold hover:bg-white/90 px-8 py-6 text-base" asChild>
-          <Link to="/register">
+          <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">
             <Building2 className="h-5 w-5 mr-2" />
             Register Your Institute
-          </Link>
+          </a>
         </Button>
       </div>
 
