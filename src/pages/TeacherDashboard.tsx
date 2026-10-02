@@ -1,3 +1,4 @@
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -542,10 +543,15 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
     setTouched(prev => ({ ...prev, [studentId]: true }));
   };
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmCounts = (() => {
+    const vals = Object.values(attendanceMap).filter(v => v !== 'unmarked');
+    return { total: vals.length, present: vals.filter(v => v === 'present').length, late: vals.filter(v => v === 'late').length, absent: vals.filter(v => v === 'absent').length };
+  })();
   const saveAttendance = async () => {
     try {
       const records = Object.entries(attendanceMap)
-        .filter(([sid, status]) => status !== 'unmarked' && (touched[sid] || existingIds[sid]))
+        .filter(([, status]) => status !== 'unmarked')
         .map(([student_id, status]) => ({
           student_id,
           batch_id: selectedBatch,
@@ -639,7 +645,26 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
               </tbody>
             </table>
           </div>
-          <Button onClick={saveAttendance}>Save Attendance</Button>
+          <Button onClick={() => setConfirmOpen(true)}>Save Attendance</Button>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Attendance</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="grid grid-cols-2 gap-2 text-sm pt-2">
+                <span>Total Students</span><span className="font-semibold text-right">{confirmCounts.total}</span>
+                <span>Present</span><span className="font-semibold text-right">{confirmCounts.present}</span>
+                <span>Late</span><span className="font-semibold text-right">{confirmCounts.late}</span>
+                <span>Absent</span><span className="font-semibold text-right">{confirmCounts.absent}</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={saveAttendance}>Confirm &amp; Save</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
         </>
       )}
     </div>
