@@ -50,10 +50,12 @@ const statusCls = (s: string) =>
       ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-500'
       : 'bg-destructive/10 text-destructive';
 
-const stickyName = 'sticky left-0 z-20 bg-card';
-const stickyNameHead = 'sticky left-0 z-30 bg-muted';
-const stickySecond = 'sticky left-[160px] z-20 bg-card';
-const stickySecondHead = 'sticky left-[160px] z-30 bg-muted';
+const stickySno = 'sticky left-0 z-20 bg-card';
+const stickySnoHead = 'sticky left-0 z-30 bg-muted';
+const stickyName = 'sticky left-[56px] z-20 bg-card';
+const stickyNameHead = 'sticky left-[56px] z-30 bg-muted';
+const stickySecond = 'sticky left-[216px] z-20 bg-card';
+const stickySecondHead = 'sticky left-[216px] z-30 bg-muted';
 
 // ============ ATTENDANCE RANGE ============
 export const AttendanceRangeTable = ({
@@ -233,6 +235,7 @@ export const AttendanceRangeTable = ({
       <table className="text-sm border-collapse min-w-full">
         <thead className="bg-muted">
           <tr>
+            <th className={`text-left p-3 font-medium min-w-[56px] w-[56px] ${stickySnoHead}`}>S.No</th>
             <th className={`text-left p-3 font-medium min-w-[160px] w-[160px] ${stickyNameHead}`}>
               {role === 'student' ? 'Name' : 'Teacher'}
             </th>
@@ -243,8 +246,9 @@ export const AttendanceRangeTable = ({
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map((r, i) => (
             <tr key={r.key} className="border-t">
+              <td className={`p-3 whitespace-nowrap min-w-[56px] w-[56px] ${stickySno}`}>{i + 1}</td>
               <td className={`p-3 whitespace-nowrap ${stickyName}`}>{r.name}</td>
               <td className={`p-3 whitespace-nowrap ${stickySecond}`}>{r.batch}</td>
               {dates.map(d => {
@@ -264,10 +268,10 @@ export const AttendanceRangeTable = ({
             </tr>
           ))}
           {!loading && rows.length === 0 && (
-            <tr><td colSpan={dates.length + 2} className="p-8 text-center text-muted-foreground">No attendance records in this range</td></tr>
+            <tr><td colSpan={dates.length + 3} className="p-8 text-center text-muted-foreground">No attendance records in this range</td></tr>
           )}
           {loading && (
-            <tr><td colSpan={dates.length + 2} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
+            <tr><td colSpan={dates.length + 3} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
           )}
         </tbody>
       </table>
@@ -350,6 +354,7 @@ export const FeesRangeTable = ({
       <table className="text-sm border-collapse min-w-full">
         <thead className="bg-muted">
           <tr>
+            <th className={`text-left p-3 font-medium min-w-[56px] w-[56px] ${stickySnoHead}`}>S.No</th>
             <th className={`text-left p-3 font-medium min-w-[160px] w-[160px] ${stickyNameHead}`}>Name</th>
             <th className={`text-left p-3 font-medium min-w-[130px] w-[130px] ${stickySecondHead}`}>Game</th>
             {months.map(m => (
@@ -358,8 +363,9 @@ export const FeesRangeTable = ({
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map((r, i) => (
             <tr key={r.key} className="border-t">
+              <td className={`p-3 whitespace-nowrap min-w-[56px] w-[56px] ${stickySno}`}>{i + 1}</td>
               <td className={`p-3 whitespace-nowrap ${stickyName}`}>
                 {r.name}
                 <span className="block text-xs text-muted-foreground">{r.reg}</span>
@@ -382,10 +388,10 @@ export const FeesRangeTable = ({
             </tr>
           ))}
           {!loading && rows.length === 0 && (
-            <tr><td colSpan={months.length + 2} className="p-8 text-center text-muted-foreground">No fee records in this range</td></tr>
+            <tr><td colSpan={months.length + 3} className="p-8 text-center text-muted-foreground">No fee records in this range</td></tr>
           )}
           {loading && (
-            <tr><td colSpan={months.length + 2} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
+            <tr><td colSpan={months.length + 3} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
           )}
         </tbody>
       </table>
