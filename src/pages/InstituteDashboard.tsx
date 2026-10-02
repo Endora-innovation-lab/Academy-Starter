@@ -2143,6 +2143,7 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
   const [filterGame, setFilterGame] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [feeSearch, setFeeSearch] = useState('');
+  const [editStudentLocked, setEditStudentLocked] = useState(false);
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -2283,10 +2284,12 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     setEditGameId(filterGame !== 'all' ? filterGame : (games[0]?.id || ''));
     setEditMonth(filterMonth);
     setEditAmount(''); setEditCollected(''); setEditMode(''); setEditNotes('');
+    setEditStudentLocked(false);
     setEditOpen(true);
   };
 
   const openEdit = (f: any) => {
+    setEditStudentLocked(!f._placeholder && f.status === 'paid');
     setEditFeeId(f._placeholder ? null : f.id);
     setEditFeeVersion(f._placeholder ? 1 : (Number(f.version) || 1));
     setEditStudentId(f.student_id);
@@ -2313,11 +2316,12 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
     if (editStudentId) {
       const sg = activeEnrollments.find((x: any) => x.student_id === editStudentId && x.game_id === gid);
       if (sg) setEditAmount(String(sg.monthly_fee ?? ''));
-      else { setEditStudentId(''); setEditAmount(''); }
+      else if (!editStudentLocked) { setEditStudentId(''); setEditAmount(''); }
     }
   };
 
   const handleStudentChange = (sid: string) => {
+    if (editStudentLocked) return;
     setEditStudentId(sid);
     const sg = activeEnrollments.find((x: any) => x.student_id === sid && x.game_id === editGameId);
     if (sg) setEditAmount(String(sg.monthly_fee ?? ''));
@@ -2648,10 +2652,10 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
           <div className="space-y-3">
             <div>
               <Label>Student</Label>
-              <Select value={editStudentId} onValueChange={handleStudentChange} disabled={!!editFeeId}>
+              <Select value={editStudentId} onValueChange={handleStudentChange} disabled={!!editFeeId || editStudentLocked}>
                 <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                 <SelectContent>
-                  {studentsForGame.map(s => (
+                  {(editStudentLocked ? students.filter((s: any) => s.id === editStudentId) : studentsForGame).map(s => (
                     <SelectItem key={s.id} value={s.id}>
                       {(s.profiles as any)?.name} ({s.reg_no})
                     </SelectItem>
