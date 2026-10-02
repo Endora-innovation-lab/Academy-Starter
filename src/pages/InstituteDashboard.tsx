@@ -2290,7 +2290,6 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
 
   const openEdit = (f: any) => {
     setEditStudentLocked(!f._placeholder && f.status === 'paid');
-    setEditStudentLocked(!f._placeholder && f.status === 'paid');
     setEditFeeId(f._placeholder ? null : f.id);
     setEditFeeVersion(f._placeholder ? 1 : (Number(f.version) || 1));
     setEditStudentId(f.student_id);
