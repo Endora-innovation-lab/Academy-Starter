@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { loadEnrollmentCtx, isEnrollmentActive } from '@/lib/enrollment';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -359,6 +360,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [gender, setGender] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [statusView, setStatusView] = useState<'active' | 'inactive'>('active');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   // Add-student flow: choose game first, monthly fee, then optional batch (filtered by game)
@@ -410,9 +412,27 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     }
   }, [showAdd, settings, instituteId]);
 
+  // Enrollment-level view: an enrollment is active only if the student AND that game enrollment are active
+  const viewGamesFor = (s: any) => {
+    const sgs = studentGames.filter(sg => sg.student_id === s.id);
+    if (statusView === 'active') return s.status === 'inactive' ? [] : sgs.filter(sg => sg.status === 'active');
+    return s.status === 'inactive' ? sgs : sgs.filter(sg => sg.status !== 'active');
+  };
+  const inView = (s: any) => {
+    const vg = viewGamesFor(s);
+    const hasAny = studentGames.some(sg => sg.student_id === s.id);
+    if (statusView === 'active') return s.status !== 'inactive' && (vg.length > 0 || !hasAny);
+    return s.status === 'inactive' || vg.length > 0;
+  };
+  const filteredByStatus = students.filter(inView);
   const filteredByBatch = filterBatch === 'all'
-    ? students
-    : students.filter(s => batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id));
+    ? filteredByStatus
+    : filteredByStatus.filter(s => {
+        if (!batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id)) return false;
+        const g = batches.find(b => b.id === filterBatch)?.game_id;
+        if (!g || !studentGames.some(sg => sg.student_id === s.id && sg.game_id === g)) return true;
+        return viewGamesFor(s).some(sg => sg.game_id === g);
+      });
 
   const filteredStudents = searchTerm
     ? filteredByBatch.filter(s => {
@@ -589,6 +609,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" /> Students</h2>
         <div className="flex flex-wrap gap-2">
+          <div className="inline-flex rounded-md border bg-muted p-0.5">
+            {(['active', 'inactive'] as const).map(v => (
+              <Button key={v} type="button" size="sm" variant={statusView === v ? 'default' : 'ghost'} className="h-8 capitalize" onClick={() => setStatusView(v)}>
+                {v}
+              </Button>
+            ))}
+          </div>
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -694,7 +721,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           </thead>
           <tbody>
             {displayStudents.map((s, index) => {
-              const sgs = studentGamesFor(s.id);
+              const sgs = viewGamesFor(s);
               return (
                 <tr key={s.id} className={`border-t ${s.status === 'inactive' ? 'opacity-60' : ''}`}>
                   <td className="p-3">{index + 1}</td>
@@ -1424,10 +1451,11 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   const fetchBatchDetails = async (batchId: string) => {
     const [{ data: bs }, { data: bt }] = await Promise.all([
-      supabase.from('batch_students').select('*, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))').eq('batch_id', batchId),
+      supabase.from('batch_students').select('*, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))').eq('batch_id', batchId),
       supabase.from('batch_teachers').select('*, teachers(id, profiles!teachers_user_id_profiles_fkey(name))').eq('batch_id', batchId),
     ]);
-    setBatchStudents(bs || []);
+    const ctx = await loadEnrollmentCtx([batchId]);
+    setBatchStudents((bs || []).filter((r: any) => (r.students as any)?.status !== 'inactive' && isEnrollmentActive(ctx, r.student_id, batchId)));
     setBatchTeachers(bt || []);
   };
 
@@ -1926,7 +1954,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
       const { data } = await query.limit(500);
       // Hide records belonging to currently inactive students
-      const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
+      const aCtx = await loadEnrollmentCtx(Array.from(new Set((data || []).map((r: any) => r.batch_id))));
+      const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive' && isEnrollmentActive(aCtx, r.student_id, r.batch_id));
 
       // Show ONLY attendance actually saved in the database — no synthetic/derived rows
       setAttendance(filtered);
@@ -2246,6 +2275,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       if (seenFeeIds.has(f.id)) return;
       const hasEnrollment = activeEnrolls.some(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
       if (hasEnrollment) return;
+      // Hide fees of inactive students / inactive game enrollments from the operational view
+      if (studentMap[f.student_id]?.status === 'inactive') return;
+      if (f.game_id && studentGames.some(sg => sg.student_id === f.student_id && sg.game_id === f.game_id && sg.status !== 'active')) return;
       // Fee row without a game: skip if this student is already listed under their game(s)
       if (!f.game_id && studentsWithGameRows.has(f.student_id)) return;
       seenFeeIds.add(f.id);
