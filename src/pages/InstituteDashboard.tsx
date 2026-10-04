@@ -454,6 +454,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addGameId) { toast.error('Select a game/course'); return; }
+    let finalRegNo = regNo.trim();
     try {
       // Manual mode: validate uniqueness before creating the student
       if (settings && !settings.auto_student_id) {
@@ -463,13 +464,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       } else if (settings?.auto_student_id) {
         const fresh = await nextStudentRegNo(instituteId, addGameId);
         if (!fresh) { toast.error('Set the Institute Prefix (Profile → ID Generation) and the Game Prefix for this game first'); return; }
-        regNo = fresh as any;
+        finalRegNo = fresh;
         setRegNo(fresh);
       }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: {
           action: 'create_student',
-          name, reg_no: regNo, dob, parent_phone: parentPhone,
+          name, reg_no: finalRegNo, dob, parent_phone: parentPhone,
           parent_name: parentName, gender, emergency_contact: emergencyContact,
         },
       });
