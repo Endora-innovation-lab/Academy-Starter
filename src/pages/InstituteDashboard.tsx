@@ -1291,6 +1291,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [gameIdInput, setGameIdInput] = useState('');
+  const [gamePrefix, setGamePrefix] = useState('');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   const fetchGames = async () => {
@@ -1313,6 +1314,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^[A-Z]$/.test(gamePrefix)) { toast.error('Game Prefix must be exactly 1 uppercase letter (A-Z)'); return; }
     try {
       // Resolve Game ID
       let finalGameId: string | null = null;
@@ -1325,13 +1327,13 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
       }
 
       if (showEdit) {
-        await supabase.from('games').update({ name, description, game_id: finalGameId }).eq('id', showEdit.id);
+        await supabase.from('games').update({ name, description, game_id: finalGameId, game_prefix: gamePrefix } as any).eq('id', showEdit.id);
         toast.success('Game updated');
       } else {
-        await supabase.from('games').insert({ name, description, institute_id: instituteId, game_id: finalGameId });
+        await supabase.from('games').insert({ name, description, institute_id: instituteId, game_id: finalGameId, game_prefix: gamePrefix } as any);
         toast.success('Game created');
       }
-      setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput('');
+      setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput(''); setGamePrefix('');
       fetchGames();
     } catch (err: any) { toast.error(err.message); }
   };
@@ -1349,14 +1351,15 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="h-5 w-5" /> Games / Courses</h2>
-        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput(''); } }}>
+        <Dialog open={showAdd || !!showEdit} onOpenChange={(o) => { if (!o) { setShowAdd(false); setShowEdit(null); setName(''); setDescription(''); setGameIdInput(''); setGamePrefix(''); } }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); setGameIdInput(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
+            <Button size="sm" onClick={() => { setShowAdd(true); setName(''); setDescription(''); setGameIdInput(''); setGamePrefix(''); }}><Plus className="h-4 w-4 mr-1" /> Add Game</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{showEdit ? 'Edit' : 'Add'} Game / Course</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. Chess, Cricket" /></div>
+              <div><Label>Game Prefix</Label><Input value={gamePrefix} onChange={e => setGamePrefix(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1))} required maxLength={1} placeholder="e.g. S" /></div>
               {settings?.show_game_id && (
                 <div>
                   <Label>Game ID {settings.auto_game_id && <span className="text-xs text-muted-foreground">(auto-generated)</span>}</Label>
@@ -1397,7 +1400,7 @@ const GamesTab = ({ instituteId }: { instituteId: string }) => {
                 <td className="px-3 py-2 text-muted-foreground">{g.description || '—'}</td>
                 <td className="px-3 py-2">{batchCounts[g.id] || 0}</td>
                 <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); setGameIdInput(g.game_id || ''); }}>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowEdit(g); setName(g.name); setDescription(g.description || ''); setGameIdInput(g.game_id || ''); setGamePrefix(g.game_prefix || ''); }}>
                     <Pencil className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(g)}>
