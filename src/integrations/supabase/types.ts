@@ -366,6 +366,7 @@ export type Database = {
           created_at: string
           description: string | null
           game_id: string | null
+          game_prefix: string | null
           id: string
           institute_id: string
           name: string
@@ -374,6 +375,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           game_id?: string | null
+          game_prefix?: string | null
           id?: string
           institute_id: string
           name: string
@@ -382,6 +384,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           game_id?: string | null
+          game_prefix?: string | null
           id?: string
           institute_id?: string
           name?: string
@@ -416,6 +419,7 @@ export type Database = {
           name: string
           owner_name: string | null
           pin_code: string | null
+          reg_prefix: string | null
           registration_number: string | null
           show_batch_id: boolean
           show_game_id: boolean
@@ -452,6 +456,7 @@ export type Database = {
           name: string
           owner_name?: string | null
           pin_code?: string | null
+          reg_prefix?: string | null
           registration_number?: string | null
           show_batch_id?: boolean
           show_game_id?: boolean
@@ -488,6 +493,7 @@ export type Database = {
           name?: string
           owner_name?: string | null
           pin_code?: string | null
+          reg_prefix?: string | null
           registration_number?: string | null
           show_batch_id?: boolean
           show_game_id?: boolean
