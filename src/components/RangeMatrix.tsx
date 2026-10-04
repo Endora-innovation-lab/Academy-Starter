@@ -125,7 +125,7 @@ export const AttendanceRangeTable = ({
         if (batchId !== 'all') q = q.eq('batch_id', batchId);
         const { data } = await q.limit(5000);
         (data || [])
-          .filter((r: any) => (r.students as any)?.status !== 'inactive' && map.has(`${r.student_id}|${r.batch_id}`) || ((r.students as any)?.status !== 'inactive' && isEnrollmentActive(eCtx, r.student_id, r.batch_id)))
+          .filter((r: any) => (r.students as any)?.status !== 'inactive' && isEnrollmentActive(eCtx, r.student_id, r.batch_id))
           .forEach((r: any) => {
             const key = `${r.student_id}|${r.batch_id}`;
             if (!map.has(key)) {

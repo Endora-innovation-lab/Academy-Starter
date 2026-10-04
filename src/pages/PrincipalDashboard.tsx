@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { loadEnrollmentCtx, isEnrollmentActive } from '@/lib/enrollment';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -598,7 +599,10 @@ const StudentAttendancePanel = ({ instituteId, userId }: { instituteId: string; 
       : { data: [] };
 
     // Keep the existing row shape while loading eligibility directly from institute-scoped students.
-    const studs = (activeStudents || []).map(student => ({ student_id: student.id, students: student }));
+    const eCtx = await loadEnrollmentCtx([selectedBatch]);
+    const studs = (activeStudents || [])
+      .filter(student => isEnrollmentActive(eCtx, student.id, selectedBatch))
+      .map(student => ({ student_id: student.id, students: student }));
     setStudents(studs);
 
     const ids = studs.map(s => s.student_id);
@@ -1127,6 +1131,8 @@ const FeesTab = ({ instituteId, userId }: { instituteId: string; userId: string 
     const enrolled = new Set(built.map(r => r.student_id));
     (studs || []).forEach((s: any) => {
       if (enrolled.has(s.id)) return;
+      // Skip students whose game enrollments are all inactive
+      if ((sg || []).some((e: any) => e.student_id === s.id)) return;
       const fee = Object.values(feeMap).find((f: any) => f.student_id === s.id) as any;
       built.push({
         key: `${s.id}|none`,
