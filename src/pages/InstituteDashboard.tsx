@@ -402,15 +402,15 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   useEffect(() => { fetchStudents(); }, [instituteId]);
   useEffect(() => { fetchInstituteIdSettings(instituteId).then(setSettings); }, [instituteId]);
 
-  // Auto-fill Reg No when opening add dialog
+  // Auto-fill Reg No when opening add dialog / selecting game
   useEffect(() => {
     if (!showAdd || !settings) return;
     if (settings.auto_student_id) {
-      nextStudentRegNo(instituteId).then(setRegNo);
+      nextStudentRegNo(instituteId, addGameId || undefined).then(setRegNo);
     } else {
       setRegNo('');
     }
-  }, [showAdd, settings, instituteId]);
+  }, [showAdd, settings, instituteId, addGameId]);
 
   // Enrollment-level view: an enrollment is active only if the student AND that game enrollment are active
   const viewGamesFor = (s: any) => {
@@ -460,6 +460,11 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
         if (!regNo.trim()) { toast.error('Registration Number is required'); return; }
         const taken = await isStudentRegNoTaken(instituteId, regNo.trim());
         if (taken) { toast.error('Registration Number already exists in this institute'); return; }
+      } else if (settings?.auto_student_id) {
+        const fresh = await nextStudentRegNo(instituteId, addGameId);
+        if (!fresh) { toast.error('Set the Institute Prefix (Profile → ID Generation) and the Game Prefix for this game first'); return; }
+        regNo = fresh as any;
+        setRegNo(fresh);
       }
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: {
