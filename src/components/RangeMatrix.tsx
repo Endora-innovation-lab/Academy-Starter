@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { loadEnrollmentCtx, isEnrollmentActive } from '@/lib/enrollment';
 
 const MAX_DAYS = 92;
 const MAX_MONTHS = 24;
@@ -103,8 +104,10 @@ export const AttendanceRangeTable = ({
         const nameById: Record<string, string> = Object.fromEntries(
           (activeStudents || []).map((s: any) => [s.id, (s.profiles as any)?.name || '-'])
         );
+        const eCtx = await loadEnrollmentCtx(batchIds);
         (enrollments || []).forEach((e: any) => {
           if (!nameById[e.student_id]) return;
+          if (!isEnrollmentActive(eCtx, e.student_id, e.batch_id)) return;
           map.set(`${e.student_id}|${e.batch_id}`, {
             name: nameById[e.student_id],
             batch: batchNames[e.batch_id] || '-',
@@ -122,7 +125,7 @@ export const AttendanceRangeTable = ({
         if (batchId !== 'all') q = q.eq('batch_id', batchId);
         const { data } = await q.limit(5000);
         (data || [])
-          .filter((r: any) => (r.students as any)?.status !== 'inactive')
+          .filter((r: any) => (r.students as any)?.status !== 'inactive' && map.has(`${r.student_id}|${r.batch_id}`) || ((r.students as any)?.status !== 'inactive' && isEnrollmentActive(eCtx, r.student_id, r.batch_id)))
           .forEach((r: any) => {
             const key = `${r.student_id}|${r.batch_id}`;
             if (!map.has(key)) {
@@ -333,6 +336,8 @@ export const FeesRangeTable = ({
         if (!studentMap[f.student_id]) return;
         // Don't create an extra generic "—" row for a student already shown under their game(s)
         if (!f.game_id && studentsWithGameRows.has(f.student_id)) return;
+        if (studentMap[f.student_id].status === 'inactive') return;
+        if (f.game_id && (sgRes.data || []).some((sg: any) => sg.student_id === f.student_id && sg.game_id === f.game_id && sg.status !== 'active')) return;
         ensure(f.student_id, f.game_id).cells[f.month] = f;
       });
 

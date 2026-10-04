@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { loadEnrollmentCtx, isEnrollmentActive } from '@/lib/enrollment';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -237,9 +238,10 @@ const TeacherBatchesTab = ({ teacherId, instituteId }: { teacherId: string; inst
     setSelectedBatch(batchId);
     const { data } = await supabase
       .from('batch_students')
-      .select('*, students(reg_no, parent_phone, profiles!students_user_id_profiles_fkey(name))')
+      .select('*, students(reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', batchId);
-    setStudents(data || []);
+    const ctx = await loadEnrollmentCtx([batchId]);
+    setStudents((data || []).filter((r: any) => (r.students as any)?.status !== 'inactive' && isEnrollmentActive(ctx, r.student_id, batchId)));
   };
 
   const filteredStudents = searchTerm
@@ -506,7 +508,8 @@ const MarkAttendanceTab = ({ teacherId, instituteId, userId }: { teacherId: stri
       .select('student_id, students(id, reg_no, status, parent_phone, profiles!students_user_id_profiles_fkey(name))')
       .eq('batch_id', selectedBatch);
 
-    const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive');
+    const eCtx = await loadEnrollmentCtx([selectedBatch]);
+    const studs = (data || []).filter((s: any) => (s.students as any)?.status !== 'inactive' && isEnrollmentActive(eCtx, s.student_id, selectedBatch));
     setStudents(studs);
 
     const studentIds = studs.map(s => s.student_id);
