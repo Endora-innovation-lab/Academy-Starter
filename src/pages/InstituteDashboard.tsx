@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { loadEnrollmentCtx, isEnrollmentActive } from '@/lib/enrollment';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -255,6 +256,13 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           <p className="text-sm text-muted-foreground">{filterType === 'daily' ? 'Daily' : filterType === 'monthly' ? 'Monthly' : 'Yearly'} view — {getFilterLabel()}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="inline-flex rounded-md border bg-muted p-0.5">
+            {(['active', 'inactive'] as const).map(v => (
+              <Button key={v} type="button" size="sm" variant={statusView === v ? 'default' : 'ghost'} className="h-8 capitalize" onClick={() => setStatusView(v)}>
+                {v}
+              </Button>
+            ))}
+          </div>
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -359,6 +367,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
   const [gender, setGender] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [statusView, setStatusView] = useState<'active' | 'inactive'>('active');
   const [settings, setSettings] = useState<InstituteIdSettings | null>(null);
 
   // Add-student flow: choose game first, monthly fee, then optional batch (filtered by game)
@@ -410,9 +419,27 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
     }
   }, [showAdd, settings, instituteId]);
 
+  // Enrollment-level view: an enrollment is active only if the student AND that game enrollment are active
+  const viewGamesFor = (s: any) => {
+    const sgs = studentGames.filter(sg => sg.student_id === s.id);
+    if (statusView === 'active') return s.status === 'inactive' ? [] : sgs.filter(sg => sg.status === 'active');
+    return s.status === 'inactive' ? sgs : sgs.filter(sg => sg.status !== 'active');
+  };
+  const inView = (s: any) => {
+    const vg = viewGamesFor(s);
+    const hasAny = studentGames.some(sg => sg.student_id === s.id);
+    if (statusView === 'active') return s.status !== 'inactive' && (vg.length > 0 || !hasAny);
+    return s.status === 'inactive' || vg.length > 0;
+  };
+  const filteredByStatus = students.filter(inView);
   const filteredByBatch = filterBatch === 'all'
-    ? students
-    : students.filter(s => batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id));
+    ? filteredByStatus
+    : filteredByStatus.filter(s => {
+        if (!batchStudents.some(bs => bs.batch_id === filterBatch && bs.student_id === s.id)) return false;
+        const g = batches.find(b => b.id === filterBatch)?.game_id;
+        if (!g || !studentGames.some(sg => sg.student_id === s.id && sg.game_id === g)) return true;
+        return viewGamesFor(s).some(sg => sg.game_id === g);
+      });
 
   const filteredStudents = searchTerm
     ? filteredByBatch.filter(s => {
@@ -694,7 +721,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
           </thead>
           <tbody>
             {displayStudents.map((s, index) => {
-              const sgs = studentGamesFor(s.id);
+              const sgs = viewGamesFor(s);
               return (
                 <tr key={s.id} className={`border-t ${s.status === 'inactive' ? 'opacity-60' : ''}`}>
                   <td className="p-3">{index + 1}</td>
@@ -1424,10 +1451,11 @@ const BatchesTab = ({ instituteId }: { instituteId: string }) => {
 
   const fetchBatchDetails = async (batchId: string) => {
     const [{ data: bs }, { data: bt }] = await Promise.all([
-      supabase.from('batch_students').select('*, students(id, reg_no, profiles!students_user_id_profiles_fkey(name))').eq('batch_id', batchId),
+      supabase.from('batch_students').select('*, students(id, reg_no, status, profiles!students_user_id_profiles_fkey(name))').eq('batch_id', batchId),
       supabase.from('batch_teachers').select('*, teachers(id, profiles!teachers_user_id_profiles_fkey(name))').eq('batch_id', batchId),
     ]);
-    setBatchStudents(bs || []);
+    const ctx = await loadEnrollmentCtx([batchId]);
+    setBatchStudents((bs || []).filter((r: any) => (r.students as any)?.status !== 'inactive' && isEnrollmentActive(ctx, r.student_id, batchId)));
     setBatchTeachers(bt || []);
   };
 
@@ -1926,7 +1954,8 @@ const AttendanceTab = ({ instituteId }: { instituteId: string }) => {
       if (filterBatch !== 'all') query = query.eq('batch_id', filterBatch);
       const { data } = await query.limit(500);
       // Hide records belonging to currently inactive students
-      const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive');
+      const aCtx = await loadEnrollmentCtx(Array.from(new Set((data || []).map((r: any) => r.batch_id))));
+      const filtered = (data || []).filter((r: any) => (r.students as any)?.status !== 'inactive' && isEnrollmentActive(aCtx, r.student_id, r.batch_id));
 
       // Show ONLY attendance actually saved in the database — no synthetic/derived rows
       setAttendance(filtered);
