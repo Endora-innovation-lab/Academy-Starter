@@ -256,13 +256,6 @@ const OverviewTab = ({ instituteId }: { instituteId: string }) => {
           <p className="text-sm text-muted-foreground">{filterType === 'daily' ? 'Daily' : filterType === 'monthly' ? 'Monthly' : 'Yearly'} view — {getFilterLabel()}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="inline-flex rounded-md border bg-muted p-0.5">
-            {(['active', 'inactive'] as const).map(v => (
-              <Button key={v} type="button" size="sm" variant={statusView === v ? 'default' : 'ghost'} className="h-8 capitalize" onClick={() => setStatusView(v)}>
-                {v}
-              </Button>
-            ))}
-          </div>
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -616,6 +609,13 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" /> Students</h2>
         <div className="flex flex-wrap gap-2">
+          <div className="inline-flex rounded-md border bg-muted p-0.5">
+            {(['active', 'inactive'] as const).map(v => (
+              <Button key={v} type="button" size="sm" variant={statusView === v ? 'default' : 'ghost'} className="h-8 capitalize" onClick={() => setStatusView(v)}>
+                {v}
+              </Button>
+            ))}
+          </div>
           <Select value={filterBatch} onValueChange={setFilterBatch}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter by batch" /></SelectTrigger>
             <SelectContent>
@@ -2275,6 +2275,9 @@ const FeesTab = ({ instituteId }: { instituteId: string }) => {
       if (seenFeeIds.has(f.id)) return;
       const hasEnrollment = activeEnrolls.some(sg => sg.student_id === f.student_id && sg.game_id === f.game_id);
       if (hasEnrollment) return;
+      // Hide fees of inactive students / inactive game enrollments from the operational view
+      if (studentMap[f.student_id]?.status === 'inactive') return;
+      if (f.game_id && studentGames.some(sg => sg.student_id === f.student_id && sg.game_id === f.game_id && sg.status !== 'active')) return;
       // Fee row without a game: skip if this student is already listed under their game(s)
       if (!f.game_id && studentsWithGameRows.has(f.student_id)) return;
       seenFeeIds.add(f.id);
