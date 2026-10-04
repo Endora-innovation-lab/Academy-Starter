@@ -22,9 +22,18 @@ export async function nextTeacherId(instituteId: string) {
   return nextFromExisting((data || []).map((r: any) => r.teacher_id), 'TCH');
 }
 
-export async function nextStudentRegNo(instituteId: string) {
+// Format: [InstitutePrefix][YYYY][GamePrefix][NNN], e.g. HFS2026S001. Max+1, never reused.
+export async function nextStudentRegNo(instituteId: string, gameId?: string, year = new Date().getFullYear()) {
+  if (!gameId) return '';
+  const [{ data: inst }, { data: game }] = await Promise.all([
+    supabase.from('institutes').select('reg_prefix').eq('id', instituteId).maybeSingle(),
+    supabase.from('games').select('game_prefix').eq('id', gameId).maybeSingle(),
+  ]);
+  const ip = (inst as any)?.reg_prefix?.trim().toUpperCase();
+  const gp = (game as any)?.game_prefix?.trim().toUpperCase();
+  if (!ip || !gp) return '';
   const { data } = await supabase.from('students').select('reg_no').eq('institute_id', instituteId);
-  return nextFromExisting((data || []).map((r: any) => r.reg_no), 'STU');
+  return nextFromExisting((data || []).map((r: any) => r.reg_no), `${ip}${year}${gp}`, 3);
 }
 
 export async function nextBatchId(instituteId: string) {

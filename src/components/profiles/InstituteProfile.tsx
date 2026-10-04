@@ -44,6 +44,11 @@ export default function InstituteProfile({ instituteId }: Props) {
   const save = async () => {
     setSaving(true);
     const { id, code, created_at, user_id, ...payload } = data;
+    if (payload.auto_student_id !== false && !/^[A-Z]{1,3}$/.test(payload.reg_prefix || '')) {
+      setSaving(false);
+      setActive('ids');
+      return toast.error('Institute Prefix must be 1-3 uppercase letters (A-Z)');
+    }
     const { error } = await supabase.from('institutes').update(payload).eq('id', instituteId);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -188,6 +193,18 @@ export default function InstituteProfile({ instituteId }: Props) {
                 checked={data.auto_student_id !== false}
                 onChange={(v) => set('auto_student_id', v)}
               />
+              {data.auto_student_id !== false && (
+                <div>
+                  <Label>Institute Prefix</Label>
+                  <Input
+                    value={data.reg_prefix || ''}
+                    onChange={(e) => set('reg_prefix', e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))}
+                    maxLength={3}
+                    placeholder="e.g. HFS"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Up to 3 letters (A-Z). Reg No format: HFS2026S001 (prefix + year + game prefix + number).</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
