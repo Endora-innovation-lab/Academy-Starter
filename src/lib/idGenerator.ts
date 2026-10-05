@@ -33,7 +33,8 @@ export async function nextStudentRegNo(instituteId: string, gameId?: string, yea
   const gp = (game as any)?.game_prefix?.trim().toUpperCase();
   if (!ip || !gp) return '';
   const { data } = await supabase.from('students').select('reg_no').eq('institute_id', instituteId);
-  return nextFromExisting((data || []).map((r: any) => r.reg_no), `${ip}${year}${gp}`, 3);
+  const yy = String(year).slice(-2);
+  return nextFromExisting((data || []).map((r: any) => r.reg_no), `${ip}${yy}${gp}`, 3);
 }
 
 export async function nextBatchId(instituteId: string) {

@@ -649,7 +649,7 @@ const StudentsTab = ({ instituteId, hasBatches }: { instituteId: string; hasBatc
                     required
                     readOnly={settings?.auto_student_id}
                     className={settings?.auto_student_id ? 'bg-muted' : ''}
-                    placeholder={settings?.auto_student_id ? '' : 'e.g. STU0001'}
+                    placeholder={settings?.auto_student_id ? (addGameId ? 'Set Institute & Game prefix to generate' : 'Select a game to generate') : 'e.g. STU0001'}
                   />
                 </div>
                 <div><Label>DOB (dd-mm-yyyy)</Label><Input value={dob} onChange={e => setDob(e.target.value)} required placeholder="dd-mm-yyyy" /></div>
