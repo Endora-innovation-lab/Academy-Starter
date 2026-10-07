@@ -98,7 +98,7 @@ const Index = () => {
                 {['Arun', 'Divya', 'Karthik', 'Meena', 'Rahul', 'Sneha'].map((n, i) => (
                   <div key={n} className="flex items-center justify-between rounded-xl border px-3 py-2">
                     <span className="text-sm font-medium">{n}</span>
-                    <span className={`text-xs font-bold rounded-md px-2 py-0.5 ${i === 2 ? 'bg-warning/15 text-warning' : i === 4 ? 'bg-destructive/15 text-destructive' : 'bg-success/15 text-success'}`}>
+                    <span className={`text-xs font-bold rounded-md px-2 py-0.5 ${i === 2 ? 'bg-secondary text-secondary-foreground' : i === 4 ? 'bg-destructive/15 text-destructive' : 'bg-primary/10 text-primary'}`}>
                       {i === 2 ? 'L' : i === 4 ? 'A' : 'P'}
                     </span>
                   </div>

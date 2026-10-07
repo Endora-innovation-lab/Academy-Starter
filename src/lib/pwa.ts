@@ -19,7 +19,7 @@ if (typeof window !== 'undefined') {
 export const canInstall = () => !!deferred;
 export const onInstallChange = (fn: () => void) => {
   listeners.add(fn);
-  return () => listeners.delete(fn);
+  return () => { listeners.delete(fn); };
 };
 export const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true;
