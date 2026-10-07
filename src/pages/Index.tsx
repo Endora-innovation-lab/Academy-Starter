@@ -5,7 +5,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Download, LogIn, CheckSquare, Wallet, Layers, ShieldCheck, Smartphone, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { registrationWhatsAppUrl } from '@/lib/registrationContact';
 import { canInstall, onInstallChange, promptInstall, isStandalone } from '@/lib/pwa';
 
 const features = [
