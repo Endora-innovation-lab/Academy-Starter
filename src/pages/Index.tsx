@@ -5,7 +5,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Download, LogIn, CheckSquare, Wallet, Layers, ShieldCheck, Smartphone, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { registrationWhatsAppUrl } from '@/lib/registrationContact';
 import { canInstall, onInstallChange, promptInstall, isStandalone } from '@/lib/pwa';
 
 const features = [
@@ -120,14 +119,6 @@ const Index = () => {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="max-w-5xl mx-auto px-4 py-14 text-center">
-          <h2 className="text-2xl font-bold mb-2">Run an institute?</h2>
-          <p className="text-muted-foreground mb-6">Get your institute set up in minutes.</p>
-          <Button size="lg" variant="outline" className="h-12 px-7" asChild>
-            <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">Register Institute</a>
-          </Button>
         </section>
       </main>
 
