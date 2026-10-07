@@ -3,169 +3,138 @@ import logo from '@/assets/logo.png';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LogIn, Users, GraduationCap, ClipboardList, DollarSign, Shield, Building2, CheckSquare } from 'lucide-react';
+import { Download, LogIn, CheckSquare, Wallet, Layers, ShieldCheck, Smartphone, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { registrationWhatsAppUrl } from '@/lib/registrationContact';
+import { canInstall, onInstallChange, promptInstall, isStandalone } from '@/lib/pwa';
+
+const features = [
+  { icon: CheckSquare, title: 'Attendance', desc: 'Mark P / L / A in seconds, per batch.' },
+  { icon: Wallet, title: 'Fees', desc: 'Per-game fees, partial payments, history.' },
+  { icon: Layers, title: 'Games & Batches', desc: 'Organise courses, batches and students.' },
+  { icon: ShieldCheck, title: 'Role access', desc: 'Institute, principal, teacher, student.' },
+];
 
 const Index = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const [installable, setInstallable] = React.useState(canInstall());
+
+  React.useEffect(() => onInstallChange(() => setInstallable(canInstall())), []);
 
   React.useEffect(() => {
     if (user && role) {
       if (role === 'admin') navigate('/dashboard/institute');
       else if (role === 'teacher') {
-        // Check if this teacher is a principal
         (async () => {
           const { data: t } = await supabase.from('teachers').select('role').eq('user_id', user.id).maybeSingle();
           navigate(t?.role === 'principal' ? '/dashboard/principal' : '/dashboard/teacher');
         })();
-      }
-      else if (role === 'student') navigate('/dashboard/student');
+      } else if (role === 'student') navigate('/dashboard/student');
     }
   }, [user, role]);
 
+  const handleDownload = async () => {
+    if (!isStandalone() && canInstall()) {
+      await promptInstall();
+    }
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, hsl(199, 100%, 50%), hsl(210, 100%, 56%))' }}>
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Academy Starter" className="h-8 w-8 rounded-md" />
-            <span className="font-bold text-lg text-white">AcademyStarter</span>
-          </div>
-          <Button size="sm" variant="ghost" className="text-white hover:bg-white/20" asChild>
-            <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer">
-              Feedback
-            </a>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur border-b">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logo} alt="Academy Starter" className="h-8 w-8 rounded-lg" />
+            <span className="font-bold tracking-tight">Academy Starter</span>
+          </Link>
+          <Button size="sm" variant="ghost" asChild>
+            <Link to="/login"><LogIn className="h-4 w-4 mr-1.5" />Login</Link>
           </Button>
         </div>
       </header>
 
-      {/* Hero */}
-      <div className="py-20 px-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(220, 100%, 55%), hsl(265, 85%, 55%))' }}>
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 leading-tight">
-            Manage your institute
-          </h1>
-          <h1 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight" style={{ color: 'hsl(42, 100%, 55%)', fontStyle: 'italic' }}>
-            effortlessly.
-          </h1>
-          <p className="text-lg text-white/85 max-w-2xl mx-auto mb-8">
-            The all-in-one platform for educational institutes. Track attendance, manage fees, organize batches, and manage teachers and students.
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button
-              size="lg"
-              className="bg-white text-primary font-bold hover:bg-white/90 px-8 py-6 text-base"
-              asChild
-            >
-              <Link to="/login">
-                <LogIn className="h-5 w-5 mr-2" />
-                Login to Dashboard
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-6 text-base font-bold"
-              asChild
-            >
-              <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">Register Institute</a>
-            </Button>
+      <main className="flex-1">
+        <section className="max-w-5xl mx-auto px-4 pt-14 pb-16 md:pt-24 md:pb-24 grid md:grid-cols-2 gap-12 items-center">
+          <div className="text-center md:text-left">
+            <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground mb-5">
+              <Smartphone className="h-3.5 w-3.5" /> Works on phone, tablet & desktop
+            </span>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.1] mb-4">
+              Your academy,{' '}
+              <span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(135deg, hsl(220,100%,55%), hsl(265,85%,55%))' }}>
+                in your pocket.
+              </span>
+            </h1>
+            <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto md:mx-0">
+              Attendance, fees and batches — one simple app for institutes, teachers and students.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
+              <Button
+                size="lg"
+                onClick={handleDownload}
+                className="h-12 px-7 text-base font-semibold text-primary-foreground shadow-lg border-0"
+                style={{ backgroundImage: 'linear-gradient(135deg, hsl(220,100%,55%), hsl(265,85%,55%))' }}
+              >
+                <Download className="h-5 w-5 mr-2" /> {installable ? 'Download App' : 'Open App'}
+              </Button>
+              <Button size="lg" variant="outline" className="h-12 px-7 text-base" asChild>
+                <Link to="/login">Login <ArrowRight className="h-4 w-4 ml-2" /></Link>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">Free to install · No app store needed</p>
           </div>
-        </div>
-      </div>
 
+          {/* Phone mock */}
+          <div className="flex justify-center">
+            <div className="relative w-64 h-[30rem] rounded-[2.5rem] border-8 border-foreground/90 bg-card shadow-2xl overflow-hidden">
+              <div className="h-28 p-4 text-primary-foreground" style={{ backgroundImage: 'linear-gradient(135deg, hsl(220,100%,55%), hsl(265,85%,55%))' }}>
+                <p className="text-xs opacity-80">Today</p>
+                <p className="text-lg font-bold">Silambam · Batch A</p>
+                <p className="text-xs mt-1" style={{ color: 'hsl(42,100%,65%)' }}>18 present · 2 late</p>
+              </div>
+              <div className="p-3 space-y-2">
+                {['Arun', 'Divya', 'Karthik', 'Meena', 'Rahul', 'Sneha'].map((n, i) => (
+                  <div key={n} className="flex items-center justify-between rounded-xl border px-3 py-2">
+                    <span className="text-sm font-medium">{n}</span>
+                    <span className={`text-xs font-bold rounded-md px-2 py-0.5 ${i === 2 ? 'bg-secondary text-secondary-foreground' : i === 4 ? 'bg-destructive/15 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                      {i === 2 ? 'L' : i === 4 ? 'A' : 'P'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
-
-      {/* How it works */}
-      <div className="max-w-5xl mx-auto px-4 py-16 w-full">
-        <h2 className="text-3xl font-bold text-center mb-2">How it works</h2>
-        <p className="text-center text-muted-foreground mb-10">Three roles, one platform</p>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            {
-              icon: Building2,
-              title: 'Institute Admin',
-              desc: 'Register your institute. Add students and teachers directly — no self-registration needed. Manage batches, attendance, and fees.',
-              hint: null,
-              iconBg: 'hsl(210, 80%, 95%)',
-              iconColor: 'hsl(210, 80%, 50%)',
-            },
-            {
-              icon: Users,
-              title: 'Teachers',
-              desc: 'Login using your email and auto-generated password. Mark daily attendance, update fee status, and manage your assigned batches.',
-              hint: '🔐 Password: last 4 digits of phone + birth year',
-              iconBg: 'hsl(170, 60%, 93%)',
-              iconColor: 'hsl(170, 60%, 40%)',
-            },
-            {
-              icon: GraduationCap,
-              title: 'Students',
-              desc: 'Login using your registration number and date of birth. View your attendance record and fee payment history.',
-              hint: '🔐 Password: Date of Birth (dd-mm-yyyy)',
-              iconBg: 'hsl(180, 60%, 93%)',
-              iconColor: 'hsl(180, 60%, 40%)',
-            },
-          ].map((f) => (
-            <div key={f.title} className="rounded-xl border bg-card p-6 text-center hover:shadow-lg transition-shadow">
-              <div className="flex justify-center mb-4">
-                <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: f.iconBg }}>
-                  <f.icon className="h-8 w-8" style={{ color: f.iconColor }} />
+        <section className="border-t bg-card">
+          <div className="max-w-5xl mx-auto px-4 py-14 grid grid-cols-2 md:grid-cols-4 gap-6">
+            {features.map((f) => (
+              <div key={f.title}>
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                  <f.icon className="h-5 w-5 text-primary" />
                 </div>
+                <h3 className="font-semibold mb-1">{f.title}</h3>
+                <p className="text-sm text-muted-foreground">{f.desc}</p>
               </div>
-              <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{f.desc}</p>
-              {f.hint && (
-                <p className="text-xs font-medium px-3 py-2 rounded-lg border" style={{ color: 'hsl(170, 60%, 35%)' }}>
-                  {f.hint}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Features strip */}
-      <div className="border-t border-b bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {[
-            { icon: Shield, label: 'Role-Based Access', color: 'hsl(210, 80%, 55%)' },
-            { icon: ClipboardList, label: 'Batch Management', color: 'hsl(170, 60%, 45%)' },
-            { icon: CheckSquare, label: 'Attendance Tracking', color: 'hsl(42, 90%, 50%)' },
-            { icon: DollarSign, label: 'Fee Management', color: 'hsl(30, 90%, 55%)' },
-          ].map((f) => (
-            <div key={f.label} className="flex flex-col items-center text-center gap-3">
-              <div className="h-12 w-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${f.color}20` }}>
-                <f.icon className="h-6 w-6" style={{ color: f.color }} />
-              </div>
-              <span className="font-semibold text-sm">{f.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* CTA */}
-      <div className="py-16 px-4 text-center" style={{ background: 'linear-gradient(135deg, hsl(199, 100%, 50%), hsl(210, 100%, 56%))' }}>
-        <h2 className="text-3xl font-bold text-white mb-3">Ready to get started?</h2>
-        <p className="text-white/85 mb-8">Register your institute and take full control in minutes.</p>
-        <Button size="lg" className="bg-white text-primary font-bold hover:bg-white/90 px-8 py-6 text-base" asChild>
-          <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">
-            <Building2 className="h-5 w-5 mr-2" />
-            Register Your Institute
-          </a>
-        </Button>
-      </div>
-
-      {/* Footer */}
-      <footer className="border-t bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Academy Starter" className="h-5 w-5 rounded" />
-            <span>Academy Starter</span>
+            ))}
           </div>
-          <p>© {new Date().getFullYear()} Endora Innovation. All rights reserved.</p>
+        </section>
+
+        <section className="max-w-5xl mx-auto px-4 py-14 text-center">
+          <h2 className="text-2xl font-bold mb-2">Run an institute?</h2>
+          <p className="text-muted-foreground mb-6">Get your institute set up in minutes.</p>
+          <Button size="lg" variant="outline" className="h-12 px-7" asChild>
+            <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">Register Institute</a>
+          </Button>
+        </section>
+      </main>
+
+      <footer className="border-t">
+        <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span>© {new Date().getFullYear()} Endora Innovation</span>
+          <a href="https://forms.gle/3PsfR181KFEMnXkB7" target="_blank" rel="noopener noreferrer" className="hover:text-foreground">Feedback</a>
         </div>
       </footer>
     </div>
