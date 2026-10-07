@@ -121,14 +121,6 @@ const Index = () => {
             ))}
           </div>
         </section>
-
-        <section className="max-w-5xl mx-auto px-4 py-14 text-center">
-          <h2 className="text-2xl font-bold mb-2">Run an institute?</h2>
-          <p className="text-muted-foreground mb-6">Get your institute set up in minutes.</p>
-          <Button size="lg" variant="outline" className="h-12 px-7" asChild>
-            <a href={registrationWhatsAppUrl} target="_blank" rel="noopener noreferrer">Register Institute</a>
-          </Button>
-        </section>
       </main>
 
       <footer className="border-t">
