@@ -22,6 +22,10 @@ const Index = () => {
   React.useEffect(() => onInstallChange(() => setInstallable(canInstall())), []);
 
   React.useEffect(() => {
+    if (isStandalone() && !user) navigate('/login', { replace: true });
+  }, [user]);
+
+  React.useEffect(() => {
     if (user && role) {
       if (role === 'admin') navigate('/dashboard/institute');
       else if (role === 'teacher') {
