@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         name: "Academy Starter",
         short_name: "Academy",
         description: "Attendance, fees and batches for academies.",
-        start_url: "/",
+        start_url: "/login",
         scope: "/",
         display: "standalone",
         orientation: "portrait",
